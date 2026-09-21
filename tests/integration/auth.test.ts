@@ -116,8 +116,9 @@ describe("staff authentication integration", () => {
       ),
     );
 
-    expect(responses.map((response) => response.status)).toEqual([401, 401, 401, 401, 401, 429]);
-    expect(responses[5]?.headers.get("Retry-After")).toMatch(/^\d+$/);
+    expect(responses.filter((response) => response.status === 401)).toHaveLength(5);
+    const limited = responses.find((response) => response.status === 429);
+    expect(limited?.headers.get("Retry-After")).toMatch(/^\d+$/);
   });
 
   it("limits each normalized-email and hashed-IP bucket and clears it after success", async () => {

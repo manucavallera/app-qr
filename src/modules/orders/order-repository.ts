@@ -91,7 +91,7 @@ function quoteItemCreates(quote: OrderQuote) {
 }
 
 async function notifyOrderChanged(tx: Tx, payload: { id: string; number: number; status: string; version: number; tableId: string | null }) {
-  await tx.$executeRaw`SELECT pg_notify('app_qr_orders', ${JSON.stringify(payload)})`;
+  await tx.$executeRaw`SELECT pg_notify('appqr_order_events', ${JSON.stringify({ type: "order.changed", orderId: payload.id, version: payload.version, occurredAt: new Date().toISOString() })})`;
 }
 
 async function idempotencyLock(tx: Tx, clientRequestId: string): Promise<void> {
