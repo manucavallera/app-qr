@@ -33,7 +33,8 @@ async function seed() {
     update: {},
   });
 
-  for (let weekday = 0; weekday < 7; weekday += 1) {
+  await prisma.serviceWindow.deleteMany({ where: { weekday: 0 } });
+  for (let weekday = 1; weekday <= 7; weekday += 1) {
     await prisma.serviceWindow.upsert({
       where: { weekday },
       create: {

@@ -68,7 +68,7 @@ describe("initial relational schema", () => {
   });
 
   it("rejects two service windows for the same weekday", async () => {
-    const weekday = Math.floor(Math.random() * 7);
+    const weekday = Math.floor(Math.random() * 7) + 1;
     const firstId = randomUUID();
     const secondId = randomUUID();
     createdWindowIds.push(firstId, secondId);

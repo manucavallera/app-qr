@@ -78,6 +78,7 @@ model BusinessSettings {
 
 model ServiceWindow {
   id             String  @id @default(uuid())
+  /// ISO weekday: Monday = 1 through Sunday = 7.
   weekday        Int     @unique
   opensAtMinute  Int
   closesAtMinute Int
