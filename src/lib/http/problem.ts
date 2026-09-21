@@ -1,0 +1,2 @@
+import { NextResponse } from "next/server";
+export function problem(input: { code: string; title: string; status: number; requestId: string; detail?: string }): NextResponse { return NextResponse.json({ type: `https://app.example/problems/${input.code.toLowerCase().replaceAll("_", "-")}`, title: input.title, status: input.status, code: input.code, requestId: input.requestId, ...(input.detail ? { detail: input.detail } : {}) }, { status: input.status, headers: { "Content-Type": "application/problem+json" } }); }
