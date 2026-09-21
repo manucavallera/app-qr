@@ -7,6 +7,7 @@ const domainStatus: Record<string, number> = {
   PRODUCT_NOT_FOUND: 404,
   CATEGORY_NOT_FOUND: 404,
   TABLE_NOT_FOUND: 404,
+  RATE_LIMITED: 429,
 };
 
 export function apiErrorResponse(error: unknown): NextResponse {
