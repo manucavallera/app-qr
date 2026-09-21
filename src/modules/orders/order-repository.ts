@@ -5,6 +5,7 @@ import { resolveServiceMode } from "../operations/service-mode";
 import { DomainError } from "./errors";
 import { calculateQuote, type OrderQuote, type QuoteProduct, type QuoteRequest } from "./quote";
 import type { CreateCounterOrderInput, CreateQrOrderInput, ConfirmTraditionalPaymentInput } from "./order-contracts";
+import { createCheckoutIdempotencyKey } from "../payments/payment-service";
 
 type Tx = Prisma.TransactionClient;
 const orderInclude = {
@@ -296,6 +297,54 @@ export class PrismaOrderRepository {
 
   async listStaffOrders() {
     return this.db.order.findMany({ orderBy: { createdAt: "desc" }, take: 100, include: orderInclude });
+  }
+
+  async findOrderForCustomer(orderId: string, customerSessionId: string) {
+    return this.db.order.findFirst({
+      where: { id: orderId, customerSessionId, origin: "QR" },
+      include: { items: true },
+    });
+  }
+
+  async findOrCreateCheckoutAttempt(orderId: string, customerSessionId: string) {
+    return this.db.$transaction(async (tx) => {
+      const order = await tx.order.findFirst({ where: { id: orderId, customerSessionId, origin: "QR" }, include: { payments: true } });
+      if (!order) return null;
+      const existing = order.payments.find((payment) => payment.method === "MERCADO_PAGO" && ["PENDING", "APPROVED"].includes(payment.status));
+      if (existing) return { id: existing.id, idempotencyKey: existing.idempotencyKey, providerOrderId: existing.providerOrderId, checkoutUrl: typeof existing.providerPayload === "object" && existing.providerPayload !== null && "checkoutUrl" in existing.providerPayload ? String((existing.providerPayload as { checkoutUrl?: unknown }).checkoutUrl ?? "") : null };
+      const created = await tx.paymentAttempt.create({ data: { orderId, method: "MERCADO_PAGO", status: "PENDING", amountCents: order.totalCents, idempotencyKey: createCheckoutIdempotencyKey() } });
+      return { id: created.id, idempotencyKey: created.idempotencyKey, providerOrderId: created.providerOrderId, checkoutUrl: null };
+    });
+  }
+
+  async saveCheckout(input: { attemptId: string; providerOrderId: string; checkoutUrl: string; raw: unknown }): Promise<void> {
+    await this.db.paymentAttempt.update({ where: { id: input.attemptId }, data: { providerOrderId: input.providerOrderId, providerPayload: { raw: input.raw as Prisma.InputJsonValue, checkoutUrl: input.checkoutUrl } } });
+  }
+
+  async processGatewayUpdate(input: { providerOrderId: string; externalReference: string; status: string; statusDetail: string; totalPaidCents: number; raw: unknown }) {
+    return this.db.$transaction(async (tx) => {
+      const attempt = await tx.paymentAttempt.findUnique({ where: { providerOrderId: input.providerOrderId }, include: { order: true } });
+      if (!attempt || attempt.order.id !== input.externalReference) throw new DomainError("PAYMENT_NOT_FOUND", "No encontramos el pago asociado.");
+      if (attempt.amountCents !== input.totalPaidCents && input.status === "processed" && input.statusDetail === "accredited") {
+        await tx.auditEvent.create({ data: { action: "PAYMENT_AMOUNT_MISMATCH", entityType: "PaymentAttempt", entityId: attempt.id, metadata: { expected: attempt.amountCents, received: input.totalPaidCents, providerOrderId: input.providerOrderId } } });
+        return tx.order.findUnique({ where: { id: attempt.orderId }, include: orderInclude });
+      }
+      if (input.status === "processed" && input.statusDetail === "accredited") {
+        if (attempt.status !== "APPROVED") {
+          await tx.paymentAttempt.update({ where: { id: attempt.id }, data: { status: "APPROVED", providerPayload: input.raw as Prisma.InputJsonValue } });
+          if (attempt.order.status === "AWAITING_PAYMENT") {
+            const order = await tx.order.update({ where: { id: attempt.orderId }, data: { status: "CONFIRMED", version: { increment: 1 } }, include: orderInclude });
+            await tx.orderStatusEvent.create({ data: { orderId: attempt.orderId, fromStatus: "AWAITING_PAYMENT", toStatus: "CONFIRMED" } });
+            await notifyOrderChanged(tx, { id: order.id, number: order.number, status: order.status, version: order.version, tableId: order.tableId });
+          }
+        }
+      } else if (input.status === "processed" && ["rejected", "cancelled"].includes(input.statusDetail) && attempt.status !== "REJECTED") {
+        await tx.paymentAttempt.update({ where: { id: attempt.id }, data: { status: "REJECTED", providerPayload: input.raw as Prisma.InputJsonValue } });
+      } else if (attempt.status === "PENDING") {
+        await tx.paymentAttempt.update({ where: { id: attempt.id }, data: { providerPayload: input.raw as Prisma.InputJsonValue } });
+      }
+      return tx.order.findUnique({ where: { id: attempt.orderId }, include: orderInclude });
+    });
   }
 }
 
