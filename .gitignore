@@ -1,0 +1,12 @@
+node_modules
+.next/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+var/uploads/
+src/generated/prisma/
+.superpowers/
