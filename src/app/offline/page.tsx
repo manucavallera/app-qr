@@ -1,0 +1,1 @@
+export default function OfflinePage() { return <main className="qr-welcome-shell"><section className="qr-welcome-card"><p className="eyebrow">Sin conexión</p><h1>Volvé a intentar</h1><p>Necesitás conexión para consultar la carta y enviar pedidos.</p></section></main>; }
