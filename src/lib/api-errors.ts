@@ -8,6 +8,16 @@ const domainStatus: Record<string, number> = {
   CATEGORY_NOT_FOUND: 404,
   TABLE_NOT_FOUND: 404,
   RATE_LIMITED: 429,
+  QR_ORDERING_CLOSED: 409,
+  PRICE_CHANGED: 409,
+  PRODUCT_UNAVAILABLE: 409,
+  OPTION_UNAVAILABLE: 409,
+  ORDER_REQUEST_CONFLICT: 409,
+  ORDER_VERSION_CONFLICT: 409,
+  ORDER_NOT_AWAITING_PAYMENT: 409,
+  PAYMENT_METHOD_MISMATCH: 409,
+  CUSTOMER_SESSION_EXPIRED: 401,
+  ORDER_NOT_FOUND: 404,
 };
 
 export function apiErrorResponse(error: unknown): NextResponse {
@@ -16,6 +26,9 @@ export function apiErrorResponse(error: unknown): NextResponse {
   }
 
   if (error instanceof DomainError) {
+    if (error.code === "PRICE_CHANGED" && error.details?.quote) {
+      return NextResponse.json({ error: error.code, quote: error.details.quote }, { status: 409 });
+    }
     return NextResponse.json(
       { error: error.code },
       { status: domainStatus[error.code] ?? 400 },

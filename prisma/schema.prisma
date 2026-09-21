@@ -196,6 +196,7 @@ model Order {
   tableId            String?
   customerSessionId  String?
   createdByStaffId   String?
+  customerName       String?
   origin             OrderOrigin
   status             OrderStatus        @default(AWAITING_PAYMENT)
   totalCents         Int
