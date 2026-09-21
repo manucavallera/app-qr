@@ -1,0 +1,295 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum StaffRole {
+  ADMIN
+  OPERATOR
+}
+
+enum ManualMode {
+  SCHEDULED
+  FORCE_QR_OPEN
+  FORCE_COUNTER_ONLY
+  FORCE_PAUSED
+}
+
+enum OrderOrigin {
+  QR
+  COUNTER
+}
+
+enum OrderStatus {
+  DRAFT
+  AWAITING_PAYMENT
+  CONFIRMED
+  PREPARING
+  READY
+  DELIVERED
+  CANCELLED
+}
+
+enum OrderItemStatus {
+  QUEUED
+  PREPARING
+  READY
+  DELIVERED
+}
+
+enum PaymentMethod {
+  MERCADO_PAGO
+  CASH
+  CARD_AT_COUNTER
+  OTHER
+}
+
+enum PaymentStatus {
+  UNPAID
+  PENDING
+  APPROVED
+  REJECTED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PreparationStation {
+  GENERAL
+  KITCHEN
+  BAR
+}
+
+enum FulfillmentType {
+  TABLE
+  PICKUP
+}
+
+model BusinessSettings {
+  id         String     @id @default("default")
+  name       String
+  timezone   String     @default("America/Argentina/Buenos_Aires")
+  manualMode ManualMode @default(SCHEDULED)
+  updatedAt  DateTime   @updatedAt
+}
+
+model ServiceWindow {
+  id             String  @id @default(uuid())
+  weekday        Int     @unique
+  opensAtMinute  Int
+  closesAtMinute Int
+  enabled        Boolean @default(true)
+}
+
+model StaffUser {
+  id                String             @id @default(uuid())
+  email             String             @unique
+  displayName       String
+  passwordHash      String
+  role              StaffRole
+  active            Boolean            @default(true)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  sessions          StaffSession[]
+  createdOrders     Order[]            @relation("OrderCreator")
+  confirmedPayments PaymentAttempt[]   @relation("PaymentConfirmer")
+  statusEvents      OrderStatusEvent[] @relation("StatusActor")
+  auditEvents       AuditEvent[]
+}
+
+model StaffSession {
+  id        String    @id @default(uuid())
+  tokenHash String    @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  user      StaffUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model DiningTable {
+  id               String            @id @default(uuid())
+  label            String            @unique
+  qrToken          String            @unique
+  active           Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  customerSessions CustomerSession[]
+  orders           Order[]
+}
+
+model CustomerSession {
+  id        String      @id @default(uuid())
+  tableId   String
+  nickname  String
+  tokenHash String      @unique
+  expiresAt DateTime
+  closedAt  DateTime?
+  createdAt DateTime    @default(now())
+  table     DiningTable @relation(fields: [tableId], references: [id])
+  orders    Order[]
+
+  @@index([tableId, expiresAt])
+}
+
+model Category {
+  id        String    @id @default(uuid())
+  name      String
+  sortOrder Int       @default(0)
+  visible   Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  products  Product[]
+}
+
+model Product {
+  id           String             @id @default(uuid())
+  categoryId   String
+  name         String
+  description  String
+  imageKey     String?
+  priceCents   Int
+  available    Boolean            @default(true)
+  visible      Boolean            @default(true)
+  station      PreparationStation @default(GENERAL)
+  fulfillment  FulfillmentType    @default(TABLE)
+  sortOrder    Int                @default(0)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  category     Category           @relation(fields: [categoryId], references: [id])
+  optionGroups OptionGroup[]
+  orderItems   OrderItem[]
+
+  @@index([categoryId, sortOrder])
+}
+
+model OptionGroup {
+  id            String        @id @default(uuid())
+  productId     String
+  name          String
+  required      Boolean       @default(false)
+  minSelections Int           @default(0)
+  maxSelections Int           @default(1)
+  sortOrder     Int           @default(0)
+  product       Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  values        OptionValue[]
+}
+
+model OptionValue {
+  id               String            @id @default(uuid())
+  groupId          String
+  name             String
+  priceDeltaCents  Int               @default(0)
+  available        Boolean           @default(true)
+  sortOrder        Int               @default(0)
+  group            OptionGroup       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  orderItemOptions OrderItemOption[]
+}
+
+model Order {
+  id                 String             @id @default(uuid())
+  number             Int                @unique @default(autoincrement())
+  clientRequestId    String             @unique
+  tableId            String?
+  customerSessionId  String?
+  createdByStaffId   String?
+  origin             OrderOrigin
+  status             OrderStatus        @default(AWAITING_PAYMENT)
+  totalCents         Int
+  version            Int                @default(1)
+  cancellationReason String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  table              DiningTable?       @relation(fields: [tableId], references: [id])
+  customerSession    CustomerSession?   @relation(fields: [customerSessionId], references: [id])
+  createdByStaff     StaffUser?         @relation("OrderCreator", fields: [createdByStaffId], references: [id])
+  items              OrderItem[]
+  payments           PaymentAttempt[]
+  statusEvents       OrderStatusEvent[]
+
+  @@index([status, createdAt])
+  @@index([customerSessionId])
+  @@index([tableId])
+}
+
+model OrderItem {
+  id                String             @id @default(uuid())
+  orderId           String
+  productId         String?
+  productName       String
+  quantity          Int
+  unitBaseCents     Int
+  optionsTotalCents Int
+  lineTotalCents    Int
+  station           PreparationStation
+  fulfillment       FulfillmentType
+  status            OrderItemStatus    @default(QUEUED)
+  notes             String?
+  order             Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product           Product?           @relation(fields: [productId], references: [id], onDelete: SetNull)
+  options           OrderItemOption[]
+}
+
+model OrderItemOption {
+  id              String       @id @default(uuid())
+  orderItemId     String
+  optionValueId   String?
+  groupName       String
+  valueName       String
+  priceDeltaCents Int
+  orderItem       OrderItem    @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  optionValue     OptionValue? @relation(fields: [optionValueId], references: [id], onDelete: SetNull)
+}
+
+model PaymentAttempt {
+  id                 String        @id @default(uuid())
+  orderId            String
+  method             PaymentMethod
+  status             PaymentStatus
+  amountCents        Int
+  refundedCents      Int           @default(0)
+  idempotencyKey     String        @unique
+  providerOrderId    String?       @unique
+  providerPayload    Json?
+  confirmedByStaffId String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  order              Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  confirmedByStaff   StaffUser?    @relation("PaymentConfirmer", fields: [confirmedByStaffId], references: [id])
+
+  @@index([orderId, status])
+}
+
+model OrderStatusEvent {
+  id           String       @id @default(uuid())
+  orderId      String
+  fromStatus   OrderStatus?
+  toStatus     OrderStatus
+  actorStaffId String?
+  reason       String?
+  createdAt    DateTime     @default(now())
+  order        Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  actorStaff   StaffUser?   @relation("StatusActor", fields: [actorStaffId], references: [id])
+
+  @@index([orderId, createdAt])
+}
+
+model AuditEvent {
+  id           String     @id @default(uuid())
+  actorStaffId String?
+  action       String
+  entityType   String
+  entityId     String
+  metadata     Json
+  createdAt    DateTime   @default(now())
+  actorStaff   StaffUser? @relation(fields: [actorStaffId], references: [id])
+}
+
+model RateLimitBucket {
+  key       String   @id
+  count     Int
+  resetsAt  DateTime
+  updatedAt DateTime @updatedAt
+}

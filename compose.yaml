@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: appqr
+      POSTGRES_USER: appqr
+      POSTGRES_PASSWORD: appqr_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - appqr_postgres:/var/lib/postgresql
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/01-test-database.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appqr -d appqr"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+volumes:
+  appqr_postgres:
