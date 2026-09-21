@@ -44,13 +44,6 @@ const serverEnvSchema = z
           });
         }
       }
-      if (!env.S3_ENDPOINT) {
-        context.addIssue({
-          code: "custom",
-          path: ["S3_ENDPOINT"],
-          message: "is required when IMAGE_STORAGE_DRIVER is s3",
-        });
-      }
     }
   });
 
