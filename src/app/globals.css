@@ -913,6 +913,13 @@ textarea {
 .payment-card span, .payment-card small { color: #73766f; font-size: 0.82rem; }
 .payment-card .primary-link { border: 0; cursor: pointer; font: inherit; }
 .empty-state { color: #73766f; }
+.command-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-top: 24px; }
+.command-card { display: grid; gap: 14px; padding: 18px; border: 1px solid #e3e2dc; border-radius: 16px; background: #fffefa; box-shadow: 0 8px 24px rgb(40 40 32 / 5%); }
+.command-card-heading { display: flex; justify-content: space-between; gap: 12px; }
+.command-card-heading span, .command-card li small { color: #73766f; font-size: 0.8rem; }
+.command-card ul { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.command-card li { display: grid; gap: 3px; padding-bottom: 8px; border-bottom: 1px solid #efeee8; }
+.command-card .primary-link { border: 0; cursor: pointer; font: inherit; }
 
 @media (max-width: 640px) {
   .payment-card { grid-template-columns: minmax(0, 1fr) auto; }
