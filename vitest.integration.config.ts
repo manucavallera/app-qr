@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { defineConfig } from "vitest/config";
+import tsconfigPaths from "vite-tsconfig-paths";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 if (!testDatabaseUrl) {
@@ -8,6 +9,7 @@ if (!testDatabaseUrl) {
 process.env.DATABASE_URL = testDatabaseUrl;
 
 export default defineConfig({
+  plugins: [tsconfigPaths()],
   test: {
     environment: "node",
     include: ["tests/integration/**/*.test.ts"],
