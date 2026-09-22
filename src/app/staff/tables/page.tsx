@@ -9,6 +9,7 @@ type Table = {
   label: string;
   active: boolean;
   qrConfigured: boolean;
+  menuUrl: string;
   createdAt: string;
 };
 
@@ -70,6 +71,18 @@ export default function StaffTablesPage() {
     await refresh();
   }
 
+  async function copyLink(table: Table) {
+    await navigator.clipboard.writeText(table.menuUrl);
+    setMessage(`Enlace de ${table.label} copiado.`);
+  }
+
+  async function setActive(table: Table) {
+    const response = await fetch(`/api/staff/tables/${table.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ active: !table.active }) });
+    if (!response.ok) { setMessage("No se pudo cambiar el estado de la mesa."); return; }
+    setTables((current) => current.map((item) => item.id === table.id ? { ...item, active: !table.active } : item));
+    setMessage(`${table.label} ${table.active ? "desactivada" : "activada"}.`);
+  }
+
   return (
     <StaffShell title="Mesas y códigos QR" section="tables" role="ADMIN">
       {message ? <p className="staff-message" role="status">{message}</p> : null}
@@ -115,8 +128,12 @@ export default function StaffTablesPage() {
                 width={168}
               />
               <div className="button-row table-actions">
-                <a className="button-secondary" download={`QR-${table.label}.svg`} href={`/api/staff/tables/${table.id}/qr`}>Descargar SVG</a>
+                <a className="button-secondary" href={table.menuUrl} target="_blank" rel="noreferrer">Abrir carta de prueba</a>
+                <button className="button-secondary" onClick={() => void copyLink(table)} type="button">Copiar enlace</button>
+                <button className="button-secondary" onClick={() => window.print()} type="button">Imprimir</button>
+                <a className="button-secondary" download={`QR-${table.label}.svg`} href={`/api/staff/tables/${table.id}/qr`}>Descargar QR</a>
                 <button className="button-text danger-text" onClick={() => void regenerateQr(table)} type="button">Renovar QR</button>
+                <button className="button-text" onClick={() => void setActive(table)} type="button">{table.active ? "Desactivar mesa" : "Activar mesa"}</button>
               </div>
             </article>
           ))}

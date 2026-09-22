@@ -62,6 +62,16 @@ export class PrismaTableRepository {
       return table;
     });
   }
+
+  async setActive(id: string, active: boolean, actorStaffId: string): Promise<DiningTableRecord> {
+    return this.db.$transaction(async (tx) => {
+      const existing = await tx.diningTable.findUnique({ where: { id }, select: { id: true, label: true } });
+      if (!existing) throw new DomainError("TABLE_NOT_FOUND", "No encontramos esa mesa.");
+      const table = await tx.diningTable.update({ where: { id }, data: { active } });
+      await tx.auditEvent.create({ data: { actorStaffId, action: active ? "TABLE_ACTIVATED" : "TABLE_DEACTIVATED", entityType: "DiningTable", entityId: id, metadata: { label: table.label, active } } });
+      return table;
+    });
+  }
 }
 
 export class TableService {
@@ -81,6 +91,10 @@ export class TableService {
 
   regenerateQr(id: string, actorStaffId: string) {
     return this.repository.regenerateQr(id, actorStaffId);
+  }
+
+  setActive(id: string, active: boolean, actorStaffId: string) {
+    return this.repository.setActive(id, active, actorStaffId);
   }
 }
 

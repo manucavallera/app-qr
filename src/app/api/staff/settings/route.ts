@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
     prisma.paymentSettings.findUnique({ where: { id: "default" } }),
   ]);
   return NextResponse.json({
+    role: principal.role,
     settings,
     windows,
     paymentSettings: paymentSettings ?? defaultPaymentSettings,

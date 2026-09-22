@@ -945,6 +945,29 @@ textarea {
 .mode-FORCE_PAUSED, .mode-PAUSED { background: #fff0e6; color: #98562d; }
 .mode-COUNTER_ONLY { background: #fff8df; color: #806213; }
 .muted { color: #73766f; }
+.settings-layout { display: grid; gap: 18px; }
+.mode-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-top: 20px; }
+.mode-option { min-height: 58px; padding: 10px 14px; border: 1px solid #d9dad3; border-radius: 12px; background: #fff; color: #34483a; cursor: pointer; font-weight: 700; text-align: left; }
+.mode-option.selected { border-color: #527760; background: #edf5ec; box-shadow: 0 0 0 2px #d4e5d7; }
+.schedule-list { display: grid; gap: 10px; margin-top: 18px; }
+.schedule-row { display: grid; grid-template-columns: minmax(130px, 1fr) 130px auto 130px; align-items: center; gap: 10px; }
+.schedule-row .check-field { min-height: 44px; }
+.payment-switches { display: grid; gap: 12px; margin-top: 20px; }
+.transfer-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 18px; padding-top: 18px; border-top: 1px solid #ecebe5; }
+.settings-save { width: 100%; border: 0; cursor: pointer; font: inherit; }
+.counter-layout { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(260px, 0.8fr); gap: 28px; }
+.counter-layout h2 { margin: 0; }
+.counter-layout .staff-form { display: grid; gap: 14px; margin-top: 22px; }
+.counter-products, .counter-cart { display: grid; gap: 10px; margin-top: 10px; }
+.counter-products h3, .counter-cart h3 { margin: 0; font-size: 1rem; }
+.product-picker { display: flex; min-height: 56px; align-items: center; justify-content: space-between; padding: 10px 14px; border: 1px solid #e3e2dc; border-radius: 12px; background: #fff; color: #263a30; cursor: pointer; text-align: left; }
+.product-picker:hover { border-color: #9bbda5; background: #f4f8f3; }
+.product-picker span:first-child { display: grid; gap: 3px; }
+.product-picker small { color: #73766f; }
+.counter-line { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #ecebe5; }
+.counter-recent { padding: 20px; border-radius: 16px; background: #f4f8f3; }
+.counter-recent h2 { margin-bottom: 18px; }
+.table-actions { margin-top: 12px; }
 
 button:disabled { cursor: not-allowed; opacity: 0.62; }
 
@@ -953,4 +976,7 @@ button:disabled { cursor: not-allowed; opacity: 0.62; }
   .payment-card .primary-link { grid-column: 1 / -1; }
   .staff-header { align-items: flex-start; }
   .staff-header > button { min-width: 0; padding: 0 10px; }
+  .counter-layout, .transfer-fields { grid-template-columns: 1fr; }
+  .schedule-row { grid-template-columns: minmax(110px, 1fr) 1fr 1fr; }
+  .schedule-row span { display: none; }
 }
