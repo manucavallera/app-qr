@@ -6,8 +6,19 @@ import { DomainError } from "./errors";
 import { calculateQuote, type OrderQuote, type QuoteProduct, type QuoteRequest } from "./quote";
 import type { CreateCounterOrderInput, CreateQrOrderInput, ConfirmTraditionalPaymentInput } from "./order-contracts";
 import { createCheckoutIdempotencyKey } from "../payments/payment-service";
+import { availablePaymentMethods, type PaymentSettingsView } from "../payments/payment-methods";
 
 type Tx = Prisma.TransactionClient;
+const defaultPaymentSettings: PaymentSettingsView = {
+  mercadoPagoEnabled: false,
+  cashEnabled: true,
+  cardAtCounterEnabled: true,
+  bankTransferEnabled: false,
+  bankAlias: null,
+  bankCbuCvu: null,
+  bankAccountHolder: null,
+  bankInstructions: null,
+};
 const orderInclude = {
   table: { select: { id: true, label: true } },
   customerSession: { select: { id: true, nickname: true } },
@@ -15,6 +26,16 @@ const orderInclude = {
   payments: true,
   statusEvents: { orderBy: { createdAt: "asc" as const } },
 } satisfies Prisma.OrderInclude;
+
+function paymentSettingsView(value: PaymentSettingsView | null): PaymentSettingsView {
+  return value ?? defaultPaymentSettings;
+}
+
+function assertPaymentMethodAvailable(settings: PaymentSettingsView, method: CreateQrOrderInput["paymentMethod"]): void {
+  if (!availablePaymentMethods(settings, { mercadoPagoConfigured: true }).includes(method)) {
+    throw new DomainError("PAYMENT_METHOD_UNAVAILABLE", "Ese medio de pago no está disponible en este momento.");
+  }
+}
 
 async function transactionTime(tx: Tx): Promise<Date> {
   const [row] = await tx.$queryRaw<Array<{ now: Date }>>`SELECT transaction_timestamp() AS now`;
@@ -136,9 +157,10 @@ export class PrismaOrderRepository {
       const limit = await consumeOrderRateLimit(tx, rateKey);
       if (!limit.allowed) return { kind: "limited" as const, resetsAt: limit.resetsAt };
 
-      const [settings, windows] = await Promise.all([
+      const [settings, windows, paymentSettings] = await Promise.all([
         tx.businessSettings.findUnique({ where: { id: "default" } }),
         tx.serviceWindow.findMany(),
+        tx.paymentSettings.findUnique({ where: { id: "default" } }),
       ]);
       const mode = settings
         ? resolveServiceMode(now, settings.timezone, windows, settings.manualMode)
@@ -146,6 +168,9 @@ export class PrismaOrderRepository {
       if (mode !== "QR_OPEN") {
         throw new DomainError("QR_ORDERING_CLOSED", "La autogestión por QR está cerrada en este momento.", { mode });
       }
+
+      const paymentConfiguration = paymentSettingsView(paymentSettings);
+      assertPaymentMethodAvailable(paymentConfiguration, input.paymentMethod);
 
       const products = await findQuoteProducts(tx, input.items);
       const quote = quoteOrReportFresh(input, products);
@@ -195,6 +220,8 @@ export class PrismaOrderRepository {
         const table = await tx.diningTable.findFirst({ where: { id: input.tableId, active: true } });
         if (!table) throw new DomainError("TABLE_NOT_FOUND", "La mesa seleccionada no está activa.");
       }
+      const paymentConfiguration = paymentSettingsView(await tx.paymentSettings.findUnique({ where: { id: "default" } }));
+      assertPaymentMethodAvailable(paymentConfiguration, input.paymentMethod);
       const products = await findQuoteProducts(tx, input.items);
       const quote = quoteOrReportFresh(input, products);
       const order = await tx.order.create({
@@ -241,7 +268,11 @@ export class PrismaOrderRepository {
       if (locked.length === 0) throw new DomainError("ORDER_NOT_FOUND", "No encontramos ese pedido.");
       const order = await tx.order.findUnique({ where: { id: orderId }, include: orderInclude });
       if (!order) throw new DomainError("ORDER_NOT_FOUND", "No encontramos ese pedido.");
-      if (order.status === "CONFIRMED") return order;
+      if (order.status === "CONFIRMED") {
+        const approved = order.payments.find((attempt) => attempt.method === input.method && attempt.status === "APPROVED");
+        if (approved) return order;
+        throw new DomainError("PAYMENT_METHOD_MISMATCH", "El pedido ya fue confirmado con otro medio de pago.");
+      }
       if (order.status !== "AWAITING_PAYMENT") {
         throw new DomainError("ORDER_NOT_AWAITING_PAYMENT", "El pedido ya no espera confirmación de pago.");
       }
@@ -288,10 +319,35 @@ export class PrismaOrderRepository {
     return this.db.order.findMany({
       where: {
         status: "AWAITING_PAYMENT",
-        payments: { some: { status: "UNPAID", method: { in: ["CASH", "CARD_AT_COUNTER"] } } },
+        payments: { some: { status: "UNPAID", method: { in: ["CASH", "CARD_AT_COUNTER", "BANK_TRANSFER"] } } },
       },
       orderBy: { createdAt: "asc" },
       include: orderInclude,
+    });
+  }
+
+  async rejectTraditionalPayment(orderId: string, input: { reason: string; expectedOrderVersion: number }, staffId: string): Promise<unknown> {
+    return this.db.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw<Array<{ id: string }>>`SELECT id FROM "Order" WHERE id = ${orderId} FOR UPDATE`;
+      if (locked.length === 0) throw new DomainError("ORDER_NOT_FOUND", "No encontramos ese pedido.");
+      const order = await tx.order.findUnique({ where: { id: orderId }, include: orderInclude });
+      if (!order) throw new DomainError("ORDER_NOT_FOUND", "No encontramos ese pedido.");
+      if (order.status === "CANCELLED" && order.cancellationReason === input.reason) return order;
+      if (order.status !== "AWAITING_PAYMENT") throw new DomainError("ORDER_NOT_AWAITING_PAYMENT", "El pedido ya no espera confirmación de pago.");
+      if (order.version !== input.expectedOrderVersion) throw new DomainError("ORDER_VERSION_CONFLICT", "El pedido cambió. Actualizá la pantalla e intentá de nuevo.");
+
+      const payment = order.payments.find((attempt) => attempt.status === "UNPAID" && ["CASH", "CARD_AT_COUNTER", "BANK_TRANSFER"].includes(attempt.method));
+      if (!payment) throw new DomainError("PAYMENT_NOT_FOUND", "No encontramos un pago manual pendiente para este pedido.");
+      await tx.paymentAttempt.update({ where: { id: payment.id }, data: { status: "REJECTED", confirmedByStaffId: staffId } });
+      const cancelled = await tx.order.update({
+        where: { id: order.id },
+        data: { status: "CANCELLED", cancellationReason: input.reason, version: { increment: 1 } },
+        include: orderInclude,
+      });
+      await tx.orderStatusEvent.create({ data: { orderId, fromStatus: "AWAITING_PAYMENT", toStatus: "CANCELLED", actorStaffId: staffId, reason: input.reason } });
+      await tx.auditEvent.create({ data: { actorStaffId: staffId, action: "PAYMENT_TRADITIONAL_REJECTED", entityType: "Order", entityId: orderId, metadata: { method: payment.method, reason: input.reason } } });
+      await notifyOrderChanged(tx, { id: cancelled.id, number: cancelled.number, status: cancelled.status, version: cancelled.version, tableId: cancelled.tableId });
+      return cancelled;
     });
   }
 

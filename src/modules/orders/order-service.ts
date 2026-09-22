@@ -1,14 +1,16 @@
-import type { CreateCounterOrderInput, CreateQrOrderInput, ConfirmTraditionalPaymentInput } from "./order-contracts";
+import type { CreateCounterOrderInput, CreateQrOrderInput, ConfirmTraditionalPaymentInput, RejectTraditionalPaymentInput } from "./order-contracts";
 import {
   confirmTraditionalPaymentInputSchema,
   createCounterOrderInputSchema,
   createQrOrderInputSchema,
+  rejectTraditionalPaymentInputSchema,
 } from "./order-contracts";
 
 export type OrderRepository = {
   createQrOrder(input: CreateQrOrderInput, sessionToken: string, clientIp: string): Promise<{ order: unknown; created: boolean }>;
   createCounterOrder(input: CreateCounterOrderInput, staffId: string): Promise<{ order: unknown; created: boolean }>;
   confirmTraditionalPayment(orderId: string, input: ConfirmTraditionalPaymentInput, staffId: string): Promise<unknown>;
+  rejectTraditionalPayment(orderId: string, input: RejectTraditionalPaymentInput, staffId: string): Promise<unknown>;
   findCustomerOrder(orderId: string, customerSessionId: string): Promise<unknown | null>;
   listPendingTraditionalPayments(): Promise<unknown[]>;
   listStaffOrders(): Promise<unknown[]>;
@@ -27,6 +29,10 @@ export class OrderService {
 
   async confirmTraditionalPayment(orderId: string, input: unknown, staffId: string) {
     return this.repository.confirmTraditionalPayment(orderId, confirmTraditionalPaymentInputSchema.parse(input), staffId);
+  }
+
+  async rejectTraditionalPayment(orderId: string, input: unknown, staffId: string) {
+    return this.repository.rejectTraditionalPayment(orderId, rejectTraditionalPaymentInputSchema.parse(input), staffId);
   }
 
   findCustomerOrder(orderId: string, customerSessionId: string) {

@@ -12,7 +12,7 @@ describe("OrderService", () => {
   it("validates the customer payload before repository access", async () => {
     const repository = {
       createQrOrder: vi.fn(), createCounterOrder: vi.fn(), confirmTraditionalPayment: vi.fn(),
-      findCustomerOrder: vi.fn(), listPendingTraditionalPayments: vi.fn(), listStaffOrders: vi.fn(),
+      rejectTraditionalPayment: vi.fn(), findCustomerOrder: vi.fn(), listPendingTraditionalPayments: vi.fn(), listStaffOrders: vi.fn(),
     };
     const service = new OrderService(repository);
     await expect(service.createQrOrder({ ...request, items: [{ ...request.items[0]!, quantity: 21 }] }, "session-token", "198.51.100.1"))
@@ -26,6 +26,7 @@ describe("OrderService", () => {
       createQrOrder: vi.fn().mockResolvedValue({ order, created: true }),
       createCounterOrder: vi.fn(),
       confirmTraditionalPayment: vi.fn(),
+      rejectTraditionalPayment: vi.fn(),
       findCustomerOrder: vi.fn(),
       listPendingTraditionalPayments: vi.fn(),
       listStaffOrders: vi.fn(),

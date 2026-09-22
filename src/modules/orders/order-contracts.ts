@@ -25,6 +25,12 @@ export const confirmTraditionalPaymentInputSchema = z.object({
   expectedOrderVersion: z.number().int().min(1),
 }).strict();
 
+export const rejectTraditionalPaymentInputSchema = z.object({
+  reason: z.string().trim().min(3).max(240),
+  expectedOrderVersion: z.number().int().min(1),
+}).strict();
+
 export type CreateQrOrderInput = z.infer<typeof createQrOrderInputSchema>;
 export type CreateCounterOrderInput = z.infer<typeof createCounterOrderInputSchema>;
 export type ConfirmTraditionalPaymentInput = z.infer<typeof confirmTraditionalPaymentInputSchema>;
+export type RejectTraditionalPaymentInput = z.infer<typeof rejectTraditionalPaymentInputSchema>;
