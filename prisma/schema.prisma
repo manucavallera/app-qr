@@ -45,6 +45,7 @@ enum PaymentMethod {
   MERCADO_PAGO
   CASH
   CARD_AT_COUNTER
+  BANK_TRANSFER
   OTHER
 }
 
@@ -74,6 +75,19 @@ model BusinessSettings {
   timezone   String     @default("America/Argentina/Buenos_Aires")
   manualMode ManualMode @default(SCHEDULED)
   updatedAt  DateTime   @updatedAt
+}
+
+model PaymentSettings {
+  id                    String   @id @default("default")
+  mercadoPagoEnabled    Boolean  @default(false)
+  cashEnabled           Boolean  @default(true)
+  cardAtCounterEnabled  Boolean  @default(true)
+  bankTransferEnabled   Boolean  @default(false)
+  bankAlias             String?
+  bankCbuCvu            String?
+  bankAccountHolder     String?
+  bankInstructions      String?
+  updatedAt             DateTime @updatedAt
 }
 
 model ServiceWindow {

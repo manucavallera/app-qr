@@ -33,6 +33,18 @@ async function seed() {
     update: {},
   });
 
+  await prisma.paymentSettings.upsert({
+    where: { id: "default" },
+    create: {
+      id: "default",
+      mercadoPagoEnabled: Boolean(process.env.MERCADOPAGO_ACCESS_TOKEN),
+      cashEnabled: true,
+      cardAtCounterEnabled: true,
+      bankTransferEnabled: false,
+    },
+    update: {},
+  });
+
   await prisma.serviceWindow.deleteMany({ where: { weekday: 0 } });
   for (let weekday = 1; weekday <= 7; weekday += 1) {
     await prisma.serviceWindow.upsert({

@@ -10,7 +10,7 @@ export const orderItemInputSchema = z.object({
 export const createQrOrderInputSchema = z.object({
   clientRequestId: z.string().uuid(),
   expectedTotalCents: z.number().int().min(0).max(2_000_000_000),
-  paymentMethod: z.enum(["MERCADO_PAGO", "CASH", "CARD_AT_COUNTER"]),
+  paymentMethod: z.enum(["MERCADO_PAGO", "CASH", "CARD_AT_COUNTER", "BANK_TRANSFER"]),
   items: z.array(orderItemInputSchema).min(1).max(30),
 }).strict();
 
@@ -21,7 +21,7 @@ export const createCounterOrderInputSchema = createQrOrderInputSchema.extend({
 }).strict();
 
 export const confirmTraditionalPaymentInputSchema = z.object({
-  method: z.enum(["CASH", "CARD_AT_COUNTER"]),
+  method: z.enum(["CASH", "CARD_AT_COUNTER", "BANK_TRANSFER"]),
   expectedOrderVersion: z.number().int().min(1),
 }).strict();
 
