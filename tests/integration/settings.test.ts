@@ -58,7 +58,7 @@ describe("staff settings integration", () => {
   afterAll(async () => {
     await prisma.staffUser.deleteMany({ where: { email: { in: [adminEmail, operatorEmail] } } });
     await prisma.serviceWindow.deleteMany();
-    if (previousWindows.length) await prisma.serviceWindow.createMany({ data: previousWindows.map(({ id: _id, ...window }) => window) });
+    if (previousWindows.length) await prisma.serviceWindow.createMany({ data: previousWindows.map((window) => ({ weekday: window.weekday, opensAtMinute: window.opensAtMinute, closesAtMinute: window.closesAtMinute, enabled: window.enabled })) });
     if (previousSettings) {
       await prisma.businessSettings.update({ where: { id: "default" }, data: { name: previousSettings.name, timezone: previousSettings.timezone, manualMode: previousSettings.manualMode } });
     }

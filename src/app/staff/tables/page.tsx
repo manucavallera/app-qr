@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import Image from "next/image";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { StaffShell } from "@/components/staff/staff-shell";
 
 type Table = {
   id: string;
@@ -71,18 +71,7 @@ export default function StaffTablesPage() {
   }
 
   return (
-    <main className="staff-page">
-      <header className="staff-header">
-        <div>
-          <p className="eyebrow">Administración</p>
-          <h1>Mesas y códigos QR</h1>
-        </div>
-        <nav className="staff-nav" aria-label="Secciones del equipo">
-          <Link href="/staff/catalog">Catálogo</Link>
-          <Link aria-current="page" href="/staff/tables">Mesas y QR</Link>
-        </nav>
-      </header>
-
+    <StaffShell title="Mesas y códigos QR" section="tables" role="ADMIN">
       {message ? <p className="staff-message" role="status">{message}</p> : null}
 
       <section className="staff-panel" aria-labelledby="tables-title">
@@ -134,6 +123,6 @@ export default function StaffTablesPage() {
         </div>
         {!loading && tables.length === 0 ? <p className="muted">Todavía no hay mesas cargadas.</p> : null}
       </section>
-    </main>
+    </StaffShell>
   );
 }

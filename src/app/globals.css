@@ -921,7 +921,36 @@ textarea {
 .command-card li { display: grid; gap: 3px; padding-bottom: 8px; border-bottom: 1px solid #efeee8; }
 .command-card .primary-link { border: 0; cursor: pointer; font: inherit; }
 
+.staff-main-nav {
+  display: flex;
+  overflow-x: auto;
+  margin: -8px 0 24px;
+  padding: 4px;
+  border: 1px solid #e3e2dc;
+  border-radius: 14px;
+  background: #fffefa;
+}
+
+.staff-main-nav a { flex: 0 0 auto; white-space: nowrap; }
+.staff-dashboard { margin-top: 0; }
+.task-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 24px; }
+.task-card { display: flex; min-height: 118px; align-items: center; justify-content: space-between; gap: 16px; padding: 18px; border: 1px solid #e3e2dc; border-radius: 16px; background: #fff; color: #263a30; text-decoration: none; box-shadow: 0 8px 24px rgb(40 40 32 / 5%); transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease; }
+.task-card:hover { border-color: #9bbda5; transform: translateY(-2px); box-shadow: 0 12px 28px rgb(40 40 32 / 8%); }
+.task-card-copy { display: grid; gap: 8px; }
+.task-card-copy strong { font-size: 1.05rem; }
+.task-card-copy small { color: #73766f; line-height: 1.4; }
+.task-card-count { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 50%; background: #dcecdf; color: #28513a; font-size: 1.15rem; font-weight: 800; }
+.task-card-arrow { color: #527760; font-size: 1.5rem; }
+.mode-badge { display: inline-flex; min-height: 34px; align-items: center; padding: 0 12px; border-radius: 999px; background: #edf3ec; color: #345342; font-size: 0.8rem; font-weight: 700; }
+.mode-FORCE_PAUSED, .mode-PAUSED { background: #fff0e6; color: #98562d; }
+.mode-COUNTER_ONLY { background: #fff8df; color: #806213; }
+.muted { color: #73766f; }
+
+button:disabled { cursor: not-allowed; opacity: 0.62; }
+
 @media (max-width: 640px) {
   .payment-card { grid-template-columns: minmax(0, 1fr) auto; }
   .payment-card .primary-link { grid-column: 1 / -1; }
+  .staff-header { align-items: flex-start; }
+  .staff-header > button { min-width: 0; padding: 0 10px; }
 }

@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import Image from "next/image";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { StaffShell } from "@/components/staff/staff-shell";
 
 type Category = { id: string; name: string; sortOrder: number; visible: boolean };
 type ProductValue = { id: string; name: string; priceDeltaCents: number; available: boolean; sortOrder: number };
@@ -281,18 +281,7 @@ export default function StaffCatalogPage() {
   }
 
   return (
-    <main className="staff-page">
-      <header className="staff-header">
-        <div>
-          <p className="eyebrow">Administración</p>
-          <h1>Menú del bar</h1>
-        </div>
-        <nav className="staff-nav" aria-label="Secciones del equipo">
-          <Link aria-current="page" href="/staff/catalog">Catálogo</Link>
-          <Link href="/staff/tables">Mesas y QR</Link>
-        </nav>
-      </header>
-
+    <StaffShell title="Menú del bar" section="catalog" role="ADMIN">
       {message ? <p className="staff-message" role="status">{message}</p> : null}
 
       <section className="staff-panel" aria-labelledby="categories-title">
@@ -467,6 +456,6 @@ export default function StaffCatalogPage() {
           </form>
         </section>
       </div>
-    </main>
+    </StaffShell>
   );
 }
