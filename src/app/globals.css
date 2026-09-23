@@ -968,6 +968,23 @@ textarea {
 .counter-recent { padding: 20px; border-radius: 16px; background: #f4f8f3; }
 .counter-recent h2 { margin-bottom: 18px; }
 .table-actions { margin-top: 12px; }
+.checkout-card, .order-tracking-card { max-width: 620px; }
+.checkout-steps, .order-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 0; margin: 0 0 24px; list-style: none; color: #8a8c84; font-size: .78rem; text-align: center; }
+.checkout-steps li, .order-steps li { display: grid; gap: 5px; justify-items: center; }
+.checkout-steps li::before, .order-steps li span { display: grid; width: 26px; height: 26px; place-items: center; border-radius: 50%; background: #e8e9e2; color: #73766f; font-weight: 800; }
+.checkout-steps .is-done, .checkout-steps .is-current, .order-steps .is-done { color: #365f43; font-weight: 800; }
+.checkout-steps .is-done::before, .checkout-steps .is-current::before, .order-steps .is-done span { background: #527760; color: #fff; }
+.payment-methods { display: grid; gap: 10px; margin: 20px 0 0; padding: 0; border: 0; }
+.payment-methods legend { margin-bottom: 2px; font-weight: 800; }
+.payment-choice { display: flex; gap: 12px; align-items: center; padding: 14px; border: 1px solid #e0e1da; border-radius: 14px; cursor: pointer; }
+.payment-choice.selected { border-color: #527760; background: #f1f7f0; box-shadow: 0 0 0 2px #d7e7d9; }
+.payment-choice input { accent-color: #527760; }
+.payment-choice span { display: grid; gap: 3px; }
+.payment-choice small, .transfer-instructions small { color: #6e726b; }
+.transfer-instructions { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-top: 14px; padding: 14px; border-radius: 14px; background: #f6f5ee; }
+.transfer-instructions > div { display: grid; gap: 4px; }
+.order-payment-panel { display: grid; gap: 7px; margin: 20px 0; padding: 16px; border-radius: 14px; background: #f1f7f0; }
+.order-payment-panel .transfer-instructions { margin-bottom: 0; background: #fff; }
 
 button:disabled { cursor: not-allowed; opacity: 0.62; }
 
@@ -979,4 +996,6 @@ button:disabled { cursor: not-allowed; opacity: 0.62; }
   .counter-layout, .transfer-fields { grid-template-columns: 1fr; }
   .schedule-row { grid-template-columns: minmax(110px, 1fr) 1fr 1fr; }
   .schedule-row span { display: none; }
+  .checkout-steps, .order-steps { font-size: .7rem; }
+  .transfer-instructions { flex-direction: column; }
 }
