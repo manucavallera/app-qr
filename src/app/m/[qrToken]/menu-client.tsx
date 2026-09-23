@@ -4,13 +4,18 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import { ProductCard } from "@/modules/catalog/components/product-card";
 import { ProductDialog, type MenuProduct } from "@/modules/catalog/components/product-dialog";
 import { addToCart, cartTotal, loadCart, saveCart, type CartItem } from "@/modules/orders/cart-store";
+import { MenuHeader, type PublicBusiness } from "./menu-header";
 
 type PublicMenu = Readonly<{
   table: { label: string };
   mode: "QR_OPEN" | "COUNTER_ONLY" | "PAUSED";
+  business: PublicBusiness;
+  service: { mode: "QR_OPEN" | "COUNTER_ONLY" | "PAUSED"; hoursLabel: string | null };
   categories: ReadonlyArray<{ id: string; name: string; products: ReadonlyArray<MenuProduct & { imageUrl: string | null }> }>;
   serverTime: string;
 }>;
+
+type SessionStatus = "checking" | "needs-name" | "starting" | "ready" | "error";
 
 function formatPrice(cents: number): string {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(cents / 100);
@@ -26,41 +31,42 @@ async function readError(response: Response): Promise<string> {
 export function MenuClient({ qrToken }: { qrToken: string }) {
   const [nickname, setNickname] = useState("");
   const [menu, setMenu] = useState<PublicMenu | null>(null);
-  const [sessionChecked, setSessionChecked] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [sessionStatus, setSessionStatus] = useState<SessionStatus>("checking");
   const [message, setMessage] = useState<string | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartReady, setCartReady] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<MenuProduct | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
 
-  const loadMenu = useCallback(async () => {
+  const loadMenu = useCallback(async (): Promise<PublicMenu> => {
     const response = await fetch(`/api/public/menu/${encodeURIComponent(qrToken)}`, { cache: "no-store" });
     if (!response.ok) throw new Error(await readError(response));
-    setMenu(await response.json() as PublicMenu);
+    return response.json() as Promise<PublicMenu>;
   }, [qrToken]);
 
-  useEffect(() => {
-    let active = true;
-    async function checkSession() {
-      try {
-        const response = await fetch(`/api/public/qr/${encodeURIComponent(qrToken)}/session`, { cache: "no-store" });
-        if (!active) return;
-        if (response.ok) {
-          const current = await response.json() as { nickname: string };
-          if (!active) return;
-          setNickname(current.nickname);
-          await loadMenu();
-        }
-      } catch (error) {
-        if (active) setMessage(error instanceof Error ? error.message : "No pudimos abrir la carta.");
-      } finally {
-        if (active) setSessionChecked(true);
+  const checkSession = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/public/qr/${encodeURIComponent(qrToken)}/session`, { cache: "no-store" });
+      if (response.status === 401) {
+        setSessionStatus("needs-name");
+        return;
       }
+      if (!response.ok) throw new Error(await readError(response));
+      const current = await response.json() as { nickname: string };
+      const loadedMenu = await loadMenu();
+      setNickname(current.nickname);
+      setMenu(loadedMenu);
+      setSessionStatus("ready");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "No pudimos abrir la carta.");
+      setSessionStatus("error");
     }
-    void checkSession();
-    return () => { active = false; };
   }, [qrToken, loadMenu]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void checkSession(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [checkSession]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -80,7 +86,7 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
   async function startSession(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage(null);
-    setLoading(true);
+    setSessionStatus("starting");
     try {
       const response = await fetch(`/api/public/qr/${encodeURIComponent(qrToken)}/session`, {
         method: "POST",
@@ -89,50 +95,59 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
       });
       if (!response.ok) throw new Error(await readError(response));
       const result = await response.json() as { nickname: string };
+      const loadedMenu = await loadMenu();
       setNickname(result.nickname);
-      await loadMenu();
+      setMenu(loadedMenu);
+      setSessionStatus("ready");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "No pudimos iniciar tu sesión.");
-    } finally {
-      setLoading(false);
+      setSessionStatus("needs-name");
     }
   }
 
-  if (!sessionChecked) {
-    return <main className="menu-loading" aria-live="polite">Abriendo la carta…</main>;
+  if (sessionStatus === "checking") {
+    return <main className="menu-loading" aria-live="polite"><span className="menu-loader" aria-hidden="true" />Abriendo la carta…</main>;
   }
 
-  if (!menu) {
+  if (sessionStatus === "error") {
+    return <main className="qr-welcome-shell"><section className="qr-welcome-card"><p className="eyebrow">No pudimos conectar</p><h1>La carta no cargó</h1><p>{message}</p><button className="primary-link login-button" type="button" onClick={() => { setMessage(null); setSessionStatus("checking"); void checkSession(); }}>Reintentar</button></section></main>;
+  }
+
+  if (sessionStatus === "needs-name" || sessionStatus === "starting") {
+    const starting = sessionStatus === "starting";
     return (
       <main className="qr-welcome-shell">
         <section className="qr-welcome-card">
-          <p className="eyebrow">Bienvenido</p>
+          <p className="eyebrow">Tu mesa, tu pedido</p>
           <h1>¿Cómo te llamamos?</h1>
           <p>Así podemos identificar tus pedidos cuando pidas en el bar.</p>
           <form className="login-form" onSubmit={startSession}>
             <label className="form-field" htmlFor="customer-nickname">Tu nombre o apodo
-              <input id="customer-nickname" className="form-input" autoComplete="nickname" autoFocus minLength={1} maxLength={40} value={nickname} onChange={(event) => setNickname(event.target.value)} required />
+              <input id="customer-nickname" className="form-input" autoComplete="nickname" autoFocus disabled={starting} minLength={1} maxLength={40} value={nickname} onChange={(event) => setNickname(event.target.value)} required />
             </label>
             {message && <p className="login-error" role="alert">{message}</p>}
-            <button className="primary-link login-button" type="submit" disabled={loading}>{loading ? "Entrando…" : "Ver la carta"}</button>
+            <button className="primary-link login-button" type="submit" disabled={starting}>{starting ? "Abriendo…" : "Ver la carta"}</button>
           </form>
         </section>
       </main>
     );
   }
 
-  const canOrder = menu.mode === "QR_OPEN";
-  const modeMessage = menu.mode === "PAUSED"
+  if (!menu) return null;
+
+  const canOrder = menu.service.mode === "QR_OPEN";
+  const modeMessage = menu.service.mode === "PAUSED"
     ? "Los pedidos están pausados por el local. Podés seguir viendo la carta."
     : "La autogestión por QR está cerrada por ahora. Podés pedir en la barra o caja.";
 
   return (
     <main className="public-menu-shell">
+      <MenuHeader business={menu.business} hoursLabel={menu.service.hoursLabel} />
       <header className="public-menu-header">
-        <div><p className="eyebrow">Bar · {menu.table.label}</p><h1>La carta</h1></div>
+        <div><p className="eyebrow">Mesa · {menu.table.label}</p><h1>La carta</h1></div>
         <p className="menu-greeting">Hola, {nickname}</p>
       </header>
-      {!canOrder && <aside className={`service-mode-note${menu.mode === "PAUSED" ? " is-paused" : ""}`} role="status">{modeMessage}</aside>}
+      {!canOrder && <aside className={`service-mode-note${menu.service.mode === "PAUSED" ? " is-paused" : ""}`} role="status">{modeMessage}</aside>}
       <nav className="category-nav" aria-label="Categorías">
         {menu.categories.map((category) => <a key={category.id} href={`#category-${category.id}`}>{category.name}</a>)}
       </nav>
@@ -144,6 +159,7 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
           </div>
         </section>
       ))}
+      {menu.categories.length === 0 && <p className="menu-empty-state">Todavía no hay productos publicados en la carta.</p>}
       {message && <p className="login-error menu-message" role="alert">{message}</p>}
       {cart.length > 0 && (
         <button className="sticky-cart" type="button" onClick={() => setCartOpen(true)}>
