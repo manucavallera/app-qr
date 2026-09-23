@@ -17,12 +17,21 @@ const paymentSettingsSchema = z.object({
     context.addIssue({ code: "custom", path: ["bankAlias"], message: "Configurá un alias o CBU/CVU para habilitar transferencias." });
   }
 });
+const optionalPublicUrl = z.string().trim().max(500).url().nullable();
+const businessProfileSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  locationUrl: optionalPublicUrl,
+  instagramUrl: optionalPublicUrl,
+  whatsappUrl: optionalPublicUrl,
+});
 const inputSchema = z.object({
   timezone: z.string().refine((value) => DateTime.now().setZone(value).isValid, "Zona horaria inválida"),
   windows: z.array(windowSchema).max(7),
   manualMode: z.enum(["SCHEDULED", "FORCE_QR_OPEN", "FORCE_COUNTER_ONLY", "FORCE_PAUSED"]),
   paymentSettings: paymentSettingsSchema.optional(),
+  businessProfile: businessProfileSchema.optional(),
 });
+export type BusinessProfileInput = z.infer<typeof businessProfileSchema>;
 export type SettingsInput = z.infer<typeof inputSchema>;
 export type SettingsRepository = { updateSettings(input: SettingsInput, actorStaffId: string): Promise<void> };
 
@@ -32,6 +41,7 @@ export class SettingsService {
     const parsed = inputSchema.parse(input);
     if (role === "OPERATOR" && ["FORCE_QR_OPEN", "FORCE_COUNTER_ONLY"].includes(parsed.manualMode)) throw new DomainError("FORBIDDEN", "No tenés permisos para aplicar ese modo.");
     if (role === "OPERATOR" && parsed.paymentSettings) throw new DomainError("FORBIDDEN", "No tenés permisos para modificar los medios de pago.");
+    if (role === "OPERATOR" && parsed.businessProfile) throw new DomainError("FORBIDDEN", "No tenés permisos para modificar el perfil público.");
     return this.repository.updateSettings(parsed, actorStaffId);
   }
 }

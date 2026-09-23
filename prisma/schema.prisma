@@ -70,11 +70,14 @@ enum FulfillmentType {
 }
 
 model BusinessSettings {
-  id         String     @id @default("default")
-  name       String
-  timezone   String     @default("America/Argentina/Buenos_Aires")
-  manualMode ManualMode @default(SCHEDULED)
-  updatedAt  DateTime   @updatedAt
+  id           String     @id @default("default")
+  name         String
+  locationUrl  String?
+  instagramUrl String?
+  whatsappUrl  String?
+  timezone     String     @default("America/Argentina/Buenos_Aires")
+  manualMode   ManualMode @default(SCHEDULED)
+  updatedAt    DateTime   @updatedAt
 }
 
 model PaymentSettings {

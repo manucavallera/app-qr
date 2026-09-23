@@ -29,7 +29,13 @@ async function seed() {
 
   await prisma.businessSettings.upsert({
     where: { id: "default" },
-    create: { id: "default", name: "Bar de hamburguesas" },
+    create: {
+      id: "default",
+      name: "Bar de hamburguesas",
+      locationUrl: null,
+      instagramUrl: null,
+      whatsappUrl: null,
+    },
     update: {},
   });
 
