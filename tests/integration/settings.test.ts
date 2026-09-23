@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
 import { GET as getSettings, PATCH as patchSettings } from "@/app/api/staff/settings/route";
 import { GET as getSummary } from "@/app/api/staff/summary/route";
+import { GET as getPublicMenu } from "@/app/api/public/menu/[qrToken]/route";
 import { AuthService } from "@/modules/auth/auth-service";
 import { sessionRepository } from "@/modules/auth/session-repository";
 import { hashPassword } from "@/modules/auth/password";
@@ -11,6 +12,7 @@ import { prisma } from "@/lib/db";
 const suffix = randomUUID();
 const adminEmail = `settings-admin-${suffix}@local.test`;
 const operatorEmail = `settings-operator-${suffix}@local.test`;
+const qrToken = `settings-${suffix}`;
 let adminToken = "";
 let operatorToken = "";
 let previousSettings: Awaited<ReturnType<typeof prisma.businessSettings.findUnique>> = null;
@@ -52,6 +54,7 @@ describe("staff settings integration", () => {
     previousSettings = await prisma.businessSettings.findUnique({ where: { id: "default" } });
     previousPayments = await prisma.paymentSettings.findUnique({ where: { id: "default" } });
     previousWindows = await prisma.serviceWindow.findMany({ orderBy: { weekday: "asc" } });
+    await prisma.diningTable.create({ data: { label: `Settings ${suffix}`, qrToken } });
     const [admin, operator] = await Promise.all([
       prisma.staffUser.create({ data: { email: adminEmail, displayName: "Admin settings", passwordHash: await hashPassword("integration password"), role: "ADMIN" } }),
       prisma.staffUser.create({ data: { email: operatorEmail, displayName: "Operator settings", passwordHash: await hashPassword("integration password"), role: "OPERATOR" } }),
@@ -62,6 +65,7 @@ describe("staff settings integration", () => {
   });
 
   afterAll(async () => {
+    await prisma.diningTable.deleteMany({ where: { qrToken } });
     await prisma.staffUser.deleteMany({ where: { email: { in: [adminEmail, operatorEmail] } } });
     await prisma.serviceWindow.deleteMany();
     if (previousWindows.length) await prisma.serviceWindow.createMany({ data: previousWindows.map((window) => ({ weekday: window.weekday, opensAtMinute: window.opensAtMinute, closesAtMinute: window.closesAtMinute, enabled: window.enabled })) });
@@ -99,6 +103,23 @@ describe("staff settings integration", () => {
       activeCommands: expect.any(Number),
       qrMode: "QR_OPEN",
     }));
+
+    const publicResponse = await getPublicMenu(
+      new NextRequest(`http://localhost/api/public/menu/${qrToken}`),
+      { params: Promise.resolve({ qrToken }) },
+    );
+    expect(publicResponse.status).toBe(200);
+    const publicBody = await publicResponse.json();
+    expect(publicBody).toMatchObject({
+      business: adminPatch.businessProfile,
+      service: { mode: "QR_OPEN" },
+    });
+    expect(publicBody.service.hoursLabel === null || typeof publicBody.service.hoursLabel === "string").toBe(true);
+    const serialized = JSON.stringify(publicBody);
+    expect(serialized).not.toContain("SESSION_SECRET");
+    expect(serialized).not.toContain("MERCADOPAGO_ACCESS_TOKEN");
+    expect(serialized).not.toContain(adminEmail);
+    expect(serialized).not.toContain(operatorEmail);
   });
 
   it("prevents an operator from changing payment settings but allows a pause", async () => {

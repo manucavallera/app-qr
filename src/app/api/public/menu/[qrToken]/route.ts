@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { apiErrorResponse } from "@/lib/api-errors";
 import { createImageStorage } from "@/modules/catalog/storage";
+import { publicServiceHours } from "@/modules/operations/public-service-hours";
 import { resolveServiceMode } from "@/modules/operations/service-mode";
 import { availablePaymentMethods, type PaymentSettingsView } from "@/modules/payments/payment-methods";
 import { getServerEnv } from "@/lib/env";
@@ -91,6 +92,16 @@ export async function GET(_request: NextRequest, { params }: RouteContext): Prom
     return NextResponse.json({
       table: { label: table.label },
       mode,
+      business: {
+        name: settings?.name ?? "Bar",
+        locationUrl: settings?.locationUrl ?? null,
+        instagramUrl: settings?.instagramUrl ?? null,
+        whatsappUrl: settings?.whatsappUrl ?? null,
+      },
+      service: {
+        mode,
+        hoursLabel: settings ? publicServiceHours(now, settings.timezone, windows) : null,
+      },
       categories: publicCategories,
       payment: {
         methods: paymentMethods,
