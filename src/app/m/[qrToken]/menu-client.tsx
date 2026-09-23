@@ -47,12 +47,12 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
   const checkSession = useCallback(async () => {
     try {
       const response = await fetch(`/api/public/qr/${encodeURIComponent(qrToken)}/session`, { cache: "no-store" });
-      if (response.status === 401) {
+      if (!response.ok) throw new Error(await readError(response));
+      const current = await response.json() as { nickname: string | null };
+      if (!current.nickname) {
         setSessionStatus("needs-name");
         return;
       }
-      if (!response.ok) throw new Error(await readError(response));
-      const current = await response.json() as { nickname: string };
       const loadedMenu = await loadMenu();
       setNickname(current.nickname);
       setMenu(loadedMenu);

@@ -74,6 +74,16 @@ describe("public QR customer sessions", () => {
     await prisma.rateLimitBucket.deleteMany({ where: { key: { startsWith: "customer-session:" } } });
   });
 
+  it("reports an absent customer session without an HTTP error", async () => {
+    const current = await currentSessionRoute(
+      request(`http://localhost/api/public/qr/${qrToken}/session`),
+      { params: Promise.resolve({ qrToken }) },
+    );
+
+    expect(current.status).toBe(200);
+    await expect(current.json()).resolves.toEqual({ nickname: null });
+  });
+
   it("keeps two people on one table private, stores only token hashes and expires after four hours", async () => {
     const firstResponse = await startSession("  Ana  ");
     const secondResponse = await startSession("Luis", `${ip}-other`);

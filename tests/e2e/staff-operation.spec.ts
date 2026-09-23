@@ -1,5 +1,9 @@
 import { test, expect } from "./fixtures";
 
+test.beforeEach(({}, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "Los flujos de staff se ejecutan una vez en escritorio.");
+});
+
 const paymentOrder = (id: string, number: number, method: "CASH" | "CARD_AT_COUNTER" | "BANK_TRANSFER") => ({
   id,
   number,
@@ -48,7 +52,7 @@ test("el personal puede crear un pedido en caja", async ({ page }) => {
 });
 
 test("Configuración y QR muestran sus acciones principales", async ({ page }) => {
-  await page.route("**/api/staff/settings", (route) => route.fulfill({ json: { settings: { manualMode: "SCHEDULED", timezone: "America/Argentina/Buenos_Aires" }, windows: [], paymentSettings: { mercadoPagoEnabled: false, cashEnabled: true, cardAtCounterEnabled: true, bankTransferEnabled: false, bankAlias: null, bankCbuCvu: null, bankAccountHolder: null, bankInstructions: null }, mercadoPagoConfigured: false } }));
+  await page.route("**/api/staff/settings", (route) => route.fulfill({ json: { settings: { name: "Bar de prueba", locationUrl: null, instagramUrl: null, whatsappUrl: null, manualMode: "SCHEDULED", timezone: "America/Argentina/Buenos_Aires" }, windows: [], paymentSettings: { mercadoPagoEnabled: false, cashEnabled: true, cardAtCounterEnabled: true, bankTransferEnabled: false, bankAlias: null, bankCbuCvu: null, bankAccountHolder: null, bankInstructions: null }, mercadoPagoConfigured: false } }));
   await page.goto("/staff/settings");
   await expect(page.getByRole("button", { name: /abrir pedidos qr/i })).toBeVisible();
   await expect(page.getByText(/transferencia bancaria/i)).toBeVisible();

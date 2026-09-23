@@ -10,7 +10,7 @@ function getClientIp(request: NextRequest): string {
 export async function GET(request: NextRequest, { params }: RouteContext): Promise<NextResponse> {
   const { qrToken } = await params;
   const principal = await customerSessionService.authenticate(request.cookies.get(CUSTOMER_SESSION_COOKIE)?.value, qrToken);
-  if (!principal) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+  if (!principal) return NextResponse.json({ nickname: null });
   return NextResponse.json({ nickname: principal.nickname });
 }
 

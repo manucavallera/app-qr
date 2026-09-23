@@ -10,4 +10,10 @@
 - Regenerar un QR y comprobar que el anterior deja de funcionar.
 - Confirmar backup previo al lanzamiento y contacto de rollback.
 
-Registrar fecha, dispositivo, resultado, observación y responsable en cada punto.
+## Registro de ejecución
+
+Completar una fila por cada punto y dispositivo probado.
+
+| Fecha | Dispositivo | Viewport / resolución | Resultado | Observación | Responsable |
+| --- | --- | --- | --- | --- | --- |
+| AAAA-MM-DD | Marca y modelo | Ej. 390 × 844 | Pendiente / Aprobado / Falló | Detalle y evidencia | Nombre |

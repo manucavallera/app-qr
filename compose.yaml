@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: appqr
       POSTGRES_PASSWORD: appqr_dev
     ports:
-      - "5432:5432"
+      - "5445:5432"
     volumes:
       - appqr_postgres:/var/lib/postgresql
       - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/01-test-database.sql:ro
