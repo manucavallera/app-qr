@@ -29,6 +29,12 @@ const adminPatch = {
   timezone: "America/Argentina/Buenos_Aires",
   manualMode: "FORCE_QR_OPEN",
   windows: [{ weekday: 1, opensAtMinute: 600, closesAtMinute: 1439, enabled: true }],
+  businessProfile: {
+    name: "Bar de integración",
+    locationUrl: "https://maps.google.com/?q=bar+integracion",
+    instagramUrl: "https://instagram.com/bar.integracion",
+    whatsappUrl: "https://wa.me/5491100000000",
+  },
   paymentSettings: {
     mercadoPagoEnabled: true,
     cashEnabled: true,
@@ -60,7 +66,7 @@ describe("staff settings integration", () => {
     await prisma.serviceWindow.deleteMany();
     if (previousWindows.length) await prisma.serviceWindow.createMany({ data: previousWindows.map((window) => ({ weekday: window.weekday, opensAtMinute: window.opensAtMinute, closesAtMinute: window.closesAtMinute, enabled: window.enabled })) });
     if (previousSettings) {
-      await prisma.businessSettings.update({ where: { id: "default" }, data: { name: previousSettings.name, timezone: previousSettings.timezone, manualMode: previousSettings.manualMode } });
+      await prisma.businessSettings.update({ where: { id: "default" }, data: { name: previousSettings.name, locationUrl: previousSettings.locationUrl, instagramUrl: previousSettings.instagramUrl, whatsappUrl: previousSettings.whatsappUrl, timezone: previousSettings.timezone, manualMode: previousSettings.manualMode } });
     }
     if (previousPayments) {
       await prisma.paymentSettings.upsert({ where: { id: "default" }, create: { ...previousPayments, id: "default" }, update: { mercadoPagoEnabled: previousPayments.mercadoPagoEnabled, cashEnabled: previousPayments.cashEnabled, cardAtCounterEnabled: previousPayments.cardAtCounterEnabled, bankTransferEnabled: previousPayments.bankTransferEnabled, bankAlias: previousPayments.bankAlias, bankCbuCvu: previousPayments.bankCbuCvu, bankAccountHolder: previousPayments.bankAccountHolder, bankInstructions: previousPayments.bankInstructions } });
@@ -69,13 +75,19 @@ describe("staff settings integration", () => {
     }
   });
 
-  it("lets an admin save payment settings and returns them without secrets", async () => {
+  it("lets an admin save public and payment settings and returns them without secrets", async () => {
     const response = await patchSettings(request(adminToken, adminPatch));
     expect(response.status).toBe(200);
     const read = await getSettings(request(adminToken));
     expect(read.status).toBe(200);
     await expect(read.json()).resolves.toMatchObject({
-      settings: { manualMode: "FORCE_QR_OPEN" },
+      settings: {
+        manualMode: "FORCE_QR_OPEN",
+        name: "Bar de integración",
+        locationUrl: "https://maps.google.com/?q=bar+integracion",
+        instagramUrl: "https://instagram.com/bar.integracion",
+        whatsappUrl: "https://wa.me/5491100000000",
+      },
       paymentSettings: { bankTransferEnabled: true, bankAlias: "bar.prueba" },
       mercadoPagoConfigured: expect.any(Boolean),
     });

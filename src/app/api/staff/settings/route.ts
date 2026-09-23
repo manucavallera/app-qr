@@ -49,8 +49,20 @@ export async function PATCH(request: NextRequest) {
           const paymentSettings = input.paymentSettings ?? beforePayments ?? defaultPaymentSettings;
           await tx.businessSettings.upsert({
             where: { id: "default" },
-            create: { id: "default", name: "Bar", timezone: input.timezone, manualMode: input.manualMode },
-            update: { timezone: input.timezone, manualMode: input.manualMode },
+            create: {
+              id: "default",
+              name: input.businessProfile?.name ?? "Bar",
+              timezone: input.timezone,
+              manualMode: input.manualMode,
+              locationUrl: input.businessProfile?.locationUrl ?? null,
+              instagramUrl: input.businessProfile?.instagramUrl ?? null,
+              whatsappUrl: input.businessProfile?.whatsappUrl ?? null,
+            },
+            update: {
+              timezone: input.timezone,
+              manualMode: input.manualMode,
+              ...(input.businessProfile ?? {}),
+            },
           });
           await tx.paymentSettings.upsert({ where: { id: "default" }, create: paymentSettings, update: paymentSettings });
           await tx.serviceWindow.deleteMany();
