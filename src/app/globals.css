@@ -1043,23 +1043,43 @@ textarea {
 .counter-recent { padding: 20px; border-radius: 16px; background: #f4f8f3; }
 .counter-recent h2 { margin-bottom: 18px; }
 .table-actions { margin-top: 12px; }
-.checkout-card, .order-tracking-card { max-width: 620px; }
-.checkout-steps, .order-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 0; margin: 0 0 24px; list-style: none; color: #8a8c84; font-size: .78rem; text-align: center; }
+.customer-page { min-height: 100svh; padding: clamp(16px, 4vw, 30px); background: #070707; color: #f5f5f2; color-scheme: dark; }
+.customer-card { width: min(100%, 640px); margin: 0 auto; padding: clamp(20px, 5vw, 36px); border: 1px solid #292927; border-radius: 20px; background: #111110; box-shadow: 0 24px 80px rgb(0 0 0 / 35%); }
+.customer-back-link { display: inline-flex; min-height: 42px; align-items: center; gap: 8px; margin: -8px 0 24px; color: #b8b8b2; font-size: 0.875rem; font-weight: 700; text-decoration: none; }
+.customer-back-link:hover { color: #fff; }
+.customer-back-link:focus-visible { border-radius: 4px; outline: 3px solid #8c6a3d; outline-offset: 3px; }
+.customer-title { margin-bottom: 24px; }
+.customer-title .eyebrow { margin-bottom: 8px; color: #d9aa67; }
+.customer-title h1 { margin: 0; font-size: clamp(2rem, 8vw, 3rem); letter-spacing: -0.055em; line-height: 1.02; }
+.customer-description, .customer-empty { color: #aaa9a3; line-height: 1.6; }
+.customer-card .cart-lines li { border-color: #30302e; }
+.customer-card .cart-line-detail { color: #aaa9a3; }
+.customer-card .cart-total { border-color: #41413e; }
+.customer-card .login-error { color: #ffaaa1; }
+.customer-primary-action { width: 100%; margin-top: 20px; border: 0; background: #f4f3ee; color: #111; cursor: pointer; }
+.customer-primary-action:hover { background: #fff; }
+.customer-retry { margin-top: 18px; }
+.customer-card .button-secondary { border-color: #464641; background: #222220; color: #f3f3ef; }
+.customer-card .button-secondary:hover { border-color: #696964; background: #292927; }
+.checkout-steps, .order-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 0; margin: 0 0 26px; list-style: none; color: #85857f; font-size: .78rem; text-align: center; }
 .checkout-steps li, .order-steps li { display: grid; gap: 5px; justify-items: center; }
-.checkout-steps li::before, .order-steps li span { display: grid; width: 26px; height: 26px; place-items: center; border-radius: 50%; background: #e8e9e2; color: #73766f; font-weight: 800; }
-.checkout-steps .is-done, .checkout-steps .is-current, .order-steps .is-done { color: #365f43; font-weight: 800; }
-.checkout-steps .is-done::before, .checkout-steps .is-current::before, .order-steps .is-done span { background: #527760; color: #fff; }
+.checkout-steps li::before, .order-steps li span { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid #393936; border-radius: 50%; background: #1e1e1c; color: #8e8e88; font-weight: 800; }
+.checkout-steps .is-done, .checkout-steps .is-current, .order-steps .is-done { color: #f2d2a2; font-weight: 800; }
+.checkout-steps .is-done::before, .checkout-steps .is-current::before, .order-steps .is-done span { border-color: #c18e4d; background: #c18e4d; color: #111; }
 .payment-methods { display: grid; gap: 10px; margin: 20px 0 0; padding: 0; border: 0; }
 .payment-methods legend { margin-bottom: 2px; font-weight: 800; }
-.payment-choice { display: flex; gap: 12px; align-items: center; padding: 14px; border: 1px solid #e0e1da; border-radius: 14px; cursor: pointer; }
-.payment-choice.selected { border-color: #527760; background: #f1f7f0; box-shadow: 0 0 0 2px #d7e7d9; }
-.payment-choice input { accent-color: #527760; }
+.payment-choice { display: flex; min-height: 66px; gap: 12px; align-items: center; padding: 14px; border: 1px solid #363633; border-radius: 14px; background: #181817; cursor: pointer; }
+.payment-choice.selected { border-color: #c18e4d; background: #201b14; box-shadow: 0 0 0 2px rgb(193 142 77 / 16%); }
+.payment-choice input { width: 18px; height: 18px; accent-color: #c18e4d; }
 .payment-choice span { display: grid; gap: 3px; }
-.payment-choice small, .transfer-instructions small { color: #6e726b; }
-.transfer-instructions { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-top: 14px; padding: 14px; border-radius: 14px; background: #f6f5ee; }
+.payment-choice small, .transfer-instructions small { color: #aaa9a3; }
+.payment-load-state { display: flex; min-height: 88px; align-items: center; justify-content: center; gap: 12px; margin-top: 20px; border: 1px solid #30302d; border-radius: 14px; color: #aaa9a3; }
+.payment-load-state .menu-loader { width: 24px; height: 24px; border-width: 2px; }
+.payment-load-error { display: flex; min-height: 72px; align-items: center; justify-content: space-between; gap: 14px; margin: 20px 0 0; padding: 14px; border: 1px solid #5d3430; border-radius: 14px; background: #211312; color: #ffb3aa; }
+.transfer-instructions { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-top: 14px; padding: 14px; border: 1px solid #363633; border-radius: 14px; background: #191918; }
 .transfer-instructions > div { display: grid; gap: 4px; }
-.order-payment-panel { display: grid; gap: 7px; margin: 20px 0; padding: 16px; border-radius: 14px; background: #f1f7f0; }
-.order-payment-panel .transfer-instructions { margin-bottom: 0; background: #fff; }
+.order-payment-panel { display: grid; gap: 7px; margin: 20px 0; padding: 16px; border: 1px solid #363633; border-radius: 14px; background: #181817; }
+.order-payment-panel .transfer-instructions { margin-bottom: 0; background: #111110; }
 
 button:disabled { cursor: not-allowed; opacity: 0.62; }
 
@@ -1072,5 +1092,7 @@ button:disabled { cursor: not-allowed; opacity: 0.62; }
   .schedule-row { grid-template-columns: minmax(110px, 1fr) 1fr 1fr; }
   .schedule-row span { display: none; }
   .checkout-steps, .order-steps { font-size: .7rem; }
-  .transfer-instructions { flex-direction: column; }
+  .transfer-instructions, .payment-load-error { align-items: stretch; flex-direction: column; }
+  .customer-page { padding: 0; }
+  .customer-card { min-height: 100svh; border: 0; border-radius: 0; box-shadow: none; }
 }
