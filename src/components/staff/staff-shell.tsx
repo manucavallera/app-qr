@@ -17,7 +17,7 @@ const links: Array<{ section: StaffSection; label: string; href: string }> = [
   { section: "payments", label: "Pagos", href: "/staff/payments" },
   { section: "commands", label: "Comandas", href: "/staff/commands" },
   { section: "counter", label: "Caja", href: "/staff/counter" },
-  { section: "orders", label: "Pedidos", href: "/staff/counter" },
+  { section: "orders", label: "Pedidos", href: "/staff/orders" },
   { section: "catalog", label: "Carta", href: "/staff/catalog" },
   { section: "tables", label: "Mesas y QR", href: "/staff/tables" },
   { section: "settings", label: "Configuración", href: "/staff/settings" },

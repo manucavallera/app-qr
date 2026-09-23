@@ -16,7 +16,7 @@ export type MenuProduct = Readonly<{
     required: boolean;
     minSelections: number;
     maxSelections: number;
-    values: readonly Readonly<{ id: string; name: string; priceDeltaCents: number }>[];
+    values: readonly Readonly<{ id: string; name: string; priceDeltaCents: number; available?: boolean }>[];
   }>[];
 }>;
 
@@ -72,6 +72,7 @@ export function ProductDialog({
               <legend>{group.name}{group.required && <span> · obligatorio</span>}</legend>
               {group.values.map((value) => {
                 const checked = (selected[group.id] ?? []).includes(value.id);
+                if (value.available === false) return null;
                 return (
                   <label key={value.id} className="dialog-option">
                     <input
@@ -90,7 +91,7 @@ export function ProductDialog({
         </div>
         <label className="form-field">
           Nota para la cocina
-          <textarea className="form-input dialog-notes" maxLength={250} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Ej. sin hielo" />
+          <textarea className="form-input dialog-notes" maxLength={160} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Ej. sin hielo" />
         </label>
         {error && <p role="alert" className="login-error">{error}</p>}
         <div className="dialog-footer">

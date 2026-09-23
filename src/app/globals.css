@@ -246,6 +246,153 @@ a {
   line-height: 1.5;
 }
 
+.loading-state,
+.empty-state,
+.error-state {
+  margin: 22px 0 0;
+  color: #73766f;
+  line-height: 1.5;
+}
+
+.error-state {
+  color: #9b3d34;
+}
+
+.state-block {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.orders-list {
+  display: grid;
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.order-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid #e9e8e1;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.order-card .panel-heading {
+  align-items: flex-start;
+}
+
+.order-meta,
+.order-card small,
+.order-card .panel-heading small {
+  display: block;
+  margin-top: 4px;
+  color: #73766f;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.status-badge,
+.mode-badge {
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #e6f2e8;
+  color: #316142;
+  font-size: 0.75rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.order-items {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.order-items li,
+.order-footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.order-items li {
+  padding-top: 10px;
+  border-top: 1px solid #efeee9;
+}
+
+.order-items li > span:first-child {
+  min-width: 0;
+}
+
+.order-footer {
+  padding-top: 12px;
+  border-top: 1px solid #e3e2dc;
+}
+
+.order-footer div {
+  display: grid;
+  gap: 3px;
+}
+
+.users-layout {
+  display: grid;
+  gap: 22px;
+}
+
+.user-create-form,
+.users-list {
+  display: grid;
+  gap: 14px;
+}
+
+.user-create-form {
+  padding: 18px;
+  border: 1px solid #e9e8e1;
+  border-radius: 16px;
+  background: #f9faf7;
+}
+
+.user-create-form h3 {
+  margin: 0;
+}
+
+.user-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid #e9e8e1;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.user-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.user-card-heading div {
+  display: grid;
+  gap: 4px;
+}
+
+.user-card-heading span:not(.status-badge) {
+  color: #73766f;
+  font-size: 0.8125rem;
+}
+
+.status-badge.is-inactive {
+  background: #f4eee6;
+  color: #825533;
+}
+
 .inline-form {
   display: flex;
   flex-wrap: wrap;

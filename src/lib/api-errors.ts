@@ -21,6 +21,11 @@ const domainStatus: Record<string, number> = {
   FORBIDDEN: 403,
   CUSTOMER_SESSION_EXPIRED: 401,
   ORDER_NOT_FOUND: 404,
+  USER_NOT_FOUND: 404,
+  LAST_ADMIN: 409,
+  ADMIN_REQUIRED_TO_CANCEL_IN_PREPARATION: 403,
+  CANCELLATION_REASON_REQUIRED: 400,
+  INVALID_ORDER_TRANSITION: 409,
 };
 
 export function apiErrorResponse(error: unknown): NextResponse {

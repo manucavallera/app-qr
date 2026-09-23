@@ -30,7 +30,8 @@ describe("ProductDialog", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/elegí/i);
 
     fireEvent.click(screen.getByLabelText("Bien cocida"));
+    fireEvent.change(screen.getByPlaceholderText("Ej. sin hielo"), { target: { value: "sin sal" } });
     fireEvent.click(screen.getByRole("button", { name: /agregar al carrito/i }));
-    expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ productId: "burger", optionIds: ["well"], quantity: 1 }));
+    expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ productId: "burger", optionIds: ["well"], notes: "sin sal", quantity: 1 }));
   });
 });
