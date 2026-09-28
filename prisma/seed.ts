@@ -24,6 +24,26 @@ async function ensureCategory(name: string, sortOrder: number) {
   );
 }
 
+type ProductSeed = {
+  categoryId: string;
+  name: string;
+  description: string;
+  priceCents: number;
+  station: "GENERAL" | "KITCHEN" | "BAR";
+  fulfillment: "TABLE" | "PICKUP";
+  sortOrder: number;
+};
+
+async function ensureProduct(product: ProductSeed) {
+  const existing = await prisma.product.findFirst({
+    where: { categoryId: product.categoryId, name: product.name },
+  });
+
+  if (!existing) {
+    await prisma.product.create({ data: product });
+  }
+}
+
 async function seed() {
   const { email: adminEmail, password: adminPassword } = getAdminCredentials();
 
@@ -66,7 +86,8 @@ async function seed() {
   }
 
   const burgers = await ensureCategory("Hamburguesas", 0);
-  const drinks = await ensureCategory("Bebidas", 1);
+  const sides = await ensureCategory("Para compartir", 1);
+  const drinks = await ensureCategory("Bebidas", 2);
 
   const existingBurger = await prisma.product.findFirst({
     where: { categoryId: burgers.id, name: "Hamburguesa clásica" },
@@ -116,6 +137,56 @@ async function seed() {
       },
     });
   }
+
+  await ensureProduct({
+    categoryId: burgers.id,
+    name: "Hamburguesa vegetariana",
+    description: "Medallón de vegetales, queso, rúcula y tomate.",
+    priceCents: 890000,
+    station: "KITCHEN",
+    fulfillment: "TABLE",
+    sortOrder: 1,
+  });
+
+  await ensureProduct({
+    categoryId: sides.id,
+    name: "Papas clásicas",
+    description: "Papas doradas con sal y especias de la casa.",
+    priceCents: 450000,
+    station: "KITCHEN",
+    fulfillment: "TABLE",
+    sortOrder: 0,
+  });
+
+  await ensureProduct({
+    categoryId: sides.id,
+    name: "Papas con cheddar",
+    description: "Papas doradas con cheddar y verdeo.",
+    priceCents: 550000,
+    station: "KITCHEN",
+    fulfillment: "TABLE",
+    sortOrder: 1,
+  });
+
+  await ensureProduct({
+    categoryId: drinks.id,
+    name: "Cerveza tirada",
+    description: "Vaso de cerveza rubia tirada bien fría.",
+    priceCents: 380000,
+    station: "BAR",
+    fulfillment: "TABLE",
+    sortOrder: 1,
+  });
+
+  await ensureProduct({
+    categoryId: drinks.id,
+    name: "Gaseosa",
+    description: "Gaseosa fría de 500 ml.",
+    priceCents: 280000,
+    station: "BAR",
+    fulfillment: "TABLE",
+    sortOrder: 2,
+  });
 
   for (let tableNumber = 1; tableNumber <= 10; tableNumber += 1) {
     const label = `Mesa ${tableNumber}`;
