@@ -1,9 +1,14 @@
-FROM node:24-bookworm-slim AS deps
+FROM node:24-bookworm-slim AS base
+RUN apt-get update -y \
+  && apt-get install -y --no-install-recommends openssl \
+  && rm -rf /var/lib/apt/lists/*
+
+FROM base AS deps
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 
-FROM node:24-bookworm-slim AS build
+FROM base AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -14,7 +19,7 @@ ENV DATABASE_URL=postgresql://appqr:appqr@localhost:5432/appqr_build \
     PAYMENT_PROVIDER=fake
 RUN npx prisma generate && npm run build
 
-FROM node:24-bookworm-slim AS runtime
+FROM base AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
