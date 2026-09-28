@@ -126,11 +126,7 @@ describe("staff settings integration", () => {
     const forbidden = await patchSettings(request(operatorToken, adminPatch));
     expect(forbidden.status).toBe(403);
 
-    const paused = await patchSettings(request(operatorToken, {
-      timezone: "America/Argentina/Buenos_Aires",
-      manualMode: "FORCE_PAUSED",
-      windows: [],
-    }));
+    const paused = await patchSettings(request(operatorToken, { manualMode: "FORCE_PAUSED" }));
     expect(paused.status).toBe(200);
   });
 });
