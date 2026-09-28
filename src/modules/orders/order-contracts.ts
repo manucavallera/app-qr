@@ -17,7 +17,7 @@ export const createQrOrderInputSchema = z.object({
 export const createCounterOrderInputSchema = createQrOrderInputSchema.extend({
   nickname: z.string().trim().min(1).max(40),
   tableId: z.string().uuid().optional(),
-  paymentMethod: z.enum(["CASH", "CARD_AT_COUNTER"]),
+  paymentMethod: z.enum(["CASH", "CARD_AT_COUNTER", "BANK_TRANSFER", "MERCADO_PAGO"]),
 }).strict();
 
 export const confirmTraditionalPaymentInputSchema = z.object({

@@ -22,16 +22,20 @@ export type MenuProduct = Readonly<{
 
 export function ProductDialog({
   product,
+  initialItem,
   onAdd,
   onClose,
 }: {
   product: MenuProduct;
+  initialItem?: CartItem;
   onAdd: (item: CartItem) => void;
   onClose: () => void;
 }) {
-  const [selected, setSelected] = useState<Record<string, string[]>>({});
-  const [quantity, setQuantity] = useState(1);
-  const [notes, setNotes] = useState("");
+  const [selected, setSelected] = useState<Record<string, string[]>>(() => Object.fromEntries(
+    product.optionGroups.map((group) => [group.id, group.values.filter((value) => initialItem?.optionIds.includes(value.id)).map((value) => value.id)]),
+  ));
+  const [quantity, setQuantity] = useState(initialItem?.quantity ?? 1);
+  const [notes, setNotes] = useState(initialItem?.notes ?? "");
   const [error, setError] = useState<string | null>(null);
   const chosenIds = Object.values(selected).flat();
   const selectedValues = product.optionGroups.flatMap((group) => group.values.filter((value) => chosenIds.includes(value.id)));
@@ -96,11 +100,11 @@ export function ProductDialog({
         {error && <p role="alert" className="login-error">{error}</p>}
         <div className="dialog-footer">
           <div className="quantity-control" aria-label="Cantidad">
-            <button type="button" aria-label="Restar uno" disabled={quantity <= 1} onClick={() => setQuantity((value) => value - 1)}>−</button>
+            <button type="button" aria-label="Restar uno" disabled={quantity <= 1} onClick={() => setQuantity((value) => value - 1)}>-</button>
             <span>{quantity}</span>
-            <button type="button" aria-label="Sumar uno" onClick={() => setQuantity((value) => Math.min(99, value + 1))}>＋</button>
+            <button type="button" aria-label="Sumar uno" onClick={() => setQuantity((value) => Math.min(99, value + 1))}>+</button>
           </div>
-          <button className="primary-link" type="button" onClick={add}>Agregar al carrito · {formatArs(unitTotal * quantity)}</button>
+          <button className="primary-link" type="button" onClick={add}>{initialItem ? "Guardar cambios" : "Agregar al carrito"} · {formatArs(unitTotal * quantity)}</button>
         </div>
       </section>
     </div>

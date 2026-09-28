@@ -8,6 +8,10 @@ export type CartItem = Readonly<{
 
 export type CartStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
+export function canPersistCart(loadedQrToken: string | null, qrToken: string): boolean {
+  return loadedQrToken === qrToken;
+}
+
 function storageOrNull(): CartStorage | null {
   return typeof window === "undefined" ? null : window.localStorage;
 }
@@ -50,6 +54,18 @@ export function saveCart(qrToken: string, items: readonly CartItem[], storage = 
     displayedTotalCents: item.displayedTotalCents,
   }));
   storage.setItem(keyFor(qrToken), JSON.stringify(safeItems));
+}
+
+export function clearCart(qrToken: string, storage = storageOrNull()): void {
+  storage?.removeItem(keyFor(qrToken));
+}
+
+export function removeCartItem(items: readonly CartItem[], index: number): CartItem[] {
+  return items.filter((_, current) => current !== index);
+}
+
+export function replaceCartItem(items: readonly CartItem[], index: number, replacement: CartItem): CartItem[] {
+  return items.map((item, current) => current === index ? { ...replacement, optionIds: [...replacement.optionIds] } : item);
 }
 
 function selectionKey(item: CartItem): string {

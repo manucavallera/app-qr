@@ -9,6 +9,20 @@ import { getServerEnv } from "@/lib/env";
 
 type RouteContext = { params: Promise<{ qrToken: string }> };
 
+function unavailablePaymentMethods(
+  settings: PaymentSettingsView,
+  mercadoPagoConfigured: boolean,
+): { method: string; reason: string }[] {
+  const result: { method: string; reason: string }[] = [];
+  if (settings.mercadoPagoEnabled && !mercadoPagoConfigured) {
+    result.push({ method: "MERCADO_PAGO", reason: "El pago online no está activo en este momento." });
+  }
+  if (settings.bankTransferEnabled && !settings.bankAlias?.trim() && !settings.bankCbuCvu?.trim()) {
+    result.push({ method: "BANK_TRANSFER", reason: "La transferencia no está configurada en este momento." });
+  }
+  return result;
+}
+
 export async function GET(_request: NextRequest, { params }: RouteContext): Promise<NextResponse> {
   const { qrToken } = await params;
   try {
@@ -51,9 +65,8 @@ export async function GET(_request: NextRequest, { params }: RouteContext): Prom
       bankInstructions: null,
     };
     const paymentConfiguration = paymentSettings ?? defaultPaymentSettings;
-    const paymentMethods = availablePaymentMethods(paymentConfiguration, {
-      mercadoPagoConfigured: env.PAYMENT_PROVIDER === "mercadopago" && Boolean(env.MERCADOPAGO_ACCESS_TOKEN),
-    });
+    const mercadoPagoConfigured = env.PAYMENT_PROVIDER === "mercadopago" && Boolean(env.MERCADOPAGO_ACCESS_TOKEN);
+    const paymentMethods = availablePaymentMethods(paymentConfiguration, { mercadoPagoConfigured });
     const mode = settings
       ? resolveServiceMode(now, settings.timezone, windows, settings.manualMode)
       : "COUNTER_ONLY";
@@ -105,6 +118,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext): Prom
       categories: publicCategories,
       payment: {
         methods: paymentMethods,
+        unavailable: unavailablePaymentMethods(paymentConfiguration, mercadoPagoConfigured),
         transfer: paymentMethods.includes("BANK_TRANSFER") ? {
           alias: paymentConfiguration.bankAlias,
           cbuCvu: paymentConfiguration.bankCbuCvu,

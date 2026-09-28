@@ -132,6 +132,13 @@ async function consumeOrderRateLimit(tx: Tx, key: string): Promise<{ allowed: bo
   return { allowed: bucket!.count <= 20, resetsAt: bucket!.resetsAt };
 }
 
+export async function loadQrOrderConfiguration(tx: Tx) {
+  const settings = await tx.businessSettings.findUnique({ where: { id: "default" } });
+  const windows = await tx.serviceWindow.findMany();
+  const paymentSettings = await tx.paymentSettings.findUnique({ where: { id: "default" } });
+  return { settings, windows, paymentSettings };
+}
+
 export class PrismaOrderRepository {
   constructor(private readonly db: PrismaClient) {}
 
@@ -157,11 +164,7 @@ export class PrismaOrderRepository {
       const limit = await consumeOrderRateLimit(tx, rateKey);
       if (!limit.allowed) return { kind: "limited" as const, resetsAt: limit.resetsAt };
 
-      const [settings, windows, paymentSettings] = await Promise.all([
-        tx.businessSettings.findUnique({ where: { id: "default" } }),
-        tx.serviceWindow.findMany(),
-        tx.paymentSettings.findUnique({ where: { id: "default" } }),
-      ]);
+      const { settings, windows, paymentSettings } = await loadQrOrderConfiguration(tx);
       const mode = settings
         ? resolveServiceMode(now, settings.timezone, windows, settings.manualMode)
         : "COUNTER_ONLY";
@@ -224,6 +227,8 @@ export class PrismaOrderRepository {
       assertPaymentMethodAvailable(paymentConfiguration, input.paymentMethod);
       const products = await findQuoteProducts(tx, input.items);
       const quote = quoteOrReportFresh(input, products);
+      const awaitsPaymentConfirmation = ["BANK_TRANSFER", "MERCADO_PAGO"].includes(input.paymentMethod);
+      const initialStatus = awaitsPaymentConfirmation ? "AWAITING_PAYMENT" : "CONFIRMED";
       const order = await tx.order.create({
         data: {
           clientRequestId: input.clientRequestId,
@@ -231,19 +236,19 @@ export class PrismaOrderRepository {
           customerName: input.nickname,
           createdByStaffId: staffId,
           origin: "COUNTER",
-          status: "CONFIRMED",
+          status: initialStatus,
           totalCents: quote.totalCents,
           items: { create: quoteItemCreates(quote) },
           payments: {
             create: {
               method: input.paymentMethod,
-              status: "APPROVED",
+              status: awaitsPaymentConfirmation ? "UNPAID" : "APPROVED",
               amountCents: quote.totalCents,
               idempotencyKey: `${input.clientRequestId}:initial`,
-              confirmedByStaffId: staffId,
+              ...(awaitsPaymentConfirmation ? {} : { confirmedByStaffId: staffId }),
             },
           },
-          statusEvents: { create: { fromStatus: null, toStatus: "CONFIRMED", actorStaffId: staffId } },
+          statusEvents: { create: { fromStatus: null, toStatus: initialStatus, actorStaffId: staffId } },
         },
         include: orderInclude,
       });
@@ -351,8 +356,10 @@ export class PrismaOrderRepository {
     });
   }
 
-  async listStaffOrders() {
-    return this.db.order.findMany({ orderBy: { createdAt: "desc" }, take: 100, include: orderInclude });
+  async listStaffOrders(options?: { limit?: number; skip?: number }) {
+    const limit = options?.limit ?? 50;
+    const skip = options?.skip ?? 0;
+    return this.db.order.findMany({ orderBy: { createdAt: "desc" }, take: limit, skip, include: orderInclude });
   }
 
   async findOrderForCustomer(orderId: string, customerSessionId: string) {
@@ -362,12 +369,26 @@ export class PrismaOrderRepository {
     });
   }
 
-  async findOrCreateCheckoutAttempt(orderId: string, customerSessionId: string) {
+  async findOrderForCounter(orderId: string) {
+    return this.db.order.findFirst({ where: { id: orderId, origin: "COUNTER" }, include: { items: true } });
+  }
+
+  async findOrCreateCheckoutAttempt(orderId: string, customerSessionId: string | null) {
     return this.db.$transaction(async (tx) => {
-      const order = await tx.order.findFirst({ where: { id: orderId, customerSessionId, origin: "QR" }, include: { payments: true } });
+      const order = await tx.order.findFirst({
+        where: customerSessionId === null
+          ? { id: orderId, origin: "COUNTER" }
+          : { id: orderId, customerSessionId, origin: "QR" },
+        include: { payments: true },
+      });
       if (!order) return null;
       const existing = order.payments.find((payment) => payment.method === "MERCADO_PAGO" && ["PENDING", "APPROVED"].includes(payment.status));
       if (existing) return { id: existing.id, idempotencyKey: existing.idempotencyKey, providerOrderId: existing.providerOrderId, checkoutUrl: typeof existing.providerPayload === "object" && existing.providerPayload !== null && "checkoutUrl" in existing.providerPayload ? String((existing.providerPayload as { checkoutUrl?: unknown }).checkoutUrl ?? "") : null };
+      const initial = order.payments.find((payment) => payment.method === "MERCADO_PAGO" && payment.status === "UNPAID");
+      if (initial) {
+        const pending = await tx.paymentAttempt.update({ where: { id: initial.id }, data: { status: "PENDING" } });
+        return { id: pending.id, idempotencyKey: pending.idempotencyKey, providerOrderId: pending.providerOrderId, checkoutUrl: typeof pending.providerPayload === "object" && pending.providerPayload !== null && "checkoutUrl" in pending.providerPayload ? String((pending.providerPayload as { checkoutUrl?: unknown }).checkoutUrl ?? "") : null };
+      }
       const created = await tx.paymentAttempt.create({ data: { orderId, method: "MERCADO_PAGO", status: "PENDING", amountCents: order.totalCents, idempotencyKey: createCheckoutIdempotencyKey() } });
       return { id: created.id, idempotencyKey: created.idempotencyKey, providerOrderId: created.providerOrderId, checkoutUrl: null };
     });

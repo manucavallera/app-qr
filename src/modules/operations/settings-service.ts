@@ -2,7 +2,20 @@ import { DateTime } from "luxon";
 import { z } from "zod";
 import { DomainError } from "../orders/errors";
 
-const windowSchema = z.object({ weekday: z.number().int().min(1).max(7), opensAtMinute: z.number().int().min(0).max(1439), closesAtMinute: z.number().int().min(1).max(1440), enabled: z.boolean() }).refine((window) => window.opensAtMinute !== window.closesAtMinute, "La apertura y el cierre deben ser distintos");
+const windowSchema = z.object({
+  weekday: z.number().int().min(1).max(7),
+  opensAtMinute: z.number().int().min(0).max(1439),
+  closesAtMinute: z.number().int().min(0).max(1440),
+  enabled: z.boolean(),
+}).superRefine((window, context) => {
+  if (!window.enabled) return;
+  if (window.closesAtMinute === 0) {
+    context.addIssue({ code: "custom", path: ["closesAtMinute"], message: "Indicá un horario de cierre." });
+  }
+  if (window.opensAtMinute === window.closesAtMinute) {
+    context.addIssue({ code: "custom", path: ["closesAtMinute"], message: "La apertura y el cierre deben ser distintos." });
+  }
+});
 const paymentSettingsSchema = z.object({
   mercadoPagoEnabled: z.boolean(),
   cashEnabled: z.boolean(),
@@ -31,17 +44,24 @@ const inputSchema = z.object({
   paymentSettings: paymentSettingsSchema.optional(),
   businessProfile: businessProfileSchema.optional(),
 });
+const operatorModeSchema = z.object({ manualMode: z.enum(["SCHEDULED", "FORCE_PAUSED"]) }).strict();
 export type BusinessProfileInput = z.infer<typeof businessProfileSchema>;
 export type SettingsInput = z.infer<typeof inputSchema>;
-export type SettingsRepository = { updateSettings(input: SettingsInput, actorStaffId: string): Promise<void> };
+export type SettingsRepository = {
+  updateSettings(input: SettingsInput, actorStaffId: string): Promise<void>;
+  updateManualMode?: (manualMode: "SCHEDULED" | "FORCE_PAUSED", actorStaffId: string) => Promise<void>;
+};
 
 export class SettingsService {
   constructor(private readonly repository: SettingsRepository) {}
   async update(input: unknown, role: "ADMIN" | "OPERATOR", actorStaffId = "") {
+    if (role === "OPERATOR") {
+      const parsed = operatorModeSchema.safeParse(input);
+      if (!parsed.success) throw new DomainError("FORBIDDEN", "Solo podés pausar o reanudar temporalmente los pedidos QR.");
+      if (!this.repository.updateManualMode) throw new DomainError("INTERNAL_SERVER_ERROR", "No se pudo actualizar el modo operativo.");
+      return this.repository.updateManualMode(parsed.data.manualMode, actorStaffId);
+    }
     const parsed = inputSchema.parse(input);
-    if (role === "OPERATOR" && ["FORCE_QR_OPEN", "FORCE_COUNTER_ONLY"].includes(parsed.manualMode)) throw new DomainError("FORBIDDEN", "No tenés permisos para aplicar ese modo.");
-    if (role === "OPERATOR" && parsed.paymentSettings) throw new DomainError("FORBIDDEN", "No tenés permisos para modificar los medios de pago.");
-    if (role === "OPERATOR" && parsed.businessProfile) throw new DomainError("FORBIDDEN", "No tenés permisos para modificar el perfil público.");
     return this.repository.updateSettings(parsed, actorStaffId);
   }
 }

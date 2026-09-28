@@ -10,12 +10,12 @@ test("el cliente ve el corte de pedidos sin perder acceso a la carta", async ({ 
     business: { name: "Bar", locationUrl: null, instagramUrl: null, whatsappUrl: null },
     service: { mode: "COUNTER_ONLY", hoursLabel: "18:00hs a 01:00hs" },
     categories: [],
-    payment: { methods: ["CASH"], transfer: null },
+    payment: { methods: ["CASH"], unavailable: [], transfer: null },
     serverTime: new Date().toISOString(),
   } }));
 
   await page.goto("/m/cutoff-token");
-  await expect(page.getByRole("heading", { name: "La carta" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Elegí algo rico." })).toBeVisible();
   await expect(page.getByRole("status")).toContainText("barra o caja");
   await expect(page.getByText("Todavía no hay productos publicados en la carta.")).toBeVisible();
   expect(browserErrors).toEqual([]);

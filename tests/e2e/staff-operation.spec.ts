@@ -51,8 +51,28 @@ test("el personal puede crear un pedido en caja", async ({ page }) => {
   await expect(page.getByRole("button", { name: /crear pedido/i })).toBeVisible();
 });
 
+test("Caja muestra el QR de Mercado Pago y deja el pedido pendiente", async ({ page }) => {
+  await page.route("**/api/staff/catalog/products", (route) => route.fulfill({ json: [{ id: "burger", name: "Hamburguesa clásica", priceCents: 950000, available: true, optionGroups: [] }] }));
+  await page.route("**/api/staff/catalog/categories", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/staff/tables", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/staff/orders", async (route) => {
+    if (route.request().method() === "POST") return route.fulfill({ status: 201, json: { id: "counter-mp", status: "AWAITING_PAYMENT", payments: [{ method: "MERCADO_PAGO" }], paymentQrDataUrl: "data:image/png;base64,ZmFrZQ==" } });
+    return route.fulfill({ json: [] });
+  });
+  await page.route("**/api/staff/settings", (route) => route.fulfill({ json: { role: "ADMIN", paymentSettings: { mercadoPagoEnabled: true, cashEnabled: true, cardAtCounterEnabled: true, bankTransferEnabled: false }, mercadoPagoConfigured: true } }));
+
+  await page.goto("/staff/counter");
+  await page.getByLabel("Nombre o referencia").fill("Cliente QR");
+  await page.getByRole("radio", { name: "QR de Mercado Pago" }).check();
+  await page.getByRole("button", { name: /Hamburguesa clásica/ }).click();
+  await page.getByRole("button", { name: /Agregar al carrito/ }).click();
+  await page.getByRole("button", { name: "Crear pedido" }).click();
+  await expect(page.getByRole("img", { name: "QR para pagar el pedido" })).toBeVisible();
+  await expect(page.getByText(/quedará pendiente hasta la confirmación/i)).toBeVisible();
+});
+
 test("Configuración y QR muestran sus acciones principales", async ({ page }) => {
-  await page.route("**/api/staff/settings", (route) => route.fulfill({ json: { settings: { name: "Bar de prueba", locationUrl: null, instagramUrl: null, whatsappUrl: null, manualMode: "SCHEDULED", timezone: "America/Argentina/Buenos_Aires" }, windows: [], paymentSettings: { mercadoPagoEnabled: false, cashEnabled: true, cardAtCounterEnabled: true, bankTransferEnabled: false, bankAlias: null, bankCbuCvu: null, bankAccountHolder: null, bankInstructions: null }, mercadoPagoConfigured: false } }));
+  await page.route("**/api/staff/settings", (route) => route.fulfill({ json: { role: "ADMIN", settings: { name: "Bar de prueba", locationUrl: null, instagramUrl: null, whatsappUrl: null, manualMode: "SCHEDULED", timezone: "America/Argentina/Buenos_Aires" }, windows: [], paymentSettings: { mercadoPagoEnabled: false, cashEnabled: true, cardAtCounterEnabled: true, bankTransferEnabled: false, bankAlias: null, bankCbuCvu: null, bankAccountHolder: null, bankInstructions: null }, mercadoPagoConfigured: false } }));
   await page.goto("/staff/settings");
   await expect(page.getByRole("button", { name: /abrir pedidos qr/i })).toBeVisible();
   await expect(page.getByText(/transferencia bancaria/i)).toBeVisible();

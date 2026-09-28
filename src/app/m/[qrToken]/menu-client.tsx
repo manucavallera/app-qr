@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { ProductCard } from "@/modules/catalog/components/product-card";
 import { ProductDialog, type MenuProduct } from "@/modules/catalog/components/product-dialog";
-import { addToCart, cartTotal, loadCart, saveCart, type CartItem } from "@/modules/orders/cart-store";
+import { addToCart, canPersistCart, cartTotal, clearCart, loadCart, removeCartItem, replaceCartItem, saveCart, type CartItem } from "@/modules/orders/cart-store";
 import { MenuHeader, type PublicBusiness } from "./menu-header";
+import { filterMenuCategories } from "./menu-filter";
 
 type PublicMenu = Readonly<{
   table: { label: string };
@@ -34,9 +35,11 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>("checking");
   const [message, setMessage] = useState<string | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [cartReady, setCartReady] = useState(false);
+  const [cartLoadedForToken, setCartLoadedForToken] = useState<string | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<MenuProduct | null>(null);
+  const [editingCartIndex, setEditingCartIndex] = useState<number | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
+  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
 
   const loadMenu = useCallback(async (): Promise<PublicMenu> => {
     const response = await fetch(`/api/public/menu/${encodeURIComponent(qrToken)}`, { cache: "no-store" });
@@ -71,17 +74,19 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setCart(loadCart(qrToken));
-      setCartReady(true);
+      setCartLoadedForToken(qrToken);
     }, 0);
+
     return () => window.clearTimeout(timer);
   }, [qrToken]);
 
   useEffect(() => {
-    if (cartReady) saveCart(qrToken, cart);
-  }, [cart, cartReady, qrToken]);
+    if (canPersistCart(cartLoadedForToken, qrToken)) saveCart(qrToken, cart);
+  }, [cart, cartLoadedForToken, qrToken]);
 
   const total = useMemo(() => cartTotal(cart), [cart]);
   const products = useMemo(() => new Map(menu?.categories.flatMap((category) => category.products.map((product) => [product.id, product] as const)) ?? []), [menu]);
+  const visibleCategories = useMemo(() => filterMenuCategories(menu?.categories ?? [], activeCategoryId), [activeCategoryId, menu]);
 
   async function startSession(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -95,6 +100,8 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
       });
       if (!response.ok) throw new Error(await readError(response));
       const result = await response.json() as { nickname: string };
+      clearCart(qrToken);
+      setCart([]);
       const loadedMenu = await loadMenu();
       setNickname(result.nickname);
       setMenu(loadedMenu);
@@ -140,20 +147,41 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
     ? "Los pedidos están pausados por el local. Podés seguir viendo la carta."
     : "La autogestión por QR está cerrada por ahora. Podés pedir en la barra o caja.";
 
+  function closeProductDialog() {
+    setSelectedProduct(null);
+    setEditingCartIndex(null);
+  }
+
+  function saveProduct(item: CartItem) {
+    setCart((current) => editingCartIndex === null ? addToCart(current, item) : replaceCartItem(current, editingCartIndex, item));
+    closeProductDialog();
+  }
+
+  function clearCurrentCart() {
+    clearCart(qrToken);
+    setCart([]);
+    setCartOpen(false);
+  }
+
   return (
     <main className="public-menu-shell">
       <MenuHeader business={menu.business} hoursLabel={menu.service.hoursLabel} />
       <header className="public-menu-header">
-        <div><p className="eyebrow">Mesa · {menu.table.label}</p><h1>La carta</h1></div>
+        <div className="menu-hero-copy">
+          <div className="menu-hero-meta"><span className="table-badge">{menu.table.label}</span><span>Menú digital</span></div>
+          <h1>Elegí algo rico.</h1>
+          <p className="menu-subtitle">Todo lo que sale de la cocina, directo a tu mesa.</p>
+        </div>
         <p className="menu-greeting">Hola, {nickname}</p>
       </header>
       {!canOrder && <aside className={`service-mode-note${menu.service.mode === "PAUSED" ? " is-paused" : ""}`} role="status">{modeMessage}</aside>}
       <nav className="category-nav" aria-label="Categorías">
-        {menu.categories.map((category) => <a key={category.id} href={`#category-${category.id}`}>{category.name}</a>)}
+        <button className={activeCategoryId === null ? "is-active" : ""} type="button" aria-pressed={activeCategoryId === null} onClick={() => setActiveCategoryId(null)}>Todo</button>
+        {menu.categories.map((category) => <button className={activeCategoryId === category.id ? "is-active" : ""} key={category.id} type="button" aria-pressed={activeCategoryId === category.id} onClick={() => setActiveCategoryId(category.id)}>{category.name}</button>)}
       </nav>
-      {menu.categories.map((category) => (
+      {visibleCategories.map((category) => (
         <section id={`category-${category.id}`} className="menu-category" key={category.id}>
-          <h2>{category.name}</h2>
+          <div className="menu-category-heading"><h2>{category.name}</h2><span>{category.products.length} opciones</span></div>
           <div className="menu-product-list">
             {category.products.map((product) => <ProductCard key={product.id} product={product} onSelect={setSelectedProduct} />)}
           </div>
@@ -163,16 +191,20 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
       {message && <p className="login-error menu-message" role="alert">{message}</p>}
       {cart.length > 0 && (
         <button className="sticky-cart" type="button" onClick={() => setCartOpen(true)}>
-          <span>{cart.reduce((count, item) => count + item.quantity, 0)} {cart.length === 1 ? "producto" : "productos"}</span>
-          <strong>{formatPrice(total)}</strong><span>{canOrder ? "Ver pedido" : "Ver selección"}</span>
+          <span className="sticky-cart-summary">
+            <span>{cart.reduce((count, item) => count + item.quantity, 0)} {cart.length === 1 ? "producto" : "productos"}</span>
+            <strong>{formatPrice(total)}</strong>
+          </span>
+          <span className="sticky-cart-action">{canOrder ? "Ver pedido" : "Ver selección"}</span>
         </button>
       )}
-      {selectedProduct && <ProductDialog product={selectedProduct} onClose={() => setSelectedProduct(null)} onAdd={(item) => setCart((current) => addToCart(current, item))} />}
+      {selectedProduct && <ProductDialog product={selectedProduct} initialItem={editingCartIndex === null ? undefined : cart[editingCartIndex]} onClose={closeProductDialog} onAdd={saveProduct} />}
       {cartOpen && (
         <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCartOpen(false); }}>
           <section className="cart-dialog" role="dialog" aria-modal="true" aria-labelledby="cart-title">
             <button className="dialog-close" type="button" onClick={() => setCartOpen(false)} aria-label="Cerrar">×</button>
             <p className="eyebrow">Tu selección</p><h2 id="cart-title">El pedido de {menu.table.label}</h2>
+            <button className="cart-clear-button" type="button" onClick={clearCurrentCart}>Vaciar pedido</button>
             <ul className="cart-lines">
               {cart.map((item, index) => {
                 const product = products.get(item.productId);
@@ -182,8 +214,15 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
                     {item.notes && <span className="cart-line-detail">Nota: {item.notes}</span>}
                   </div>
                   <div className="cart-line-actions"><strong>{formatPrice(item.displayedTotalCents * item.quantity)}</strong>
-                    <button type="button" aria-label={`Quitar una porción de ${product?.name ?? "producto"}`} onClick={() => setCart((current) => current.flatMap((line, lineIndex) => lineIndex !== index ? [line] : line.quantity > 1 ? [{ ...line, quantity: line.quantity - 1 }] : []))}>−</button>
-                    <button type="button" aria-label={`Agregar una porción de ${product?.name ?? "producto"}`} onClick={() => setCart((current) => current.map((line, lineIndex) => lineIndex === index ? { ...line, quantity: Math.min(99, line.quantity + 1) } : line))}>＋</button>
+                    <div className="cart-line-buttons">
+                      <button className="cart-line-edit" type="button" onClick={() => { if (!product) return; setEditingCartIndex(index); setSelectedProduct(product); setCartOpen(false); }}>Editar</button>
+                      <button className="cart-line-remove" type="button" onClick={() => setCart((current) => removeCartItem(current, index))}>Quitar</button>
+                    </div>
+                    <div className="cart-line-quantity" aria-label={`Cantidad de ${product?.name ?? "producto"}`}>
+                      <button type="button" aria-label={`Restar una porción de ${product?.name ?? "producto"}`} onClick={() => setCart((current) => current.flatMap((line, lineIndex) => lineIndex !== index ? [line] : line.quantity > 1 ? [{ ...line, quantity: line.quantity - 1 }] : []))}>−</button>
+                      <span>{item.quantity}</span>
+                      <button type="button" aria-label={`Agregar una porción de ${product?.name ?? "producto"}`} onClick={() => setCart((current) => current.map((line, lineIndex) => lineIndex === index ? { ...line, quantity: Math.min(99, line.quantity + 1) } : line))}>+</button>
+                    </div>
                   </div>
                 </li>;
               })}

@@ -21,6 +21,7 @@ test("el cliente puede avanzar desde la carta hasta confirmar el pedido", async 
         ...body,
         payment: {
           methods: ["MERCADO_PAGO", "CASH", "CARD_AT_COUNTER", "BANK_TRANSFER"],
+          unavailable: [],
           transfer: { alias: "bar.prueba", cbuCvu: "0000000000000000000000", accountHolder: "Bar de prueba", instructions: "Enviá el comprobante por caja." },
         },
       },
@@ -30,7 +31,7 @@ test("el cliente puede avanzar desde la carta hasta confirmar el pedido", async 
   await expect(page.getByRole("heading", { name: /cómo te llamamos/i })).toBeVisible();
   await page.getByLabel("Tu nombre o apodo").fill("Prueba E2E");
   await page.getByRole("button", { name: "Ver la carta" }).click();
-  await expect(page.getByRole("heading", { name: "La carta" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Elegí algo rico." })).toBeVisible();
   const contactLinks = [
     { label: "Cómo llegar", href: publicDetails.business?.locationUrl },
     { label: "Instagram", href: publicDetails.business?.instagramUrl },
@@ -48,7 +49,7 @@ test("el cliente puede avanzar desde la carta hasta confirmar el pedido", async 
   await page.getByRole("button", { name: /Ver pedido/ }).click();
   await page.getByRole("link", { name: "Continuar con el pedido" }).click();
   await expect(page).toHaveURL(new RegExp(`/m/${qrToken}/checkout$`));
-  await expect(page.getByRole("heading", { name: "Confirmá tu pedido" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Forma de pago" })).toBeVisible();
   await expect(page.getByText("Hamburguesa clásica")).toBeVisible();
   await expect(page.getByLabel("Mercado Pago")).toBeVisible();
   await expect(page.getByLabel("Transferencia bancaria")).toBeVisible();
@@ -72,7 +73,7 @@ test("la carta entra en una pantalla de 320px sin desborde horizontal", async ({
   await page.goto(`/m/${encodeURIComponent(qrToken)}`);
   await page.getByLabel("Tu nombre o apodo").fill("Pantalla angosta");
   await page.getByRole("button", { name: "Ver la carta" }).click();
-  await expect(page.getByRole("heading", { name: "La carta" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Elegí algo rico." })).toBeVisible();
 
   const firstProduct = page.locator(".menu-product").first();
   await expect(firstProduct.locator(".menu-product-image, .menu-product-image-placeholder")).toBeVisible();

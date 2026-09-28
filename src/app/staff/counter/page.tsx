@@ -1,16 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ProductDialog, type MenuProduct } from "@/modules/catalog/components/product-dialog";
 import type { CartItem } from "@/modules/orders/cart-store";
 import { StaffShell } from "@/components/staff/staff-shell";
 import { orderStatusLabel } from "@/components/staff/status-copy";
+import { counterOrderConfirmationMessage, type CounterPaymentMethod } from "@/modules/orders/counter-payment";
 
 type Product = MenuProduct;
 type Table = { id: string; label: string; active: boolean };
 type CartLine = { id: string; product: Product; quantity: number; optionValueIds: string[]; optionLabels: string[]; notes: string; unitPriceCents: number };
 type RecentOrder = { id: string; number: number; status: string; totalCents: number; customerName: string | null; table: { label: string } | null };
+type PaymentAvailability = { cash: boolean; card: boolean; transfer: boolean; mercadoPago: boolean };
 
 function ars(cents: number): string {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(cents / 100);
@@ -33,7 +36,9 @@ export default function CounterPage() {
   const [cart, setCart] = useState<CartLine[]>([]);
   const [nickname, setNickname] = useState("");
   const [tableId, setTableId] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "CARD_AT_COUNTER">("CASH");
+  const [paymentMethod, setPaymentMethod] = useState<CounterPaymentMethod>("CASH");
+  const [paymentAvailability, setPaymentAvailability] = useState<PaymentAvailability>({ cash: true, card: true, transfer: false, mercadoPago: false });
+  const [paymentQrDataUrl, setPaymentQrDataUrl] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -44,11 +49,24 @@ export default function CounterPage() {
       fetch("/api/staff/catalog/products", { cache: "no-store" }),
       fetch("/api/staff/tables", { cache: "no-store" }),
       fetch("/api/staff/orders", { cache: "no-store" }),
-    ]).then(async ([productResponse, tableResponse, orderResponse]) => {
-      if ([productResponse, tableResponse, orderResponse].some((response) => response.status === 401)) { router.push("/staff/login"); return; }
+      fetch("/api/staff/settings", { cache: "no-store" }),
+    ]).then(async ([productResponse, tableResponse, orderResponse, settingsResponse]) => {
+      if ([productResponse, tableResponse, orderResponse, settingsResponse].some((response) => response.status === 401)) { router.push("/staff/login"); return; }
       if (productResponse.ok) setProducts(await productResponse.json() as Product[]);
       if (tableResponse.ok) setTables((await tableResponse.json() as Table[]).filter((table) => table.active));
       if (orderResponse.ok) setRecentOrders((await orderResponse.json() as RecentOrder[]).slice(0, 8));
+      if (settingsResponse.ok) {
+        const settings = await settingsResponse.json() as { paymentSettings?: { mercadoPagoEnabled?: boolean; cashEnabled?: boolean; cardAtCounterEnabled?: boolean; bankTransferEnabled?: boolean; bankAlias?: string | null; bankCbuCvu?: string | null }; mercadoPagoConfigured?: boolean };
+        const payment = settings.paymentSettings;
+        const nextAvailability = {
+          cash: payment?.cashEnabled ?? true,
+          card: payment?.cardAtCounterEnabled ?? true,
+          transfer: Boolean(payment?.bankTransferEnabled && (payment.bankAlias?.trim() || payment.bankCbuCvu?.trim())),
+          mercadoPago: Boolean(payment?.mercadoPagoEnabled && settings.mercadoPagoConfigured),
+        };
+        setPaymentAvailability(nextAvailability);
+        setPaymentMethod((current) => current === "CASH" && nextAvailability.cash || current === "CARD_AT_COUNTER" && nextAvailability.card || current === "BANK_TRANSFER" && nextAvailability.transfer || current === "MERCADO_PAGO" && nextAvailability.mercadoPago ? current : nextAvailability.cash ? "CASH" : nextAvailability.card ? "CARD_AT_COUNTER" : nextAvailability.transfer ? "BANK_TRANSFER" : "MERCADO_PAGO");
+      }
     }).catch(() => setMessage("No se pudo cargar la caja. Actualizá la pantalla e intentá de nuevo.")).finally(() => setLoading(false));
   }, [router]);
 
@@ -77,11 +95,13 @@ export default function CounterPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ clientRequestId: crypto.randomUUID(), expectedTotalCents: total, paymentMethod, nickname: nickname.trim(), tableId: tableId || undefined, items: cart.map((line) => ({ productId: line.product.id, quantity: line.quantity, optionValueIds: line.optionValueIds, ...(line.notes ? { notes: line.notes } : {}) })) }),
       });
+      const body = await response.json() as { status?: string; payments?: { method?: CounterPaymentMethod }[]; paymentQrDataUrl?: string };
       if (!response.ok) { setMessage("No se pudo crear el pedido. Revisá los datos e intentá de nuevo."); return; }
       setCart([]);
       setNickname("");
       setTableId("");
-      setMessage("Pedido creado y enviado a preparación.");
+      setPaymentQrDataUrl(body.paymentQrDataUrl ?? null);
+      setMessage(counterOrderConfirmationMessage(paymentMethod, body.status ?? "CONFIRMED"));
     } catch {
       setMessage("No se pudo conectar con el servidor. Intentá de nuevo.");
     } finally {
@@ -98,7 +118,7 @@ export default function CounterPage() {
         {loading ? <p className="loading-state" role="status">Cargando productos…</p> : <form className="staff-form" onSubmit={submit}>
           <label className="form-field"><span>Nombre o referencia</span><input className="form-input" value={nickname} onChange={(event) => setNickname(event.target.value)} placeholder="Ej. Juan" required /></label>
           <label className="form-field"><span>Mesa (opcional)</span><select className="form-input" value={tableId} onChange={(event) => setTableId(event.target.value)}><option value="">Pedido de mostrador</option>{tables.map((table) => <option key={table.id} value={table.id}>{table.label}</option>)}</select></label>
-          <fieldset className="dialog-option-group"><legend>Forma de pago</legend><label className="dialog-option"><input type="radio" checked={paymentMethod === "CASH"} onChange={() => setPaymentMethod("CASH")} /> Efectivo</label><label className="dialog-option"><input type="radio" checked={paymentMethod === "CARD_AT_COUNTER"} onChange={() => setPaymentMethod("CARD_AT_COUNTER")} /> Tarjeta</label></fieldset>
+          <fieldset className="dialog-option-group"><legend>Forma de pago</legend>{paymentAvailability.cash && <label className="dialog-option"><input type="radio" name="counter-payment" checked={paymentMethod === "CASH"} onChange={() => setPaymentMethod("CASH")} /> Efectivo</label>}{paymentAvailability.card && <label className="dialog-option"><input type="radio" name="counter-payment" checked={paymentMethod === "CARD_AT_COUNTER"} onChange={() => setPaymentMethod("CARD_AT_COUNTER")} /> Tarjeta</label>}{paymentAvailability.transfer && <label className="dialog-option"><input type="radio" name="counter-payment" checked={paymentMethod === "BANK_TRANSFER"} onChange={() => setPaymentMethod("BANK_TRANSFER")} /> Transferencia manual</label>}{paymentAvailability.mercadoPago && <label className="dialog-option"><input type="radio" name="counter-payment" checked={paymentMethod === "MERCADO_PAGO"} onChange={() => setPaymentMethod("MERCADO_PAGO")} /> QR de Mercado Pago</label>}</fieldset>
           <div className="counter-products"><h3>Productos</h3>{products.filter((product) => product.available).length === 0 ? <p className="empty-state">No hay productos disponibles.</p> : products.filter((product) => product.available).map((product) => <button className="product-picker" key={product.id} type="button" onClick={() => setSelectedProduct(product)}><span><strong>{product.name}</strong><small>{product.optionGroups.length > 0 ? "Elegir opciones · " : ""}{ars(product.priceCents)}</small></span><span aria-hidden="true">+</span></button>)}</div>
           <div className="counter-cart"><h3>Pedido actual</h3>{cart.length === 0 ? <p className="empty-state">Todavía no agregaste productos.</p> : cart.map((line) => <div className="counter-line" key={line.id}><span><strong>{line.product.name}</strong>{line.optionLabels.length > 0 && <small>{line.optionLabels.join(" · ")}</small>}{line.notes && <small>Nota: {line.notes}</small>}</span><div className="quantity-control"><button type="button" aria-label={`Quitar ${line.product.name}`} onClick={() => changeQuantity(line.id, -1)}>−</button><strong>{line.quantity}</strong><button type="button" aria-label={`Agregar ${line.product.name}`} onClick={() => changeQuantity(line.id, 1)}>+</button></div><strong>{ars(line.unitPriceCents * line.quantity)}</strong></div>)}</div>
           {message && <p className="staff-message" role="status">{message}</p>}
@@ -108,6 +128,7 @@ export default function CounterPage() {
       </div>
       <aside className="counter-recent"><p className="eyebrow">Actividad</p><h2>Últimos pedidos</h2>{recentOrders.length === 0 ? <p className="empty-state">Todavía no hay pedidos recientes.</p> : <div className="payment-list">{recentOrders.map((order) => <div className="payment-card" key={order.id}><div><strong>Pedido #{order.number}</strong><span>{order.table?.label ?? "Mostrador"} · {order.customerName ?? "Cliente"}</span></div><span>{orderStatusLabel[order.status] ?? order.status}</span></div>)}</div>}</aside>
     </section>
+    {paymentQrDataUrl && <aside className="payment-qr-panel" role="status"><strong>QR de pago</strong><p>El cliente debe escanear y completar el pago. El pedido se confirma automáticamente cuando Mercado Pago lo acredita.</p><Image unoptimized width={240} height={240} src={paymentQrDataUrl} alt="QR para pagar el pedido" /><button className="button-secondary" type="button" onClick={() => setPaymentQrDataUrl(null)}>Cerrar QR</button></aside>}
     {selectedProduct && <ProductDialog product={selectedProduct} onClose={() => setSelectedProduct(null)} onAdd={(item) => addProduct(item, selectedProduct)} />}
   </StaffShell>;
 }

@@ -48,6 +48,12 @@ function includeCatalogOptions() {
   };
 }
 
+export async function updateCategorySortOrders(tx: TransactionClient, categoryIds: string[]): Promise<void> {
+  for (const [sortOrder, id] of categoryIds.entries()) {
+    await tx.category.update({ where: { id }, data: { sortOrder } });
+  }
+}
+
 async function writeProduct(tx: TransactionClient, input: CatalogProductInput) {
   const category = await tx.category.findUnique({ where: { id: input.categoryId } });
   if (!category) throw new DomainError("CATEGORY_NOT_FOUND", "No encontramos esa categoría.");
@@ -86,11 +92,7 @@ export class PrismaCatalogRepository implements CatalogRepository {
         throw new DomainError("CATEGORY_NOT_FOUND", "No encontramos todas las categorías indicadas.");
       }
 
-      await Promise.all(
-        categoryIds.map((id, sortOrder) =>
-          tx.category.update({ where: { id }, data: { sortOrder } }),
-        ),
-      );
+      await updateCategorySortOrders(tx, categoryIds);
       return tx.category.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }] });
     });
   }

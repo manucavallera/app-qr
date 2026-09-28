@@ -25,7 +25,7 @@ export default function StaffLoginPage() {
       });
 
       if (response.ok) {
-        router.push("/staff/catalog");
+        router.push("/staff");
         return;
       }
 

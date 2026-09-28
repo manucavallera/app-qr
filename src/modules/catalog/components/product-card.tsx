@@ -11,11 +11,11 @@ export function ProductCard({ product, onSelect }: { product: MenuProduct & { im
     <article className={`menu-product${product.available ? "" : " is-unavailable"}`}>
       {product.imageUrl ? (
         <Image className="menu-product-image" src={product.imageUrl} alt="" width={104} height={104} unoptimized />
-      ) : <div className="menu-product-image-placeholder" aria-hidden="true">🍽️</div>}
+      ) : <div className="menu-product-image-placeholder" aria-hidden="true"><span>Menú</span></div>}
       <div className="menu-product-copy">
         <h3>{product.name}</h3>
         {product.description && <p>{product.description}</p>}
-        <span className="menu-product-price">{formatArs(product.priceCents)}</span>
+        <div className="menu-product-meta"><span className="menu-product-price">{formatArs(product.priceCents)}</span>{product.optionGroups.length > 0 && <span className="menu-product-options">Personalizable</span>}</div>
       </div>
       <button
         className="menu-add-button"
@@ -24,7 +24,7 @@ export function ProductCard({ product, onSelect }: { product: MenuProduct & { im
         onClick={() => onSelect(product)}
         aria-label={product.available ? `Agregar ${product.name}` : `${product.name}, agotado`}
       >
-        {product.available ? "＋" : "Agotado"}
+        {product.available ? "+" : "Agotado"}
       </button>
     </article>
   );

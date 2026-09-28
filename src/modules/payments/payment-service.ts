@@ -11,7 +11,8 @@ export type PaymentOrder = Readonly<{
 
 export type PaymentRepository = {
   findOrderForCustomer(orderId: string, customerSessionId: string): Promise<PaymentOrder | null>;
-  findOrCreateCheckoutAttempt(orderId: string, customerSessionId: string): Promise<{ id: string; idempotencyKey: string; providerOrderId: string | null; checkoutUrl: string | null } | null>;
+  findOrderForCounter(orderId: string): Promise<PaymentOrder | null>;
+  findOrCreateCheckoutAttempt(orderId: string, customerSessionId: string | null): Promise<{ id: string; idempotencyKey: string; providerOrderId: string | null; checkoutUrl: string | null } | null>;
   saveCheckout(input: { attemptId: string; providerOrderId: string; checkoutUrl: string; raw: unknown }): Promise<void>;
   processGatewayUpdate(input: { providerOrderId: string; externalReference: string; status: string; statusDetail: string; totalPaidCents: number; raw: unknown }): Promise<unknown>;
 };
@@ -25,6 +26,15 @@ export class PaymentService {
 
   async createCheckout(orderId: string, customerSessionId: string): Promise<{ checkoutUrl: string; providerOrderId: string }> {
     const order = await this.repository.findOrderForCustomer(orderId, customerSessionId);
+    return this.createCheckoutForOrder(order, customerSessionId);
+  }
+
+  async createCounterCheckout(orderId: string): Promise<{ checkoutUrl: string; providerOrderId: string }> {
+    const order = await this.repository.findOrderForCounter(orderId);
+    return this.createCheckoutForOrder(order, null);
+  }
+
+  private async createCheckoutForOrder(order: PaymentOrder | null, customerSessionId: string | null): Promise<{ checkoutUrl: string; providerOrderId: string }> {
     if (!order) throw new DomainError("ORDER_NOT_FOUND", "No encontramos ese pedido.");
     if (order.status !== "AWAITING_PAYMENT") throw new DomainError("ORDER_NOT_AWAITING_PAYMENT", "Este pedido ya no espera un pago.");
     const attempt = await this.repository.findOrCreateCheckoutAttempt(order.id, customerSessionId);

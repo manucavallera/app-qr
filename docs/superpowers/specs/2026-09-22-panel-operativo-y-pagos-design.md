@@ -107,7 +107,7 @@ Al seleccionar transferencia, el pedido queda en `AWAITING_PAYMENT`. El cliente 
 - `Confirmar transferencia`;
 - `Rechazar pedido`.
 
-`Nuevo pedido en caja` reutilizará el catálogo para seleccionar productos, variantes, cantidades y observaciones. Permitirá asignar una mesa o marcarlo como pedido de mostrador. Como el cobro ocurre frente al personal, solamente admitirá efectivo o tarjeta en caja y quedará confirmado al finalizar.
+`Nuevo pedido en caja` reutilizará el catálogo para seleccionar productos, variantes, cantidades y observaciones. Permitirá asignar una mesa o marcarlo como pedido de mostrador. Admitirá efectivo, tarjeta en caja y transferencia bancaria: efectivo y tarjeta quedarán confirmados al finalizar; una transferencia quedará pendiente hasta que Caja la verifique y la confirme manualmente.
 
 La vista `Pedidos` mostrará estados en español, medio y estado de pago, origen, mesa, cliente, total y acceso al detalle. Las cancelaciones respetarán las reglas ya definidas.
 

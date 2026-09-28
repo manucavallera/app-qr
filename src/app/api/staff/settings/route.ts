@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     settings,
     windows,
     paymentSettings: paymentSettings ?? defaultPaymentSettings,
-    mercadoPagoConfigured: Boolean(env.MERCADOPAGO_ACCESS_TOKEN),
+    mercadoPagoConfigured: env.PAYMENT_PROVIDER === "mercadopago" && Boolean(env.MERCADOPAGO_ACCESS_TOKEN),
   });
 }
 
@@ -76,6 +76,14 @@ export async function PATCH(request: NextRequest) {
               metadata: { before, beforePayments, after: input },
             },
           });
+        });
+      },
+      updateManualMode: async (manualMode, actor) => {
+        await prisma.$transaction(async (tx) => {
+          const before = await tx.businessSettings.findUnique({ where: { id: "default" } });
+          if (!before) throw new Error("Business settings are not configured.");
+          await tx.businessSettings.update({ where: { id: "default" }, data: { manualMode } });
+          await tx.auditEvent.create({ data: { actorStaffId: actor, action: "SETTINGS_UPDATED", entityType: "BusinessSettings", entityId: "default", metadata: { beforeManualMode: before.manualMode, afterManualMode: manualMode } } });
         });
       },
     });
