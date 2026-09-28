@@ -17,6 +17,7 @@ jobs:
         with: { node-version: 24, cache: npm }
       - run: npm ci
       - run: npm run db:generate
+        env: { DATABASE_URL: postgresql://appqr:appqr@localhost:5432/appqr_test }
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
