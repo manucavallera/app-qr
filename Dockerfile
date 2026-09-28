@@ -7,6 +7,11 @@ FROM node:24-bookworm-slim AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# Build-time placeholders only. Runtime values are configured in EasyPanel.
+ENV DATABASE_URL=postgresql://appqr:appqr@localhost:5432/appqr_build \
+    APP_URL=http://localhost:3000 \
+    SESSION_SECRET=build-session-secret-please-change-32chars \
+    PAYMENT_PROVIDER=fake
 RUN npx prisma generate && npm run build
 
 FROM node:24-bookworm-slim AS runtime
