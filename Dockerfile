@@ -23,6 +23,13 @@ COPY --from=build --chown=appuser:appuser /app/.next/standalone ./
 COPY --from=build --chown=appuser:appuser /app/.next/static ./.next/static
 COPY --from=build --chown=appuser:appuser /app/public ./public
 COPY --from=build --chown=appuser:appuser /app/prisma ./prisma
+# Keep the database maintenance commands available in the EasyPanel console.
+# They are run manually for migrations and demo-data setup, never at startup.
+COPY --from=build --chown=appuser:appuser /app/node_modules ./node_modules
+COPY --from=build --chown=appuser:appuser /app/package.json ./package.json
+COPY --from=build --chown=appuser:appuser /app/prisma.config.ts ./prisma.config.ts
+COPY --from=build --chown=appuser:appuser /app/tsconfig.json ./tsconfig.json
+COPY --from=build --chown=appuser:appuser /app/src ./src
 USER appuser
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s CMD node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
