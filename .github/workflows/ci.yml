@@ -24,3 +24,8 @@ jobs:
       - run: npm run test:integration
         env: { DATABASE_URL: postgresql://appqr:appqr@localhost:5432/appqr_test, TEST_DATABASE_URL: postgresql://appqr:appqr@localhost:5432/appqr_test, APP_URL: http://localhost:3000, SESSION_SECRET: ci-session-secret-please-change-32chars, PAYMENT_PROVIDER: fake }
       - run: npm run build
+        env:
+          DATABASE_URL: postgresql://appqr:appqr@localhost:5432/appqr_test
+          APP_URL: http://localhost:3000
+          SESSION_SECRET: ci-session-secret-please-change-32chars
+          PAYMENT_PROVIDER: fake
