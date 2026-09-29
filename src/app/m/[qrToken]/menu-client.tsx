@@ -228,6 +228,7 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
               })}
             </ul>
             <div className="cart-total"><span>Total estimado</span><strong>{formatPrice(total)}</strong></div>
+            <button className="cart-continue-shopping" type="button" onClick={() => setCartOpen(false)}>Seguir agregando</button>
             {canOrder ? <a className="primary-link cart-continue" href={`/m/${encodeURIComponent(qrToken)}/checkout`}>Continuar con el pedido</a> : <p className="cart-counter-note">Cuando quieras pedir, acercate a la barra o caja.</p>}
           </section>
         </div>
