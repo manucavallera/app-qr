@@ -4,6 +4,25 @@ Configurar `DATABASE_URL`, `APP_URL` HTTPS, `SESSION_SECRET` de 32+ caracteres, 
 
 Ejecutar migraciones (`npm run db:deploy`) antes de iniciar la nueva revisión. Verificar `/api/health`, `/api/ready`, login de staff, escaneo de QR y un pago de prueba. Para rollback, volver a la imagen anterior y no revertir migraciones destructivas sin backup.
 
+## Imágenes de productos (Cloudflare R2)
+
+1. En Cloudflare, R2: crear un bucket (por ejemplo `pedidos-qr`).
+2. En el bucket, Configuración: activar el acceso público (subdominio `r2.dev`) o conectar un dominio propio. Copiar esa URL pública.
+3. R2 > Administrar tokens de API: crear un token con permiso de lectura y escritura sobre ese bucket. Copiar el Access Key ID y el Secret Access Key.
+4. En EasyPanel, variables de la app:
+
+```
+IMAGE_STORAGE_DRIVER=s3
+S3_ENDPOINT=https://<ID_DE_CUENTA>.r2.cloudflarestorage.com
+S3_REGION=auto
+S3_BUCKET=pedidos-qr
+S3_ACCESS_KEY_ID=...
+S3_SECRET_ACCESS_KEY=...
+S3_PUBLIC_URL=https://<la URL pública del paso 2>
+```
+
+Reiniciar la app, subir una foto desde Staff > Carta y comprobar que se ve en la carta. Las fotos ya subidas al disco local no se migran: volver a cargarlas.
+
 ## Carga inicial de datos de demostración
 
 Después del primer despliegue, desde la consola de la app en EasyPanel ejecutar una vez:

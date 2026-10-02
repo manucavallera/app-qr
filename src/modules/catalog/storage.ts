@@ -142,8 +142,11 @@ export function createImageStorage(env: ServerEnv = getServerEnv()): ImageStorag
     ...(endpoint ? { endpoint, forcePathStyle: true } : {}),
     credentials: { accessKeyId, secretAccessKey },
   });
-  const publicBaseUrl = endpoint
-    ? `${endpoint.replace(/\/$/, "")}/${bucket}`
-    : `https://${bucket}.s3.${env.S3_REGION}.amazonaws.com`;
+  // The API endpoint of providers like R2 is not publicly readable, so the public URL is separate.
+  const publicBaseUrl = env.S3_PUBLIC_URL
+    ? env.S3_PUBLIC_URL.replace(/\/$/, "")
+    : endpoint
+      ? `${endpoint.replace(/\/$/, "")}/${bucket}`
+      : `https://${bucket}.s3.${env.S3_REGION}.amazonaws.com`;
   return new S3ImageStorage(client, bucket, publicBaseUrl);
 }
