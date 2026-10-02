@@ -1,7 +1,8 @@
-import { test, expect } from "./fixtures";
+import { test, expect, withStaffCookie } from "./fixtures";
 
-test.beforeEach(({}, testInfo) => {
+test.beforeEach(async ({ page, baseURL }, testInfo) => {
   test.skip(testInfo.project.name !== "chromium", "Los flujos de staff se ejecutan una vez en escritorio.");
+  await withStaffCookie(page, baseURL);
 });
 
 const paymentOrder = (id: string, number: number, method: "CASH" | "CARD_AT_COUNTER" | "BANK_TRANSFER") => ({

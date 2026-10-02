@@ -58,3 +58,12 @@ export async function closeExpiredSessions(now = new Date()): Promise<{ closed: 
 
   return { closed: result.count };
 }
+
+/** Deletes rows that only grow: expired staff sessions and spent rate-limit buckets. */
+export async function purgeExpiredRecords(now = new Date()): Promise<{ purged: number }> {
+  const [sessions, buckets] = await Promise.all([
+    prisma.staffSession.deleteMany({ where: { expiresAt: { lt: now } } }),
+    prisma.rateLimitBucket.deleteMany({ where: { resetsAt: { lt: now } } }),
+  ]);
+  return { purged: sessions.count + buckets.count };
+}

@@ -34,7 +34,9 @@ export class UserAdminService {
     if (input.active !== undefined) data.active = input.active;
 
     const user = await this.db.staffUser.update({ where: { id: input.id }, data });
-    if (input.active === false) await this.db.staffSession.deleteMany({ where: { userId: input.id } });
+    // A new password signs that user out everywhere. Admins changing their own keep their session.
+    const passwordChangedForOther = Boolean(input.password) && input.id !== actorId;
+    if (input.active === false || passwordChangedForOther) await this.db.staffSession.deleteMany({ where: { userId: input.id } });
     await this.db.auditEvent.create({ data: { actorStaffId: actorId, action: input.active === true && !current.active ? "STAFF_USER_ACTIVATED" : "STAFF_USER_UPDATED", entityType: "StaffUser", entityId: user.id, metadata: { role: user.role, active: user.active } } });
     return { id: user.id, email: user.email, displayName: user.displayName, role: user.role, active: user.active };
   }

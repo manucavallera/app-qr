@@ -23,9 +23,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const forwardedFor = request.headers.get("x-forwarded-for");
   const ipAddress = forwardedFor?.split(",")[0]?.trim() || "unknown";
   const rateLimitKey = loginRateLimitKey(normalizedEmail, ipAddress);
+  // Second bucket per email alone, so rotating the forwarded IP cannot lift the limit.
+  const emailRateLimitKey = `staff-login-email:${normalizedEmail}`;
 
   try {
-    const rateLimit = await sessionRepository.consumeRateLimit(rateLimitKey, 5, 15 * 60);
+    const ipRateLimit = await sessionRepository.consumeRateLimit(rateLimitKey, 5, 15 * 60);
+    const emailRateLimit = await sessionRepository.consumeRateLimit(emailRateLimitKey, 20, 15 * 60);
+    const rateLimit = ipRateLimit.allowed ? emailRateLimit : ipRateLimit;
     if (!rateLimit.allowed) {
       const retryAfterSeconds = Math.max(1, Math.ceil((rateLimit.resetsAt.getTime() - Date.now()) / 1000));
       return NextResponse.json(
@@ -36,6 +40,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const session = await authService.login(normalizedEmail, parsed.data.password);
     await sessionRepository.clearRateLimit(rateLimitKey);
+    await sessionRepository.clearRateLimit(emailRateLimitKey);
 
     const response = NextResponse.json({
       id: session.user.id,

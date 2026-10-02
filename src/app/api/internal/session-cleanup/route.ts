@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { cancelStaleUnpaidOrders } from "@/modules/orders/stale-orders";
-import { closeExpiredSessions } from "@/modules/tables/session-cleanup";
+import { closeExpiredSessions, purgeExpiredRecords } from "@/modules/tables/session-cleanup";
 import { getServerEnv } from "@/lib/env";
 
 /**
@@ -26,5 +26,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   // Orders first: a session with an unpaid order stays open until that order expires.
   const orders = await cancelStaleUnpaidOrders();
   const sessions = await closeExpiredSessions();
+  await purgeExpiredRecords();
   return NextResponse.json({ ok: true, closed: sessions.closed, cancelledOrders: orders.cancelled });
 }
