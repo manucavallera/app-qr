@@ -1,9 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { cancelStaleUnpaidOrders } from "@/modules/orders/stale-orders";
 import { closeExpiredSessions } from "@/modules/tables/session-cleanup";
 import { getServerEnv } from "@/lib/env";
 
 /**
- * Internal endpoint to trigger session cleanup manually or from an external cron.
+ * Internal endpoint to trigger session cleanup and unpaid-order expiry manually
+ * or from an external cron.
  * Protected by INTERNAL_SECRET env var.
  *
  * Example:
@@ -21,6 +23,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (auth !== `Bearer ${env.INTERNAL_SECRET}`) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
-  const result = await closeExpiredSessions();
-  return NextResponse.json({ ok: true, ...result });
+  // Orders first: a session with an unpaid order stays open until that order expires.
+  const orders = await cancelStaleUnpaidOrders();
+  const sessions = await closeExpiredSessions();
+  return NextResponse.json({ ok: true, closed: sessions.closed, cancelledOrders: orders.cancelled });
 }

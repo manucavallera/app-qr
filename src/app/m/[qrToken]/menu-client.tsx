@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import { ProductCard } from "@/modules/catalog/components/product-card";
 import { ProductDialog, type MenuProduct } from "@/modules/catalog/components/product-dialog";
 import { addToCart, canPersistCart, cartTotal, clearCart, loadCart, removeCartItem, replaceCartItem, saveCart, type CartItem } from "@/modules/orders/cart-store";
+import { formatArs as formatPrice } from "@/lib/format";
+import { useEscapeKey } from "@/lib/client/use-escape-key";
 import { MenuHeader, type PublicBusiness } from "./menu-header";
 import { filterMenuCategories } from "./menu-filter";
 
@@ -16,11 +18,9 @@ type PublicMenu = Readonly<{
   serverTime: string;
 }>;
 
-type SessionStatus = "checking" | "needs-name" | "starting" | "ready" | "error";
+const noop = () => undefined;
 
-function formatPrice(cents: number): string {
-  return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(cents / 100);
-}
+type SessionStatus = "checking" | "needs-name" | "starting" | "ready" | "error";
 
 async function readError(response: Response): Promise<string> {
   const body = await response.json().catch(() => null) as { error?: string } | null;
@@ -40,6 +40,7 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
   const [editingCartIndex, setEditingCartIndex] = useState<number | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
+  const [addedNotice, setAddedNotice] = useState<{ id: number; name: string } | null>(null);
 
   const loadMenu = useCallback(async (): Promise<PublicMenu> => {
     const response = await fetch(`/api/public/menu/${encodeURIComponent(qrToken)}`, { cache: "no-store" });
@@ -84,7 +85,35 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
     if (canPersistCart(cartLoadedForToken, qrToken)) saveCart(qrToken, cart);
   }, [cart, cartLoadedForToken, qrToken]);
 
+  useEffect(() => {
+    if (!addedNotice) return;
+    const timer = window.setTimeout(() => setAddedNotice(null), 3500);
+    return () => window.clearTimeout(timer);
+  }, [addedNotice]);
+
+  useEffect(() => {
+    if (!menu || cartLoadedForToken !== qrToken) return;
+    const catalog = new Map(menu.categories.flatMap((category) => category.products.map((product) => [product.id, product] as const)));
+    const valid = (item: CartItem) => {
+      const product = catalog.get(item.productId);
+      if (!product?.available) return false;
+      const values = new Map(product.optionGroups.flatMap((group) => group.values.map((value) => [value.id, value] as const)));
+      return item.optionIds.every((id) => values.get(id)?.available !== false && values.has(id));
+    };
+    const kept = cart.filter(valid);
+    if (kept.length === cart.length) return;
+    const timer = window.setTimeout(() => {
+      setCart(kept);
+      setMessage("Sacamos de tu pedido productos que ya no están disponibles.");
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [menu, cart, cartLoadedForToken, qrToken]);
+
+  const closeCart = useCallback(() => setCartOpen(false), []);
+  useEscapeKey(cartOpen ? closeCart : noop);
+
   const total = useMemo(() => cartTotal(cart), [cart]);
+  const itemCount = useMemo(() => cart.reduce((count, item) => count + item.quantity, 0), [cart]);
   const products = useMemo(() => new Map(menu?.categories.flatMap((category) => category.products.map((product) => [product.id, product] as const)) ?? []), [menu]);
   const visibleCategories = useMemo(() => filterMenuCategories(menu?.categories ?? [], activeCategoryId), [activeCategoryId, menu]);
 
@@ -154,6 +183,7 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
 
   function saveProduct(item: CartItem) {
     setCart((current) => editingCartIndex === null ? addToCart(current, item) : replaceCartItem(current, editingCartIndex, item));
+    if (editingCartIndex === null) setAddedNotice({ id: Date.now(), name: products.get(item.productId)?.name ?? "Producto" });
     closeProductDialog();
   }
 
@@ -165,6 +195,16 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
 
   return (
     <main className="public-menu-shell">
+      <button className="cart-fab" type="button" aria-label={`Ver pedido, ${itemCount} ${itemCount === 1 ? "producto" : "productos"}`} onClick={() => setCartOpen(true)}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2.2l2.1 11h10.4l2-8H6.2" /><circle cx="9" cy="19.5" r="1.5" /><circle cx="17" cy="19.5" r="1.5" /></svg>
+        {itemCount > 0 && <span key={itemCount} className="cart-fab-badge">{itemCount}</span>}
+      </button>
+      {addedNotice && (
+        <div key={addedNotice.id} className="cart-toast" role="status">
+          <span>✓ {addedNotice.name} agregado</span>
+          <button type="button" onClick={() => { setAddedNotice(null); setCartOpen(true); }}>Ver pedido</button>
+        </div>
+      )}
       <MenuHeader business={menu.business} hoursLabel={menu.service.hoursLabel} />
       <header className="public-menu-header">
         <div className="menu-hero-copy">
@@ -192,7 +232,7 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
       {cart.length > 0 && (
         <button className="sticky-cart" type="button" onClick={() => setCartOpen(true)}>
           <span className="sticky-cart-summary">
-            <span>{cart.reduce((count, item) => count + item.quantity, 0)} {cart.length === 1 ? "producto" : "productos"}</span>
+            <span>{itemCount} {itemCount === 1 ? "producto" : "productos"}</span>
             <strong>{formatPrice(total)}</strong>
           </span>
           <span className="sticky-cart-action">{canOrder ? "Ver pedido" : "Ver selección"}</span>
@@ -204,24 +244,22 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
           <section className="cart-dialog" role="dialog" aria-modal="true" aria-labelledby="cart-title">
             <button className="dialog-close" type="button" onClick={() => setCartOpen(false)} aria-label="Cerrar">×</button>
             <p className="eyebrow">Tu selección</p><h2 id="cart-title">El pedido de {menu.table.label}</h2>
-            <button className="cart-clear-button" type="button" onClick={clearCurrentCart}>Vaciar pedido</button>
             <ul className="cart-lines">
               {cart.map((item, index) => {
                 const product = products.get(item.productId);
-                return <li key={`${item.productId}-${index}`}>
-                  <div><strong>{item.quantity} × {product?.name ?? "Producto"}</strong>
-                    {item.optionIds.map((id) => <span className="cart-line-detail" key={id}>{product?.optionGroups.flatMap((group) => group.values).find((value) => value.id === id)?.name}</span>)}
-                    {item.notes && <span className="cart-line-detail">Nota: {item.notes}</span>}
-                  </div>
-                  <div className="cart-line-actions"><strong>{formatPrice(item.displayedTotalCents * item.quantity)}</strong>
-                    <div className="cart-line-buttons">
-                      <button className="cart-line-edit" type="button" onClick={() => { if (!product) return; setEditingCartIndex(index); setSelectedProduct(product); setCartOpen(false); }}>Editar</button>
-                      <button className="cart-line-remove" type="button" onClick={() => setCart((current) => removeCartItem(current, index))}>Quitar</button>
-                    </div>
+                return <li className="cart-line" key={`${item.productId}-${index}`}>
+                  <div className="cart-line-main"><strong>{item.quantity} × {product?.name ?? "Producto"}</strong><strong>{formatPrice(item.displayedTotalCents * item.quantity)}</strong></div>
+                  {item.optionIds.map((id) => <span className="cart-line-detail" key={id}>{product?.optionGroups.flatMap((group) => group.values).find((value) => value.id === id)?.name}</span>)}
+                  {item.notes && <span className="cart-line-detail">Nota: {item.notes}</span>}
+                  <div className="cart-line-actions cart-line-controls">
                     <div className="cart-line-quantity" aria-label={`Cantidad de ${product?.name ?? "producto"}`}>
                       <button type="button" aria-label={`Restar una porción de ${product?.name ?? "producto"}`} onClick={() => setCart((current) => current.flatMap((line, lineIndex) => lineIndex !== index ? [line] : line.quantity > 1 ? [{ ...line, quantity: line.quantity - 1 }] : []))}>−</button>
                       <span>{item.quantity}</span>
                       <button type="button" aria-label={`Agregar una porción de ${product?.name ?? "producto"}`} onClick={() => setCart((current) => current.map((line, lineIndex) => lineIndex === index ? { ...line, quantity: Math.min(99, line.quantity + 1) } : line))}>+</button>
+                    </div>
+                    <div className="cart-line-buttons">
+                      <button className="cart-line-edit" type="button" onClick={() => { if (!product) return; setEditingCartIndex(index); setSelectedProduct(product); setCartOpen(false); }}>Editar</button>
+                      <button className="cart-line-remove" type="button" onClick={() => setCart((current) => removeCartItem(current, index))}>Quitar</button>
                     </div>
                   </div>
                 </li>;
@@ -230,6 +268,7 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
             <div className="cart-total"><span>Total estimado</span><strong>{formatPrice(total)}</strong></div>
             <button className="cart-continue-shopping" type="button" onClick={() => setCartOpen(false)}>Seguir agregando</button>
             {canOrder ? <a className="primary-link cart-continue" href={`/m/${encodeURIComponent(qrToken)}/checkout`}>Continuar con el pedido</a> : <p className="cart-counter-note">Cuando quieras pedir, acercate a la barra o caja.</p>}
+            <button className="cart-clear-button" type="button" onClick={clearCurrentCart}>Vaciar pedido</button>
           </section>
         </div>
       )}

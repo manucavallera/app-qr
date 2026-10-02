@@ -15,7 +15,7 @@ SEED_ADMIN_EMAIL=demo@pedidosqr.test SEED_ADMIN_PASSWORD='CAMBIAR_POR_UNA_CLAVE_
 
 El seed es repetible: crea o conserva la configuración, categorías, productos y mesas de ejemplo, y crea el usuario administrador indicado. No elimina pedidos ni datos existentes. Cambiar la contraseña temporal antes de compartir el acceso y no colocar credenciales reales en el repositorio.
 
-## Limpieza de sesiones QR
+## Limpieza de sesiones QR y pedidos sin pagar
 
 Configurar un cron externo cada minuto con las mismas variables de entorno `APP_URL` e `INTERNAL_SECRET` que la app:
 
@@ -25,4 +25,4 @@ curl --fail --silent --show-error \
   "$APP_URL/api/internal/session-cleanup"
 ```
 
-La respuesta esperada es `{"ok":true,"closed":0}` o un número mayor si cerró sesiones inactivas. No exponer `INTERNAL_SECRET` en URLs, repositorios ni registros de comandos.
+La respuesta esperada es `{"ok":true,"closed":0,"cancelledOrders":0}`. `closed` cuenta las sesiones inactivas cerradas y `cancelledOrders` los pedidos cancelados por falta de pago: 30 minutos sin pagar, o 2 horas si hay un pago online en curso. No exponer `INTERNAL_SECRET` en URLs, repositorios ni registros de comandos.

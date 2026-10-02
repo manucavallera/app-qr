@@ -26,7 +26,6 @@
     "@prisma/client": "7.10.0",
     "argon2": "^0.44.0",
     "luxon": "^3.0.0",
-    "mercadopago": "^2.0.0",
     "next": "^16.0.0",
     "pg": "^8.0.0",
     "pino": "^9.0.0",
@@ -54,8 +53,8 @@
     "tsx": "^4.0.0",
     "typescript": "^5.9.0",
     "vite": "^7.0.0",
-    "vitest": "^3.0.0",
-    "vite-tsconfig-paths": "^5.1.4"
+    "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^3.0.0"
   },
   "allowScripts": {
     "argon2@0.44.0": true,

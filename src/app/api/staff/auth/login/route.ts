@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { apiErrorResponse } from "@/lib/api-errors";
 import { AuthService, loginRateLimitKey, STAFF_SESSION_COOKIE, STAFF_SESSION_MAX_AGE_SECONDS } from "@/modules/auth/auth-service";
 import { DomainError } from "@/modules/orders/errors";
 import { sessionRepository } from "@/modules/auth/session-repository";
@@ -54,6 +55,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (error instanceof DomainError && error.code === "INVALID_CREDENTIALS") {
       return NextResponse.json({ error: "INVALID_CREDENTIALS" }, { status: 401 });
     }
-    return NextResponse.json({ error: "INTERNAL_SERVER_ERROR" }, { status: 500 });
+    return apiErrorResponse(error);
   }
 }

@@ -12,6 +12,7 @@ import { prisma } from "@/lib/db";
 import { AuthService } from "@/modules/auth/auth-service";
 import { customerSessionService } from "@/modules/tables/customer-session-service";
 import { hashPassword } from "@/modules/auth/password";
+import { cancelStaleUnpaidOrders, UNPAID_CANCELLATION_REASON, UNPAID_ORDER_TTL_MS } from "@/modules/orders/stale-orders";
 
 const suffix = randomUUID();
 const firstQrToken = randomBytes(24).toString("base64url");
@@ -240,5 +241,24 @@ describe("customer and counter order flow", () => {
     );
     expect(reject.status).toBe(200);
     expect((await reject.json()).status).toBe("CANCELLED");
+  });
+
+  it("cancels unpaid orders past the time limit and leaves recent ones waiting", async () => {
+    const stale = await (await createQrOrder(firstSessionToken, createBody(5100, randomUUID()))).json();
+    const recent = await (await createQrOrder(firstSessionToken, createBody(5100, randomUUID()))).json();
+    const now = new Date();
+    await prisma.order.update({ where: { id: stale.id }, data: { createdAt: new Date(now.getTime() - UNPAID_ORDER_TTL_MS - 60_000) } });
+
+    await cancelStaleUnpaidOrders(now);
+
+    await expect(prisma.order.findUnique({ where: { id: stale.id } })).resolves.toMatchObject({
+      status: "CANCELLED",
+      cancellationReason: UNPAID_CANCELLATION_REASON,
+      version: stale.version + 1,
+    });
+    expect(await prisma.paymentAttempt.count({ where: { orderId: stale.id, status: "REJECTED" } })).toBe(1);
+    expect(await prisma.orderStatusEvent.count({ where: { orderId: stale.id, toStatus: "CANCELLED" } })).toBe(1);
+    await expect(prisma.order.findUnique({ where: { id: recent.id } })).resolves.toMatchObject({ status: "AWAITING_PAYMENT" });
+    await prisma.auditEvent.deleteMany({ where: { action: "ORDER_EXPIRED_UNPAID", entityId: stale.id } });
   });
 });

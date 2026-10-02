@@ -413,6 +413,9 @@ export class PrismaOrderRepository {
             const order = await tx.order.update({ where: { id: attempt.orderId }, data: { status: "CONFIRMED", version: { increment: 1 } }, include: orderInclude });
             await tx.orderStatusEvent.create({ data: { orderId: attempt.orderId, fromStatus: "AWAITING_PAYMENT", toStatus: "CONFIRMED" } });
             await notifyOrderChanged(tx, { id: order.id, number: order.number, status: order.status, version: order.version, tableId: order.tableId });
+          } else if (attempt.order.status === "CANCELLED") {
+            // Money arrived for an order that already expired or was cancelled: staff must refund or re-enter it.
+            await tx.auditEvent.create({ data: { action: "PAYMENT_APPROVED_AFTER_CANCELLATION", entityType: "PaymentAttempt", entityId: attempt.id, metadata: { orderId: attempt.orderId, providerOrderId: input.providerOrderId, amountCents: attempt.amountCents } } });
           }
         }
       } else if (input.status === "processed" && ["rejected", "cancelled"].includes(input.statusDetail) && attempt.status !== "REJECTED") {

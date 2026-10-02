@@ -1,10 +1,8 @@
 import Image from "next/image";
+import { formatArs } from "@/lib/format";
 import type { MenuProduct } from "./product-dialog";
 
-export function formatArs(cents: number): string {
-  return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 })
-    .format(cents / 100);
-}
+export { formatArs };
 
 export function ProductCard({ product, onSelect }: { product: MenuProduct & { imageUrl?: string | null }; onSelect: (product: MenuProduct) => void }) {
   return (

@@ -404,7 +404,7 @@ export default function StaffCatalogPage() {
               <input accept="image/jpeg,image/png,image/webp" onChange={(event) => setImageFile(event.target.files?.[0] ?? null)} type="file" />
             </label>
             <div className="option-editor-heading">
-              <div><h3>Opciones y extras</h3><p className="muted">Por ejemplo, punto de cocción o agregados.</p></div>
+              <div><h3>Opciones y extras</h3><p className="muted">Por ejemplo, extras con costo o ingredientes para sacar.</p></div>
               <button className="button-secondary" onClick={addOptionGroup} type="button">Agregar grupo</button>
             </div>
             {draft.optionGroups.map((group, groupIndex) => (

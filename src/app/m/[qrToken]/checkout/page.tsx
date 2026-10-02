@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { formatArs as ars } from "@/lib/format";
 import { CustomerShell } from "@/components/customer/customer-shell";
 import { cartTotal, clearCart, loadCart, type CartItem } from "@/modules/orders/cart-store";
 
@@ -12,10 +13,6 @@ type UnavailableMethod = { method: PaymentMethod; reason: string };
 type MenuPayment = { methods: PaymentMethod[]; unavailable: UnavailableMethod[]; transfer: TransferDetails | null };
 type PaymentStatus = "loading" | "ready" | "error";
 const paymentLabels: Record<PaymentMethod, string> = { MERCADO_PAGO: "Mercado Pago", CASH: "Efectivo en caja", CARD_AT_COUNTER: "Tarjeta en caja", BANK_TRANSFER: "Transferencia bancaria" };
-
-function ars(cents: number): string {
-  return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(cents / 100);
-}
 
 export default function CheckoutPage() {
   const { qrToken } = useParams<{ qrToken: string }>();

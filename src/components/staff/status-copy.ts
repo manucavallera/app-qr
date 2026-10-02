@@ -30,6 +30,8 @@ export const auditActionLabel: Record<string, string> = {
   SETTINGS_UPDATED: "Configuración actualizada",
   ORDER_COUNTER_CREATED: "Pedido creado en caja",
   ORDER_STATUS_CHANGED: "Estado de pedido actualizado",
+  ORDER_EXPIRED_UNPAID: "Pedido cancelado por falta de pago",
+  PAYMENT_APPROVED_AFTER_CANCELLATION: "Pago aprobado sobre pedido cancelado",
   PAYMENT_TRADITIONAL_CONFIRMED: "Pago manual confirmado",
   PAYMENT_TRADITIONAL_REJECTED: "Pago manual rechazado",
   PAYMENT_RECONCILED: "Pago conciliado",

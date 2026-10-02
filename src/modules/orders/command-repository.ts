@@ -18,6 +18,11 @@ const itemTransitions: Record<string, readonly string[]> = {
   DELIVERED: [],
 };
 
+// Customer tracking and the staff board refetch on this event.
+async function notifyOrderChanged(tx: Prisma.TransactionClient, orderId: string, version: number): Promise<void> {
+  await tx.$executeRaw`SELECT pg_notify('appqr_order_events', ${JSON.stringify({ type: "order.changed", orderId, version, occurredAt: new Date().toISOString() })})`;
+}
+
 export class PrismaCommandRepository implements CommandRepository {
   constructor(private readonly db: PrismaClient) {}
 
@@ -41,6 +46,7 @@ export class PrismaCommandRepository implements CommandRepository {
       const updated = await tx.order.update({ where: { id: orderId }, data: { status: input.targetStatus, version: { increment: 1 }, cancellationReason: input.targetStatus === "CANCELLED" ? input.reason : undefined }, include: commandInclude });
       await tx.orderStatusEvent.create({ data: { orderId, fromStatus: current.status, toStatus: input.targetStatus, actorStaffId, reason: input.reason } });
       await tx.auditEvent.create({ data: { actorStaffId, action: "ORDER_STATUS_CHANGED", entityType: "Order", entityId: orderId, metadata: { from: current.status, to: input.targetStatus } } });
+      await notifyOrderChanged(tx, orderId, updated.version);
       return updated;
     });
   }
@@ -58,6 +64,7 @@ export class PrismaCommandRepository implements CommandRepository {
       const order = shouldUpdateOrder ? await tx.order.update({ where: { id: item.orderId, version: input.expectedOrderVersion }, data: { status: targetOrderStatus as never, version: { increment: 1 } }, include: commandInclude }) : await tx.order.findUnique({ where: { id: item.orderId }, include: commandInclude });
       if (!order) throw new DomainError("ORDER_VERSION_CONFLICT", "El pedido cambió. Actualizá la pantalla.");
       if (shouldUpdateOrder) await tx.orderStatusEvent.create({ data: { orderId: item.orderId, fromStatus: item.order.status, toStatus: targetOrderStatus as never, actorStaffId } });
+      await notifyOrderChanged(tx, item.orderId, order.version);
       return order;
     });
   }

@@ -44,9 +44,8 @@ test("el cliente puede avanzar desde la carta hasta confirmar el pedido", async 
   if (publicDetails.service?.hoursLabel) await expect(page.getByText(publicDetails.service.hoursLabel)).toBeVisible();
   else await expect(page.getByLabel(/Horario de atención/)).toHaveCount(0);
   await page.getByRole("button", { name: /Agregar Hamburguesa clásica/ }).click();
-  await page.getByLabel("Jugosa").check();
   await page.getByRole("button", { name: /Agregar al carrito/ }).click();
-  await page.getByRole("button", { name: /Ver pedido/ }).click();
+  await page.getByRole("button", { name: /^Ver pedido, / }).click();
   await page.getByRole("link", { name: "Continuar con el pedido" }).click();
   await expect(page).toHaveURL(new RegExp(`/m/${qrToken}/checkout$`));
   await expect(page.getByRole("heading", { name: "Forma de pago" })).toBeVisible();
@@ -74,24 +73,23 @@ test("el cliente puede acumular productos y volver a la carta sin perder el carr
   await expect(page.getByRole("heading", { name: "Elegí algo rico." })).toBeVisible();
 
   await page.getByRole("button", { name: /Agregar Hamburguesa clásica/ }).click();
-  await page.getByLabel("Jugosa").check();
   await page.getByRole("button", { name: /Agregar al carrito/ }).click();
   await page.getByRole("button", { name: /Agregar Limonada/ }).click();
   await page.getByRole("button", { name: /Agregar al carrito/ }).click();
 
-  await page.getByRole("button", { name: /Ver pedido/ }).click();
+  await page.getByRole("button", { name: /^Ver pedido, / }).click();
   const cartDialog = page.getByRole("dialog", { name: "El pedido de Mesa 1" });
   await expect(cartDialog).toContainText("Hamburguesa clásica");
   await expect(cartDialog).toContainText("Limonada");
   await cartDialog.getByRole("button", { name: "Seguir agregando" }).click();
   await expect(page.getByRole("dialog", { name: "El pedido de Mesa 1" })).toHaveCount(0);
 
-  await page.getByRole("button", { name: /Ver pedido/ }).click();
+  await page.getByRole("button", { name: /^Ver pedido, / }).click();
   await page.getByRole("link", { name: "Continuar con el pedido" }).click();
   await expect(page).toHaveURL(new RegExp(`/m/${qrToken}/checkout$`));
   await page.getByRole("link", { name: "Volver a la carta" }).click();
   await expect(page).toHaveURL(new RegExp(`/m/${qrToken}$`));
-  await expect(page.getByRole("button", { name: /Ver pedido/ })).toContainText("2 productos");
+  await expect(page.getByRole("button", { name: /^Ver pedido, / })).toHaveAccessibleName(/2 productos/);
 });
 
 test("la carta entra en una pantalla de 320px sin desborde horizontal", async ({ page, qrToken }, testInfo) => {

@@ -49,5 +49,11 @@ export function apiErrorResponse(error: unknown): NextResponse {
     if (code === "P2025") return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
   }
 
+  console.error(JSON.stringify({
+    event: "api-error",
+    name: error instanceof Error ? error.name : typeof error,
+    message: error instanceof Error ? error.message : String(error),
+    stack: error instanceof Error ? error.stack : undefined,
+  }));
   return NextResponse.json({ error: "INTERNAL_SERVER_ERROR" }, { status: 500 });
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useEscapeKey } from "@/lib/client/use-escape-key";
 import type { CartItem } from "@/modules/orders/cart-store";
 import { formatArs } from "./product-card";
 
@@ -37,6 +38,7 @@ export function ProductDialog({
   const [quantity, setQuantity] = useState(initialItem?.quantity ?? 1);
   const [notes, setNotes] = useState(initialItem?.notes ?? "");
   const [error, setError] = useState<string | null>(null);
+  useEscapeKey(onClose);
   const chosenIds = Object.values(selected).flat();
   const selectedValues = product.optionGroups.flatMap((group) => group.values.filter((value) => chosenIds.includes(value.id)));
   const unitTotal = product.priceCents + selectedValues.reduce((sum, value) => sum + value.priceDeltaCents, 0);
@@ -80,7 +82,8 @@ export function ProductDialog({
                 return (
                   <label key={value.id} className="dialog-option">
                     <input
-                      type={group.maxSelections === 1 ? "radio" : "checkbox"}
+                      // An optional single choice must be un-checkable, which a radio is not.
+                      type={group.maxSelections === 1 && group.minSelections >= 1 ? "radio" : "checkbox"}
                       name={`option-${group.id}`}
                       checked={checked}
                       onChange={() => toggleValue(group.id, value.id, group.maxSelections)}
@@ -95,7 +98,7 @@ export function ProductDialog({
         </div>
         <label className="form-field">
           Nota para la cocina
-          <textarea className="form-input dialog-notes" maxLength={160} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Ej. sin hielo" />
+          <textarea className="form-input dialog-notes" maxLength={160} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Ej. sin mayonesa" />
         </label>
         {error && <p role="alert" className="login-error">{error}</p>}
         <div className="dialog-footer">

@@ -25,7 +25,8 @@ export default function StaffHomePage() {
           <TaskCard title="Pagos pendientes" description="Confirmar cobros antes de preparar" count={summary?.pendingPayments ?? 0} href="/staff/payments" />
           <TaskCard title="Comandas" description="Preparar y entregar pedidos" count={summary?.activeCommands ?? 0} href="/staff/commands" />
           <TaskCard title="Nuevo pedido en caja" description="Cargar un pedido del mostrador" href="/staff/counter" />
-          <TaskCard title="Carta" description="Productos, precios y disponibilidad" href="/staff/catalog" />
+          <TaskCard title="Pantalla de pedidos listos" description="Abrir en el televisor de la barra" href="/pantalla" />
+          <TaskCard title="Carta"description="Productos, precios y disponibilidad" href="/staff/catalog" />
           <TaskCard title="Mesas y QR" description="Probar, imprimir o renovar códigos" href="/staff/tables" />
           <TaskCard title="Configuración" description="Horarios, modos y formas de pago" href="/staff/settings" />
         </div>
