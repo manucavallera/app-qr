@@ -170,6 +170,8 @@ model Product {
   imageKey     String?
   priceCents   Int
   available    Boolean            @default(true)
+  /// Units left to sell. Null means the product is not stock-tracked.
+  stockQuantity Int?
   visible      Boolean            @default(true)
   station      PreparationStation @default(GENERAL)
   fulfillment  FulfillmentType    @default(TABLE)

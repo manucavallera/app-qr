@@ -76,9 +76,9 @@ export default function CheckoutPage() {
           items: cart.map((item) => ({ productId: item.productId, quantity: item.quantity, optionValueIds: item.optionIds, notes: item.notes || undefined })),
         }),
       });
-      const body = await response.json() as { id?: string; error?: string; quote?: { totalCents: number } };
+      const body = await response.json() as { id?: string; error?: string; quote?: { totalCents: number }; productName?: string; available?: number };
       if (!response.ok) {
-        setMessage(body.error === "PRICE_CHANGED" && body.quote ? `El total actualizado es ${ars(body.quote.totalCents)}. Volvé a la carta y revisá tu selección.` : "No pudimos enviar el pedido. Revisá la carta e intentá de nuevo.");
+        setMessage(body.error === "INSUFFICIENT_STOCK" ? `${body.available ? `Solo quedan ${body.available} de ${body.productName ?? "un producto"}` : `Se agotó ${body.productName ?? "un producto"}`}. Volvé a la carta y ajustá tu pedido.` : body.error === "PRICE_CHANGED" && body.quote ? `El total actualizado es ${ars(body.quote.totalCents)}. Volvé a la carta y revisá tu selección.` : "No pudimos enviar el pedido. Revisá la carta e intentá de nuevo.");
         return;
       }
       if (!body.id) return;

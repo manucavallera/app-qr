@@ -261,4 +261,35 @@ describe("customer and counter order flow", () => {
     await expect(prisma.order.findUnique({ where: { id: recent.id } })).resolves.toMatchObject({ status: "AWAITING_PAYMENT" });
     await prisma.auditEvent.deleteMany({ where: { action: "ORDER_EXPIRED_UNPAID", entityId: stale.id } });
   });
+
+  it("reserves stock on order, returns it on rejection and blocks orders beyond what is left", async () => {
+    const stock = async () => (await prisma.product.findUniqueOrThrow({ where: { id: productId } })).stockQuantity;
+    await prisma.product.update({ where: { id: productId }, data: { stockQuantity: 2 } });
+
+    const ordered = await (await createQrOrder(firstSessionToken, createBody(5100, randomUUID()))).json();
+    expect(await stock()).toBe(1);
+
+    const reject = await rejectPaymentRoute(
+      new NextRequest(`http://localhost/api/staff/orders/${ordered.id}/reject-payment`, {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie: `staff_session=${adminToken}` },
+        body: JSON.stringify({ reason: "El cliente no pagó.", expectedOrderVersion: ordered.version }),
+      }),
+      { params: Promise.resolve({ id: ordered.id }) },
+    );
+    expect(reject.status).toBe(200);
+    expect(await stock()).toBe(2);
+
+    const tooMany = await createQrOrder(firstSessionToken, { ...createBody(15300, randomUUID()), items: [{ productId, quantity: 3, optionValueIds: [optionValueId] }] });
+    expect(tooMany.status).toBe(409);
+    await expect(tooMany.json()).resolves.toMatchObject({ error: "INSUFFICIENT_STOCK", available: 2 });
+    expect(await stock()).toBe(2);
+
+    await prisma.product.update({ where: { id: productId }, data: { stockQuantity: 0 } });
+    const soldOut = await createQrOrder(firstSessionToken, createBody(5100, randomUUID()));
+    expect(soldOut.status).toBe(409);
+    await expect(soldOut.json()).resolves.toMatchObject({ error: "PRODUCT_UNAVAILABLE" });
+
+    await prisma.product.update({ where: { id: productId }, data: { stockQuantity: null } });
+  });
 });

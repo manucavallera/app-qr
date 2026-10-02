@@ -6,6 +6,7 @@ import { publicServiceHours } from "@/modules/operations/public-service-hours";
 import { resolveServiceMode } from "@/modules/operations/service-mode";
 import { availablePaymentMethods, type PaymentSettingsView } from "@/modules/payments/payment-methods";
 import { getServerEnv } from "@/lib/env";
+import { hasStock, LOW_STOCK_THRESHOLD } from "@/modules/orders/stock";
 
 type RouteContext = { params: Promise<{ qrToken: string }> };
 
@@ -94,7 +95,9 @@ export async function GET(_request: NextRequest, { params }: RouteContext): Prom
             description: product.description,
             imageUrl: product.imageKey ? storage.publicUrl(product.imageKey) : null,
             priceCents: product.priceCents,
-            available: product.available && optionGroups.every((group) => group.minSelections <= group.values.length),
+            available: product.available && hasStock(product.stockQuantity) && optionGroups.every((group) => group.minSelections <= group.values.length),
+            // Only shared when it is running out, so the menu can say "últimas N".
+            stockLeft: product.stockQuantity !== null && product.stockQuantity <= LOW_STOCK_THRESHOLD ? product.stockQuantity : null,
             fulfillment: product.fulfillment,
             optionGroups,
           };

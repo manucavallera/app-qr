@@ -5,6 +5,7 @@ import { resolveServiceMode } from "../operations/service-mode";
 import { DomainError } from "./errors";
 import { calculateQuote, type OrderQuote, type QuoteProduct, type QuoteRequest } from "./quote";
 import type { CreateCounterOrderInput, CreateQrOrderInput, ConfirmTraditionalPaymentInput } from "./order-contracts";
+import { hasStock, releaseOrderStock, reserveStock } from "./stock";
 import { createCheckoutIdempotencyKey } from "../payments/payment-service";
 import { availablePaymentMethods, type PaymentSettingsView } from "../payments/payment-methods";
 
@@ -57,7 +58,7 @@ async function findQuoteProducts(tx: Tx, items: QuoteRequest["items"]): Promise<
     id: product.id,
     name: product.name,
     priceCents: product.priceCents,
-    available: product.available,
+    available: product.available && hasStock(product.stockQuantity),
     visible: product.visible && product.category.visible,
     station: product.station,
     fulfillment: product.fulfillment,
@@ -177,6 +178,7 @@ export class PrismaOrderRepository {
 
       const products = await findQuoteProducts(tx, input.items);
       const quote = quoteOrReportFresh(input, products);
+      await reserveStock(tx, quote.items);
       const order = await tx.order.create({
         data: {
           clientRequestId: input.clientRequestId,
@@ -227,6 +229,7 @@ export class PrismaOrderRepository {
       assertPaymentMethodAvailable(paymentConfiguration, input.paymentMethod);
       const products = await findQuoteProducts(tx, input.items);
       const quote = quoteOrReportFresh(input, products);
+      await reserveStock(tx, quote.items);
       const awaitsPaymentConfirmation = ["BANK_TRANSFER", "MERCADO_PAGO"].includes(input.paymentMethod);
       const initialStatus = awaitsPaymentConfirmation ? "AWAITING_PAYMENT" : "CONFIRMED";
       const order = await tx.order.create({
@@ -349,6 +352,7 @@ export class PrismaOrderRepository {
         data: { status: "CANCELLED", cancellationReason: input.reason, version: { increment: 1 } },
         include: orderInclude,
       });
+      await releaseOrderStock(tx, orderId);
       await tx.orderStatusEvent.create({ data: { orderId, fromStatus: "AWAITING_PAYMENT", toStatus: "CANCELLED", actorStaffId: staffId, reason: input.reason } });
       await tx.auditEvent.create({ data: { actorStaffId: staffId, action: "PAYMENT_TRADITIONAL_REJECTED", entityType: "Order", entityId: orderId, metadata: { method: payment.method, reason: input.reason } } });
       await notifyOrderChanged(tx, { id: cancelled.id, number: cancelled.number, status: cancelled.status, version: cancelled.version, tableId: cancelled.tableId });

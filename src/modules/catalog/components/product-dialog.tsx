@@ -11,6 +11,8 @@ export type MenuProduct = Readonly<{
   description: string;
   priceCents: number;
   available: boolean;
+  /** Units left when stock is running out; absent or null otherwise. */
+  stockLeft?: number | null;
   optionGroups: readonly Readonly<{
     id: string;
     name: string;
@@ -105,7 +107,7 @@ export function ProductDialog({
           <div className="quantity-control" aria-label="Cantidad">
             <button type="button" aria-label="Restar uno" disabled={quantity <= 1} onClick={() => setQuantity((value) => value - 1)}>-</button>
             <span>{quantity}</span>
-            <button type="button" aria-label="Sumar uno" onClick={() => setQuantity((value) => Math.min(99, value + 1))}>+</button>
+            <button type="button" aria-label="Sumar uno" disabled={quantity >= (product.stockLeft ?? 99)} onClick={() => setQuantity((value) => Math.min(product.stockLeft ?? 99, 99, value + 1))}>+</button>
           </div>
           <button className="primary-link" type="button" onClick={add}>{initialItem ? "Guardar cambios" : "Agregar al carrito"} · {formatArs(unitTotal * quantity)}</button>
         </div>

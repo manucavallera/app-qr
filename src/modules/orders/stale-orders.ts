@@ -1,4 +1,5 @@
 import { prisma } from "../../lib/db";
+import { releaseOrderStock } from "./stock";
 
 /** Unpaid orders are cancelled after this long so Caja's pending list stays real. */
 export const UNPAID_ORDER_TTL_MS = 30 * 60 * 1000;
@@ -30,6 +31,7 @@ export async function cancelStaleUnpaidOrders(now = new Date()): Promise<{ cance
       });
       if (updated.count === 0) return false;
 
+      await releaseOrderStock(tx, candidate.id);
       await tx.paymentAttempt.updateMany({
         where: { orderId: candidate.id, status: { in: ["UNPAID", "PENDING"] } },
         data: { status: "REJECTED" },

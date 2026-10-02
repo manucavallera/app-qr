@@ -15,16 +15,19 @@
 - Carrito con contador arriba a la derecha, controles en una fila y "Vaciar pedido" al final.
 - Pedidos sin pagar cancelados automáticamente por el cron (30 minutos, o 2 horas con pago online en curso).
 - Navegación de Staff en 360 px de ancho.
+- Stock por producto: cantidad opcional (vacío = sin límite), se descuenta al crear el pedido y vuelve si el pedido se rechaza, vence o se cancela. En 0 el producto figura "Agotado"; con 5 o menos la carta muestra "Últimas N" y el inicio de Staff avisa "Stock bajo". Se repone desde Staff > Carta.
+- Reportes (solo administradores, `/staff/reports`): cierre de caja por rango de fechas con total, pedidos, ticket promedio, cancelados, desglose por medio de pago y ventas por producto. Se puede imprimir.
 
-Verificación del 2 de octubre: typecheck, lint, 91 tests unitarios, 27 de integración y los e2e del cliente (`cart-multi-item` y `customer-traditional`). No se corrieron los e2e de Staff, Mercado Pago, corte horario ni privacidad, ni `next build`.
+Verificación del 2 de octubre: typecheck, lint, 91 tests unitarios, 30 de integración y la suite e2e completa (18 pasan, 12 se saltean por diseño según el proyecto). El e2e de Mercado Pago usa el proveedor falso, no el servicio real.
 
 ## Bloqueantes para producción
 
-1. **Dependencias.** Ejecutar `npm uninstall mercadopago && npm audit fix`. Actualiza Next (aviso crítico GHSA-vcvr-r3jv-pc5j) y quita el paquete `mercadopago`, que no se usa: la integración llama a la API con `fetch`. Después correr typecheck, tests y `npm run build`.
+1. **Build de producción.** Las dependencias ya están actualizadas (Next 16.3.8, sin el paquete `mercadopago`). Falta confirmar que `npm run build` termina bien. No ejecutar `npm audit fix --force`: baja Prisma a la versión 6. Los avisos restantes son de `vitest` y del CLI de Prisma, que no corren en la app. Usar Node 24 (`nvm use`).
 2. **Imágenes.** Con `IMAGE_STORAGE_DRIVER=local` la subida falla en el contenedor (`/app` es de root y el proceso corre como `appuser`) y las fotos se pierden en cada redeploy. Crear una cuenta en Cloudflare R2 o Cloudinary, pasar las credenciales y adaptar el driver. Luego cargar las fotos reales: hoy todos los productos muestran el placeholder.
 3. **Mercado Pago.** Probar en sandbox con credenciales de prueba. Confirmar la firma del webhook: `validateMercadoPagoSignature` usa `data.id` tal cual llega y Mercado Pago lo pide en minúsculas cuando es alfanumérico. Agregar timeout al `fetch` de `MercadoPagoGateway`.
-4. **Cron y secreto interno.** Definir `INTERNAL_SECRET` en producción y programar el cron de `docs/runbooks/deployment.md`. Sin eso no corren el corte nocturno ni el vencimiento de pedidos sin pagar.
-5. **Commit y merge.** Todo el trabajo de esta rama está sin commitear. `next-env.d.ts` no se commitea: lo modifica `next dev`.
+4. **Migración de stock.** El stock agrega la migración `20261002_product_stock`. Ejecutar `npm run db:deploy` en producción antes de iniciar la nueva versión.
+5. **Cron y secreto interno.** Definir `INTERNAL_SECRET` en producción y programar el cron de `docs/runbooks/deployment.md`. Sin eso no corren el corte nocturno ni el vencimiento de pedidos sin pagar.
+6. **Merge.** Llevar la rama `work/pedidos-qr` a `main`. `next-env.d.ts` no se commitea: lo modifica `next dev`.
 
 ## Seguridad y operación
 
@@ -46,7 +49,8 @@ Verificación del 2 de octubre: typecheck, lint, 91 tests unitarios, 27 de integ
 - Variables de color: la paleta central ya está en `:root` (35 variables). Quedan unos 190 colores sueltos de uso único en `globals.css`.
 - Pedidos (Staff) en celular: el nombre del producto y el precio quedan apretados en la misma fila.
 - El seguimiento muestra cuatro etapas en una grilla de cuatro columnas aunque el componente define cinco (falta ver dónde queda "Entregado").
-- Usuarios y Auditoría no aparecen en el menú de varias pantallas de Staff porque no reciben el rol.
+- Reportes, Usuarios y Auditoría solo aparecen en el menú desde Inicio y desde sus propias pantallas; las demás pantallas de Staff no reciben el rol.
+- Caja sigue listando los productos sin stock; el servidor rechaza el pedido con un mensaje claro.
 - Tailwind está importado y casi no se usa.
 
 ## Decisiones del cliente
@@ -54,6 +58,9 @@ Verificación del 2 de octubre: typecheck, lint, 91 tests unitarios, 27 de integ
 - **Autoservicio.** Las hamburguesas están configuradas como "Entrega en mesa", así que el aviso dice "Te lo llevamos a Mesa 1". Para autoservicio hay que pasarlas a "Retiro" desde Staff > Carta.
 - Precio real del medallón extra (hoy $2.500) y lista definitiva de ingredientes para sacar. Se editan desde Staff > Carta.
 - Tiempos de vencimiento de pedidos sin pagar (30 minutos y 2 horas).
+- Stock: confirmar que alcanza con unidades por producto (no insumos ni recetas) y el umbral de aviso de stock bajo (5 unidades).
+- Reportes: hoy solo los ve el rol Administrador. Definir si Caja también debe verlos.
+- Stock y reportes quedaron fuera del alcance original: cotizarlos aparte.
 - La pantalla `/pantalla` es pública y muestra solo números de pedido. Definir si alcanza o si debe mostrar el nombre.
 - Los QR impresos dependen de `APP_URL`: imprimirlos con el dominio definitivo ya configurado.
 

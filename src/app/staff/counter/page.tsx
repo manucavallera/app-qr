@@ -95,8 +95,8 @@ export default function CounterPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ clientRequestId: crypto.randomUUID(), expectedTotalCents: total, paymentMethod, nickname: nickname.trim(), tableId: tableId || undefined, items: cart.map((line) => ({ productId: line.product.id, quantity: line.quantity, optionValueIds: line.optionValueIds, ...(line.notes ? { notes: line.notes } : {}) })) }),
       });
-      const body = await response.json() as { status?: string; payments?: { method?: CounterPaymentMethod }[]; paymentQrDataUrl?: string };
-      if (!response.ok) { setMessage("No se pudo crear el pedido. Revisá los datos e intentá de nuevo."); return; }
+      const body = await response.json() as { status?: string; payments?: { method?: CounterPaymentMethod }[]; paymentQrDataUrl?: string; error?: string; productName?: string; available?: number };
+      if (!response.ok) { setMessage(body.error === "INSUFFICIENT_STOCK" ? `No hay stock suficiente de ${body.productName ?? "un producto"} (quedan ${body.available ?? 0}).` : "No se pudo crear el pedido. Revisá los datos e intentá de nuevo."); return; }
       setCart([]);
       setNickname("");
       setTableId("");

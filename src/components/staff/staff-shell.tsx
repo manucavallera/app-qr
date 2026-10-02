@@ -2,7 +2,7 @@
 
 import { type ReactNode } from "react";
 
-export type StaffSection = "home" | "payments" | "commands" | "counter" | "orders" | "catalog" | "tables" | "settings" | "users" | "audit";
+export type StaffSection = "home" | "payments" | "commands" | "counter" | "orders" | "catalog" | "tables" | "settings" | "users" | "audit" | "reports";
 type StaffRole = "ADMIN" | "OPERATOR";
 
 type StaffShellProps = {
@@ -37,7 +37,7 @@ export function StaffShell({ title, section, role = "OPERATOR", children }: Staf
         {links.map((link) => (
           <a key={link.section} aria-current={section === link.section ? "page" : undefined} href={link.href}>{link.label}</a>
         ))}
-        {role === "ADMIN" ? <><a aria-current={section === "users" ? "page" : undefined} href="/staff/users">Usuarios</a><a aria-current={section === "audit" ? "page" : undefined} href="/staff/audit">Auditoría</a></> : null}
+        {role === "ADMIN" ? <><a aria-current={section === "reports" ? "page" : undefined} href="/staff/reports">Reportes</a><a aria-current={section === "users" ? "page" : undefined} href="/staff/users">Usuarios</a><a aria-current={section === "audit" ? "page" : undefined} href="/staff/audit">Auditoría</a></> : null}
       </nav>
       {children}
     </main>

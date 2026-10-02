@@ -13,7 +13,7 @@ export function ProductCard({ product, onSelect }: { product: MenuProduct & { im
       <div className="menu-product-copy">
         <h3>{product.name}</h3>
         {product.description && <p>{product.description}</p>}
-        <div className="menu-product-meta"><span className="menu-product-price">{formatArs(product.priceCents)}</span>{product.optionGroups.length > 0 && <span className="menu-product-options">Personalizable</span>}</div>
+        <div className="menu-product-meta"><span className="menu-product-price">{formatArs(product.priceCents)}</span>{product.optionGroups.length > 0 && <span className="menu-product-options">Personalizable</span>}{!product.available && <span className="menu-product-stock">Agotado</span>}{product.available && product.stockLeft ? <span className="menu-product-stock">{product.stockLeft === 1 ? "Última unidad" : `Últimas ${product.stockLeft}`}</span> : null}</div>
       </div>
       <button
         className="menu-add-button"
@@ -22,7 +22,7 @@ export function ProductCard({ product, onSelect }: { product: MenuProduct & { im
         onClick={() => onSelect(product)}
         aria-label={product.available ? `Agregar ${product.name}` : `${product.name}, agotado`}
       >
-        {product.available ? "+" : "Agotado"}
+        {product.available ? "+" : "–"}
       </button>
     </article>
   );

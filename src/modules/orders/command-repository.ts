@@ -4,6 +4,7 @@ import { assertOrderTransition, type OrderStatus, type StaffRole } from "./order
 import type { CommandRepository } from "./command-service";
 import type { ItemTransitionInput, OrderTransitionInput } from "./command-contracts";
 import { DomainError } from "./errors";
+import { releaseOrderStock } from "./stock";
 
 const commandInclude = {
   table: { select: { label: true } },
@@ -44,6 +45,7 @@ export class PrismaCommandRepository implements CommandRepository {
       if (current.version !== input.expectedVersion) throw new DomainError("ORDER_VERSION_CONFLICT", "El pedido cambió. Actualizá la pantalla.");
       assertOrderTransition(current.status as OrderStatus, input.targetStatus as OrderStatus, role, input.reason);
       const updated = await tx.order.update({ where: { id: orderId }, data: { status: input.targetStatus, version: { increment: 1 }, cancellationReason: input.targetStatus === "CANCELLED" ? input.reason : undefined }, include: commandInclude });
+      if (input.targetStatus === "CANCELLED") await releaseOrderStock(tx, orderId);
       await tx.orderStatusEvent.create({ data: { orderId, fromStatus: current.status, toStatus: input.targetStatus, actorStaffId, reason: input.reason } });
       await tx.auditEvent.create({ data: { actorStaffId, action: "ORDER_STATUS_CHANGED", entityType: "Order", entityId: orderId, metadata: { from: current.status, to: input.targetStatus } } });
       await notifyOrderChanged(tx, orderId, updated.version);

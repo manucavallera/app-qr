@@ -11,6 +11,7 @@ const domainStatus: Record<string, number> = {
   QR_ORDERING_CLOSED: 409,
   PRICE_CHANGED: 409,
   PRODUCT_UNAVAILABLE: 409,
+  INSUFFICIENT_STOCK: 409,
   OPTION_UNAVAILABLE: 409,
   ORDER_REQUEST_CONFLICT: 409,
   ORDER_VERSION_CONFLICT: 409,
@@ -26,6 +27,7 @@ const domainStatus: Record<string, number> = {
   ADMIN_REQUIRED_TO_CANCEL_IN_PREPARATION: 403,
   CANCELLATION_REASON_REQUIRED: 400,
   INVALID_ORDER_TRANSITION: 409,
+  INVALID_REPORT_RANGE: 400,
 };
 
 export function apiErrorResponse(error: unknown): NextResponse {
@@ -36,6 +38,9 @@ export function apiErrorResponse(error: unknown): NextResponse {
   if (error instanceof DomainError) {
     if (error.code === "PRICE_CHANGED" && error.details?.quote) {
       return NextResponse.json({ error: error.code, quote: error.details.quote }, { status: 409 });
+    }
+    if (error.code === "INSUFFICIENT_STOCK") {
+      return NextResponse.json({ error: error.code, productName: error.details?.productName, available: error.details?.available }, { status: 409 });
     }
     return NextResponse.json(
       { error: error.code },
