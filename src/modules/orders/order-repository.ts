@@ -360,6 +360,10 @@ export class PrismaOrderRepository {
     });
   }
 
+  findStaffOrder(orderId: string) {
+    return this.db.order.findUnique({ where: { id: orderId }, include: orderInclude });
+  }
+
   async listStaffOrders(options?: { limit?: number; skip?: number }) {
     const limit = options?.limit ?? 50;
     const skip = options?.skip ?? 0;

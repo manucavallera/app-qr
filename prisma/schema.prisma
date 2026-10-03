@@ -172,6 +172,8 @@ model Product {
   available    Boolean            @default(true)
   /// Units left to sell. Null means the product is not stock-tracked.
   stockQuantity Int?
+  /// Shown in the "Recomendados" row at the top of the customer menu.
+  featured     Boolean            @default(false)
   visible      Boolean            @default(true)
   station      PreparationStation @default(GENERAL)
   fulfillment  FulfillmentType    @default(TABLE)

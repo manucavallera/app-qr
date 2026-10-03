@@ -33,6 +33,7 @@ function productScalars(input: CatalogProductInput) {
     available: input.available,
     stockQuantity: input.stockQuantity,
     visible: input.visible,
+    featured: input.featured,
     station: input.station,
     fulfillment: input.fulfillment,
     sortOrder: input.sortOrder,

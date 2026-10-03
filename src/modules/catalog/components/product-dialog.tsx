@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import { useEscapeKey } from "@/lib/client/use-escape-key";
 import type { CartItem } from "@/modules/orders/cart-store";
@@ -9,6 +10,8 @@ export type MenuProduct = Readonly<{
   id: string;
   name: string;
   description: string;
+  imageUrl?: string | null;
+  featured?: boolean;
   priceCents: number;
   available: boolean;
   /** Units left when stock is running out; absent or null otherwise. */
@@ -70,6 +73,7 @@ export function ProductDialog({
     <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <section className="product-dialog" role="dialog" aria-modal="true" aria-labelledby="product-dialog-title">
         <button className="dialog-close" type="button" onClick={onClose} aria-label="Cerrar">×</button>
+        {product.imageUrl && <Image className="dialog-image" src={product.imageUrl} alt="" width={560} height={320} unoptimized />}
         <p className="eyebrow">Personalizá tu pedido</p>
         <h2 id="product-dialog-title">{product.name}</h2>
         {product.description && <p className="dialog-description">{product.description}</p>}

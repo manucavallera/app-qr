@@ -2431,3 +2431,66 @@ html:has(.ready-board), body:has(.ready-board) { background: var(--night-bg); }
 .report-table tbody th { font-weight: 600; }
 @media (max-width: 520px) { .report-range { grid-template-columns: minmax(0, 1fr); } }
 @media print { .staff-nav, .staff-header form, .report-range, .report-print { display: none; } }
+
+/* Customer menu: product photo in the dialog, featured row, loading skeleton, five tracking steps. */
+.menu-product { cursor: pointer; }
+.menu-product.is-unavailable { cursor: default; }
+.dialog-image { display: block; width: 100%; height: auto; max-height: 240px; margin: 0 0 18px; border-radius: 16px; object-fit: cover; }
+
+.menu-featured { margin: 0 0 22px; }
+.menu-featured h2 { margin: 0 0 12px; color: var(--cream); font-size: 1.2rem; letter-spacing: -0.03em; }
+.menu-featured-row { display: flex; gap: 12px; overflow-x: auto; margin: 0 -14px; padding: 0 14px 6px; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.menu-featured-card { display: grid; flex: 0 0 min(62vw, 220px); gap: 4px; padding: 0 0 12px; overflow: hidden; border: 1px solid var(--night-border-green); border-radius: 18px; background: var(--night-surface-green); color: var(--night-text); cursor: pointer; font: inherit; scroll-snap-align: start; text-align: left; }
+.menu-featured-card img, .menu-featured-placeholder { display: grid; width: 100%; height: 130px; place-items: center; object-fit: cover; }
+.menu-featured-placeholder { background: #20261f; color: var(--gold-text); font-size: 0.72rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+.menu-featured-card strong { padding: 8px 12px 0; font-size: 0.95rem; }
+.menu-featured-card span:last-child { padding: 0 12px; color: var(--amber-text); font-size: 0.9rem; font-weight: 800; }
+.menu-featured-card:focus-visible { outline: 3px solid var(--gold-dark); outline-offset: 2px; }
+
+.menu-skeleton { display: grid; align-content: start; gap: 14px; }
+.skeleton { border-radius: 16px; background: linear-gradient(100deg, #151a15 40%, #20281f 50%, #151a15 60%); background-size: 200% 100%; animation: skeleton-shine 1.3s linear infinite; }
+.skeleton-brand { width: 46%; height: 24px; }
+.skeleton-hero { height: 190px; border-radius: 24px; }
+.skeleton-chips { display: flex; gap: 8px; }
+.skeleton-chips .skeleton { width: 96px; height: 40px; border-radius: 999px; }
+.skeleton-card { height: 104px; }
+@keyframes skeleton-shine { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
+
+.order-steps { overflow-x: visible; gap: 4px; }
+.order-steps li { min-width: 0; flex: 1 1 0; }
+.order-steps li strong { font-size: 0.64rem; overflow-wrap: anywhere; }
+.customer-card .cart-lines li > div:first-child { display: grid; gap: 4px; }
+.customer-order-more { display: flex; min-height: 46px; align-items: center; justify-content: center; margin-top: 18px; border-radius: 12px; font-weight: 700; text-decoration: none; }
+
+/* Non-fiscal order receipt: on screen as a paper slip, printed on an 80 mm thermal roll. */
+html:has(.receipt-page), body:has(.receipt-page) { background: var(--paper-bg); }
+.receipt-page { display: grid; align-content: start; justify-items: center; gap: 16px; min-height: 100svh; padding: 24px 16px; color: var(--ink); color-scheme: light; }
+.receipt-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.receipt-actions .primary-link { border: 0; cursor: pointer; font: inherit; font-weight: 700; }
+.receipt { width: min(100%, 360px); padding: 22px 18px; border: 1px solid var(--paper-border); border-radius: 6px; background: var(--white); box-shadow: 0 12px 30px rgb(40 40 32 / 8%); font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: 0.86rem; line-height: 1.45; page: receipt; }
+.receipt-header { display: grid; gap: 2px; padding-bottom: 12px; border-bottom: 1px dashed #9a9a92; text-align: center; }
+.receipt-header strong { font-size: 1.05rem; }
+.receipt-meta { display: grid; gap: 2px; margin: 12px 0; }
+.receipt-meta div, .receipt-line { display: flex; justify-content: space-between; gap: 12px; }
+.receipt-meta dt { color: #55574f; }
+.receipt-meta dd { margin: 0; text-align: right; }
+.receipt-items { display: grid; gap: 8px; margin: 0; padding: 12px 0; border-top: 1px dashed #9a9a92; border-bottom: 1px dashed #9a9a92; list-style: none; }
+.receipt-items small { display: block; padding-left: 14px; color: #55574f; }
+.receipt-total { padding-top: 10px; font-size: 1.05rem; font-weight: 800; }
+.receipt-payment { margin: 6px 0 0; }
+.receipt-footer { margin-top: 14px; padding-top: 10px; border-top: 1px dashed #9a9a92; font-size: 0.78rem; text-align: center; }
+@page receipt { size: 80mm auto; margin: 4mm; }
+@media print {
+  .receipt-actions { display: none; }
+  .receipt-page { min-height: 0; padding: 0; }
+  .receipt { width: 100%; padding: 0; border: 0; border-radius: 0; box-shadow: none; }
+}
+
+/* Sticky toolbar: category chips plus the cart, so the cart never covers the product buttons. */
+.menu-toolbar { position: sticky; z-index: 3; top: 0; display: flex; align-items: center; gap: 10px; margin: 0 0 30px; padding: 8px 0; background: var(--night-bg); }
+.menu-toolbar .category-nav { position: relative; flex: 1; min-width: 0; margin: 0; padding: 0; background: none; backdrop-filter: none; scroll-behavior: auto; }
+.menu-toolbar .cart-fab { position: relative; top: auto; right: auto; flex: 0 0 44px; width: 44px; height: 44px; }
+.menu-category { scroll-margin-top: 72px; }
+.cart-toast { top: calc(72px + env(safe-area-inset-top)); }
+.public-menu-shell { padding-bottom: 48px; }

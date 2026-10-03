@@ -1,20 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import Image from "next/image";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { ProductCard } from "@/modules/catalog/components/product-card";
 import { ProductDialog, type MenuProduct } from "@/modules/catalog/components/product-dialog";
 import { addToCart, canPersistCart, cartTotal, clearCart, loadCart, removeCartItem, replaceCartItem, saveCart, type CartItem } from "@/modules/orders/cart-store";
 import { formatArs as formatPrice } from "@/lib/format";
 import { useEscapeKey } from "@/lib/client/use-escape-key";
 import { MenuHeader, type PublicBusiness } from "./menu-header";
-import { filterMenuCategories } from "./menu-filter";
 
 type PublicMenu = Readonly<{
   table: { label: string };
   mode: "QR_OPEN" | "COUNTER_ONLY" | "PAUSED";
   business: PublicBusiness;
   service: { mode: "QR_OPEN" | "COUNTER_ONLY" | "PAUSED"; hoursLabel: string | null };
-  categories: ReadonlyArray<{ id: string; name: string; products: ReadonlyArray<MenuProduct & { imageUrl: string | null }> }>;
+  categories: ReadonlyArray<{ id: string; name: string; products: ReadonlyArray<MenuProduct> }>;
   serverTime: string;
 }>;
 
@@ -41,6 +41,7 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
   const [cartOpen, setCartOpen] = useState(false);
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
   const [addedNotice, setAddedNotice] = useState<{ id: number; name: string } | null>(null);
+  const categoryNav = useRef<HTMLElement>(null);
 
   const loadMenu = useCallback(async (): Promise<PublicMenu> => {
     const response = await fetch(`/api/public/menu/${encodeURIComponent(qrToken)}`, { cache: "no-store" });
@@ -109,13 +110,34 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
     return () => window.clearTimeout(timer);
   }, [menu, cart, cartLoadedForToken, qrToken]);
 
+  // Highlight the category on screen and keep its chip visible in the sticky bar.
+  useEffect(() => {
+    if (!menu || sessionStatus !== "ready") return;
+    const sections = menu.categories.flatMap((category) => document.getElementById(`category-${category.id}`) ?? []);
+    if (sections.length === 0) return;
+    const observer = new IntersectionObserver((entries) => {
+      const current = entries.filter((entry) => entry.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+      if (current) setActiveCategoryId(current.target.id.replace("category-", ""));
+    }, { rootMargin: "-90px 0px -60% 0px" });
+    for (const section of sections) observer.observe(section);
+    return () => observer.disconnect();
+  }, [menu, sessionStatus]);
+
+  // Scroll only the chip bar sideways. scrollIntoView would also move the page and cut a fast scroll short.
+  useEffect(() => {
+    const nav = categoryNav.current;
+    const chip = activeCategoryId ? document.getElementById(`category-chip-${activeCategoryId}`) : null;
+    if (!nav || !chip) return;
+    nav.scrollTo({ left: chip.offsetLeft - (nav.clientWidth - chip.clientWidth) / 2, behavior: "smooth" });
+  }, [activeCategoryId]);
+
   const closeCart = useCallback(() => setCartOpen(false), []);
   useEscapeKey(cartOpen ? closeCart : noop);
 
   const total = useMemo(() => cartTotal(cart), [cart]);
   const itemCount = useMemo(() => cart.reduce((count, item) => count + item.quantity, 0), [cart]);
   const products = useMemo(() => new Map(menu?.categories.flatMap((category) => category.products.map((product) => [product.id, product] as const)) ?? []), [menu]);
-  const visibleCategories = useMemo(() => filterMenuCategories(menu?.categories ?? [], activeCategoryId), [activeCategoryId, menu]);
+  const featured = useMemo(() => menu?.categories.flatMap((category) => category.products).filter((product) => product.featured && product.available) ?? [], [menu]);
 
   async function startSession(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -142,7 +164,15 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
   }
 
   if (sessionStatus === "checking") {
-    return <main className="menu-loading" aria-live="polite"><span className="menu-loader" aria-hidden="true" />Abriendo la carta…</main>;
+    return (
+      <main className="public-menu-shell menu-skeleton" aria-busy="true" aria-live="polite">
+        <span className="sr-only">Abriendo la carta…</span>
+        <div className="skeleton skeleton-brand" />
+        <div className="skeleton skeleton-hero" />
+        <div className="skeleton-chips"><div className="skeleton" /><div className="skeleton" /><div className="skeleton" /></div>
+        {[0, 1, 2, 3].map((index) => <div className="skeleton skeleton-card" key={index} />)}
+      </main>
+    );
   }
 
   if (sessionStatus === "error") {
@@ -195,10 +225,6 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
 
   return (
     <main className="public-menu-shell">
-      <button className="cart-fab" type="button" aria-label={`Ver pedido, ${itemCount} ${itemCount === 1 ? "producto" : "productos"}`} onClick={() => setCartOpen(true)}>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2.2l2.1 11h10.4l2-8H6.2" /><circle cx="9" cy="19.5" r="1.5" /><circle cx="17" cy="19.5" r="1.5" /></svg>
-        {itemCount > 0 && <span key={itemCount} className="cart-fab-badge">{itemCount}</span>}
-      </button>
       {addedNotice && (
         <div key={addedNotice.id} className="cart-toast" role="status">
           <span>✓ {addedNotice.name} agregado</span>
@@ -215,11 +241,30 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
         <p className="menu-greeting">Hola, {nickname}</p>
       </header>
       {!canOrder && <aside className={`service-mode-note${menu.service.mode === "PAUSED" ? " is-paused" : ""}`} role="status">{modeMessage}</aside>}
-      <nav className="category-nav" aria-label="Categorías">
-        <button className={activeCategoryId === null ? "is-active" : ""} type="button" aria-pressed={activeCategoryId === null} onClick={() => setActiveCategoryId(null)}>Todo</button>
-        {menu.categories.map((category) => <button className={activeCategoryId === category.id ? "is-active" : ""} key={category.id} type="button" aria-pressed={activeCategoryId === category.id} onClick={() => setActiveCategoryId(category.id)}>{category.name}</button>)}
-      </nav>
-      {visibleCategories.map((category) => (
+      {featured.length > 0 && (
+        <section className="menu-featured" aria-labelledby="featured-title">
+          <h2 id="featured-title">Recomendados</h2>
+          <div className="menu-featured-row">
+            {featured.map((product) => (
+              <button className="menu-featured-card" key={product.id} type="button" onClick={() => setSelectedProduct(product)} aria-label={`Ver ${product.name}`}>
+                {product.imageUrl ? <Image src={product.imageUrl} alt="" width={220} height={150} loading="eager" unoptimized /> : <span className="menu-featured-placeholder" aria-hidden="true">Menú</span>}
+                <strong>{product.name}</strong>
+                <span>{formatPrice(product.priceCents)}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+      <div className="menu-toolbar">
+        <nav className="category-nav" aria-label="Categorías" ref={categoryNav}>
+          {menu.categories.map((category) => <button className={activeCategoryId === category.id ? "is-active" : ""} id={`category-chip-${category.id}`} key={category.id} type="button" aria-current={activeCategoryId === category.id ? "true" : undefined} onClick={() => document.getElementById(`category-${category.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}>{category.name}</button>)}
+        </nav>
+        <button className="cart-fab" type="button" aria-label={`Ver pedido, ${itemCount} ${itemCount === 1 ? "producto" : "productos"}`} onClick={() => setCartOpen(true)}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2.2l2.1 11h10.4l2-8H6.2" /><circle cx="9" cy="19.5" r="1.5" /><circle cx="17" cy="19.5" r="1.5" /></svg>
+          {itemCount > 0 && <span key={itemCount} className="cart-fab-badge">{itemCount}</span>}
+        </button>
+      </div>
+      {menu.categories.map((category) => (
         <section id={`category-${category.id}`} className="menu-category" key={category.id}>
           <div className="menu-category-heading"><h2>{category.name}</h2><span>{category.products.length} opciones</span></div>
           <div className="menu-product-list">
@@ -229,15 +274,6 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
       ))}
       {menu.categories.length === 0 && <p className="menu-empty-state">Todavía no hay productos publicados en la carta.</p>}
       {message && <p className="login-error menu-message" role="alert">{message}</p>}
-      {cart.length > 0 && (
-        <button className="sticky-cart" type="button" onClick={() => setCartOpen(true)}>
-          <span className="sticky-cart-summary">
-            <span>{itemCount} {itemCount === 1 ? "producto" : "productos"}</span>
-            <strong>{formatPrice(total)}</strong>
-          </span>
-          <span className="sticky-cart-action">{canOrder ? "Ver pedido" : "Ver selección"}</span>
-        </button>
-      )}
       {selectedProduct && <ProductDialog product={selectedProduct} initialItem={editingCartIndex === null ? undefined : cart[editingCartIndex]} onClose={closeProductDialog} onAdd={saveProduct} />}
       {cartOpen && (
         <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCartOpen(false); }}>

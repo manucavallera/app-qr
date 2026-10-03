@@ -24,6 +24,7 @@ type Product = {
   priceCents: number;
   available: boolean;
   stockQuantity: number | null;
+  featured: boolean;
   visible: boolean;
   station: "GENERAL" | "KITCHEN" | "BAR";
   fulfillment: "TABLE" | "PICKUP";
@@ -46,6 +47,7 @@ type ProductDraft = {
   /** Empty means the product is not stock-tracked. */
   stock: string;
   available: boolean;
+  featured: boolean;
   visible: boolean;
   station: Product["station"];
   fulfillment: Product["fulfillment"];
@@ -60,6 +62,7 @@ const emptyDraft: ProductDraft = {
   price: "",
   stock: "",
   available: true,
+  featured: false,
   visible: true,
   station: "GENERAL",
   fulfillment: "TABLE",
@@ -128,6 +131,7 @@ export default function StaffCatalogPage() {
       price: (product.priceCents / 100).toFixed(2),
       stock: product.stockQuantity === null ? "" : String(product.stockQuantity),
       available: product.available,
+      featured: product.featured,
       visible: product.visible,
       station: product.station,
       fulfillment: product.fulfillment,
@@ -175,6 +179,7 @@ export default function StaffCatalogPage() {
         priceCents: parseCents(draft.price),
         stockQuantity: draft.stock.trim() === "" ? null : Number(draft.stock),
         available: draft.available,
+        featured: draft.featured,
         visible: draft.visible,
         station: draft.station,
         fulfillment: draft.fulfillment,
@@ -343,7 +348,7 @@ export default function StaffCatalogPage() {
                       {!product.visible ? "Oculto" : product.available && product.stockQuantity !== 0 ? "Disponible" : "Agotado"}
                     </span>
                   </div>
-                  <p>{product.category.name} · {formatPrice(product.priceCents)}{product.stockQuantity === null ? "" : ` · Stock: ${product.stockQuantity}`}</p>
+                  <p>{product.category.name} · {formatPrice(product.priceCents)}{product.stockQuantity === null ? "" : ` · Stock: ${product.stockQuantity}`}{product.featured ? " · Destacado" : ""}</p>
                   {product.optionGroups.length > 0 ? (
                     <p className="muted">{product.optionGroups.map((group) => group.name).join(" · ")}</p>
                   ) : null}
@@ -457,6 +462,7 @@ export default function StaffCatalogPage() {
             ))}
             <div className="check-row">
               <label className="check-field"><input checked={draft.available} onChange={(event) => updateDraft("available", event.target.checked)} type="checkbox" /><span>Disponible</span></label>
+              <label className="check-field"><input checked={draft.featured} onChange={(event) => updateDraft("featured", event.target.checked)} type="checkbox" /><span>Destacado en la carta (Recomendados)</span></label>
               <label className="check-field"><input checked={draft.visible} onChange={(event) => updateDraft("visible", event.target.checked)} type="checkbox" /><span>Visible en el menú</span></label>
             </div>
             <div className="button-row">

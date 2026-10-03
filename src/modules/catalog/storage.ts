@@ -126,7 +126,8 @@ export class S3ImageStorage implements ImageStorage {
 
 export function createImageStorage(env: ServerEnv = getServerEnv()): ImageStorage {
   if (env.IMAGE_STORAGE_DRIVER === "local") {
-    return new LocalImageStorage(path.resolve(process.cwd(), env.UPLOAD_DIR));
+    // The upload folder comes from configuration, so keep the bundler from tracing the whole project.
+    return new LocalImageStorage(path.resolve(/*turbopackIgnore: true*/ process.cwd(), env.UPLOAD_DIR));
   }
 
   const bucket = env.S3_BUCKET;

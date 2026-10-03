@@ -99,6 +99,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext): Prom
             // Only shared when it is running out, so the menu can say "últimas N".
             stockLeft: product.stockQuantity !== null && product.stockQuantity <= LOW_STOCK_THRESHOLD ? product.stockQuantity : null,
             fulfillment: product.fulfillment,
+            featured: product.featured,
             optionGroups,
           };
         }),

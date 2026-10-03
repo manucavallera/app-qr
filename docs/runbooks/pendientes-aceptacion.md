@@ -1,6 +1,6 @@
 # Pendientes de aceptación
 
-Última actualización: 2 de octubre de 2026
+Última actualización: 3 de octubre de 2026
 
 ## Base verificada
 
@@ -20,12 +20,25 @@
 
 Verificación del 2 de octubre: typecheck, lint, 91 tests unitarios, 30 de integración y la suite e2e completa (18 pasan, 12 se saltean por diseño según el proyecto). El e2e de Mercado Pago usa el proveedor falso, no el servicio real.
 
+- Carta del cliente: foto grande al tocar un producto, fila "Recomendados" (casilla "Destacado" en Staff > Carta), categorías que siguen el scroll, carrito en la barra fija de arriba y carga con siluetas.
+- Seguimiento con las cinco etapas, extras, ingredientes sacados y notas, y botones "Ver comprobante" y "Pedir algo más".
+- Comprobante no fiscal ("Documento no válido como factura") para el cliente y para imprimir desde Staff > Pedidos en formato ticket de 80 mm.
+- Imágenes en Cloudflare R2 (bucket `pedidosqr`) probadas desde la máquina local. Ver `docs/runbooks/deployment.md`.
+- `npm run build` termina bien con Next 16.3.8.
+
+## Próxima sesión
+
+1. Volver a correr los cinco e2e que se cortaron el 3 de octubre porque el build cerró el servidor de desarrollo: `mercado-pago`, `cart-multi-item` (mobile), la carta a 320 px y los dos de `staff-ux` (mobile). Correrlos con el servidor levantado y sin un build en paralelo.
+2. Correr `npm run build` con el servidor de desarrollo cerrado y confirmar que desapareció el aviso de rastreo de `storage.ts`.
+3. Reemplazar la foto de prueba de "Hamburguesa clásica" (es una carta astral) por una real.
+4. En `/mnt/c`, `next dev` no detecta archivos ni carpetas nuevas. Después de crear rutas: cortar el servidor, borrar `.next/dev` y volver a levantarlo. Trabajar desde `~/projects/App-qr` evita el problema.
+
 ## Bloqueantes para producción
 
 1. **Build de producción.** Las dependencias ya están actualizadas (Next 16.3.8, sin el paquete `mercadopago`). Falta confirmar que `npm run build` termina bien. No ejecutar `npm audit fix --force`: baja Prisma a la versión 6. Los avisos restantes son de `vitest` y del CLI de Prisma, que no corren en la app. Usar Node 24 (`nvm use`).
 2. **Imágenes.** Con `IMAGE_STORAGE_DRIVER=local` la subida falla en el contenedor (`/app` es de root y el proceso corre como `appuser`) y las fotos se pierden en cada redeploy. Crear una cuenta en Cloudflare R2 o Cloudinary, pasar las credenciales y adaptar el driver. Luego cargar las fotos reales: hoy todos los productos muestran el placeholder.
 3. **Mercado Pago.** Probar en sandbox con credenciales de prueba. Confirmar la firma del webhook: `validateMercadoPagoSignature` usa `data.id` tal cual llega y Mercado Pago lo pide en minúsculas cuando es alfanumérico. Agregar timeout al `fetch` de `MercadoPagoGateway`.
-4. **Migración de stock.** El stock agrega la migración `20261002_product_stock`. Ejecutar `npm run db:deploy` en producción antes de iniciar la nueva versión.
+4. **Migraciones.** Stock y destacados agregan `20261002_product_stock` y `20261003_product_featured`. Ejecutar `npm run db:deploy` en producción antes de iniciar la nueva versión.
 5. **Cron y secreto interno.** Definir `INTERNAL_SECRET` en producción y programar el cron de `docs/runbooks/deployment.md`. Sin eso no corren el corte nocturno ni el vencimiento de pedidos sin pagar.
 6. **Merge.** Llevar la rama `work/pedidos-qr` a `main`. `next-env.d.ts` no se commitea: lo modifica `next dev`.
 
@@ -60,7 +73,9 @@ Verificación del 2 de octubre: typecheck, lint, 91 tests unitarios, 30 de integ
 - Tiempos de vencimiento de pedidos sin pagar (30 minutos y 2 horas).
 - Stock: confirmar que alcanza con unidades por producto (no insumos ni recetas) y el umbral de aviso de stock bajo (5 unidades).
 - Reportes: hoy solo los ve el rol Administrador. Definir si Caja también debe verlos.
-- Stock y reportes quedaron fuera del alcance original: cotizarlos aparte.
+- Stock, reportes, comprobante, recomendados y llamador quedaron fuera del alcance original: cotizarlos aparte.
+- Facturación: el cliente pidió "una pequeña factura". Se hizo un comprobante no fiscal. Emitir facturas con ARCA es otro proyecto; confirmarlo con su contador.
+- Logo y foto de portada del local para el encabezado de la carta: pendiente de que los manden.
 - La pantalla `/pantalla` es pública y muestra solo números de pedido. Definir si alcanza o si debe mostrar el nombre.
 - Los QR impresos dependen de `APP_URL`: imprimirlos con el dominio definitivo ya configurado.
 

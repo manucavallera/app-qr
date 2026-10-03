@@ -10,7 +10,7 @@ import { useSseResource } from "@/lib/client/use-sse-resource";
 import { selectCurrentPayment } from "@/modules/payments/payment-selection";
 
 type PaymentMethod = "MERCADO_PAGO" | "CASH" | "CARD_AT_COUNTER" | "BANK_TRANSFER";
-type Order = { number: number; status: string; totalCents: number; table: { label: string } | null; items: { productName: string; quantity: number; lineTotalCents: number; fulfillment: "TABLE" | "PICKUP" }[]; payments: { method: PaymentMethod; status: string }[] };
+type Order = { number: number; status: string; totalCents: number; table: { label: string } | null; items: { productName: string; quantity: number; lineTotalCents: number; fulfillment: "TABLE" | "PICKUP"; notes: string | null; options: { valueName: string }[] }[]; payments: { method: PaymentMethod; status: string }[] };
 type TransferDetails = { alias: string | null; cbuCvu: string | null; accountHolder: string | null; instructions: string | null };
 type PublicPayment = { transfer: TransferDetails | null };
 const methodLabels: Record<PaymentMethod, string> = { MERCADO_PAGO: "Mercado Pago", CASH: "Efectivo en caja", CARD_AT_COUNTER: "Tarjeta en caja", BANK_TRANSFER: "Transferencia bancaria" };
@@ -100,7 +100,9 @@ export default function CustomerOrderPage() {
     {order.status === "DELIVERED" && <aside className="order-complete-note" role="status"><span aria-hidden="true">✓</span><div><strong>Pedido entregado</strong><p>Esperamos que lo disfrutes. ¡Gracias por elegirnos!</p></div></aside>}
     {order.status !== "CANCELLED" && <OrderProgress currentStatus={order.status} />}
     <section className="order-payment-panel"><strong>Pago: {currentPayment ? methodLabels[currentPayment.method] : "Pendiente"}</strong><span>{currentPayment?.status === "APPROVED" ? "Confirmado" : currentPayment?.status === "REJECTED" ? "Rechazado" : "Pendiente de confirmación"}</span>{currentPayment?.method === "MERCADO_PAGO" && currentPayment.status !== "APPROVED" && order.status === "AWAITING_PAYMENT" && <button className="primary-link" disabled={paymentLoading} onClick={() => void payWithMercadoPago()} type="button">{paymentLoading ? "Preparando pago…" : "Pagar con Mercado Pago"}</button>}{currentPayment?.method === "BANK_TRANSFER" && currentPayment.status !== "APPROVED" && payment.transfer && <div className="transfer-instructions"><strong>Transferí a {payment.transfer.alias ?? payment.transfer.cbuCvu}</strong><span>{payment.transfer.accountHolder && `Titular: ${payment.transfer.accountHolder}`}</span>{payment.transfer.instructions && <small>{payment.transfer.instructions}</small>}</div>}</section>
-    <ul className="cart-lines">{order.items.map((item, index) => <li key={`${item.productName}-${index}`}><span>{item.quantity} × {item.productName}</span><strong>{ars(item.lineTotalCents)}</strong></li>)}</ul>
+    <ul className="cart-lines">{order.items.map((item, index) => <li key={`${item.productName}-${index}`}><div><span>{item.quantity} × {item.productName}</span>{item.options.map((option) => <span className="cart-line-detail" key={option.valueName}>{option.valueName}</span>)}{item.notes && <span className="cart-line-detail">Nota: {item.notes}</span>}</div><strong>{ars(item.lineTotalCents)}</strong></li>)}</ul>
     <div className="cart-total"><span>Total</span><strong>{ars(order.totalCents)}</strong></div>
+    {currentPayment?.status === "APPROVED" && <a className="button-secondary customer-order-more" href={`/m/${encodeURIComponent(qrToken)}/orders/${encodeURIComponent(id)}/comprobante`}>Ver comprobante</a>}
+    <a className="button-secondary customer-order-more" href={`/m/${encodeURIComponent(qrToken)}`}>Pedir algo más</a>
   </CustomerShell>;
 }
