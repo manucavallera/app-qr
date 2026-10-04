@@ -1,5 +1,31 @@
+import { createHmac } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
-import { WebhookService } from "./webhook-service";
+import { validateMercadoPagoSignature, WebhookService } from "./webhook-service";
+
+const secret = "test-secret";
+const sign = (manifest: string) => createHmac("sha256", secret).update(manifest).digest("hex");
+
+describe("validateMercadoPagoSignature", () => {
+  it("accepts a numeric id signed as sent", () => {
+    const v1 = sign("id:123456;request-id:req-1;ts:1700000000;");
+    expect(validateMercadoPagoSignature({ xSignature: `ts=1700000000,v1=${v1}`, xRequestId: "req-1", dataId: "123456", secret })).toBe(true);
+  });
+
+  it("accepts an uppercase alphanumeric id because Mercado Pago signs it in lowercase", () => {
+    const v1 = sign("id:ord01abc;request-id:req-1;ts:1700000000;");
+    expect(validateMercadoPagoSignature({ xSignature: `ts=1700000000,v1=${v1}`, xRequestId: "req-1", dataId: "ORD01ABC", secret })).toBe(true);
+  });
+
+  it("rejects a tampered signature, another id, a missing secret and malformed headers", () => {
+    const v1 = sign("id:123456;request-id:req-1;ts:1700000000;");
+    const header = `ts=1700000000,v1=${v1}`;
+    expect(validateMercadoPagoSignature({ xSignature: `ts=1700000000,v1=${v1.slice(0, -1)}0`, xRequestId: "req-1", dataId: "123456", secret })).toBe(false);
+    expect(validateMercadoPagoSignature({ xSignature: header, xRequestId: "req-1", dataId: "999999", secret })).toBe(false);
+    expect(validateMercadoPagoSignature({ xSignature: header, xRequestId: "req-1", dataId: "123456", secret: "" })).toBe(false);
+    expect(validateMercadoPagoSignature({ xSignature: "garbage", xRequestId: "req-1", dataId: "123456", secret })).toBe(false);
+    expect(validateMercadoPagoSignature({ xSignature: null, xRequestId: "req-1", dataId: "123456", secret })).toBe(false);
+  });
+});
 
 describe("WebhookService", () => {
   it("rejects an invalid signature before retrieving or changing a payment", async () => {

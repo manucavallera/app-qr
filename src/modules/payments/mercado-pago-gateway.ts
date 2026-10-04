@@ -1,5 +1,7 @@
 import type { CheckoutInput, PaymentGateway } from "./payment-gateway";
 
+const REQUEST_TIMEOUT_MS = 10_000;
+
 export class MercadoPagoGateway implements PaymentGateway {
   constructor(private readonly accessToken: string) {}
 
@@ -7,6 +9,10 @@ export class MercadoPagoGateway implements PaymentGateway {
     const response = await fetch(`https://api.mercadopago.com${path}`, {
       ...init,
       headers: { authorization: `Bearer ${this.accessToken}`, "content-type": "application/json", ...(init?.headers ?? {}) },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    }).catch((error: unknown) => {
+      if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) throw new Error("Mercado Pago request timed out");
+      throw error;
     });
     const body = await response.json().catch(() => null) as Record<string, unknown> | null;
     if (!response.ok || !body) throw new Error(`Mercado Pago request failed (${response.status})`);
