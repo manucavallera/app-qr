@@ -1,7 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
-describe("command board concurrency contract", () => {
-  it("reserves optimistic version conflicts for concurrent operators", () => {
-    expect({ first: "PREPARING", stale: 409, eventCount: 1 }).toMatchObject({ first: "PREPARING", stale: 409 });
-  });
+describe("command board concurrency", () => {
+  it.todo("rejects the second of two operators moving the same order from the same version with 409");
+  it.todo("records a single status event when two operators race on one order");
 });
