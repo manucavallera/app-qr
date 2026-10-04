@@ -3,6 +3,7 @@
 import { Minus, Plus, X } from "@phosphor-icons/react";
 import Image from "next/image";
 import { useState } from "react";
+import { Sheet } from "@/components/customer/sheet";
 import { useEscapeKey } from "@/lib/client/use-escape-key";
 import type { CartItem } from "@/modules/orders/cart-store";
 import { formatArs } from "./product-card";
@@ -72,7 +73,7 @@ export function ProductDialog({
 
   return (
     <div className="cm-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <section className="cm-sheet" role="dialog" aria-modal="true" aria-labelledby="product-dialog-title">
+      <Sheet labelledBy="product-dialog-title">
         <button className="cm-close" type="button" onClick={onClose} aria-label="Cerrar"><X size={20} weight="bold" aria-hidden="true" /></button>
         {product.imageUrl && <Image className="cm-sheet-image" src={product.imageUrl} alt="" width={560} height={320} unoptimized />}
         <div className="cm-sheet-body">
@@ -117,7 +118,7 @@ export function ProductDialog({
           </div>
           <button className="cm-btn" type="button" onClick={add}>{initialItem ? "Guardar cambios" : "Agregar al carrito"} · {formatArs(unitTotal * quantity)}</button>
         </div>
-      </section>
+      </Sheet>
     </div>
   );
 }

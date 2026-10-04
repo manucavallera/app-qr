@@ -3,6 +3,7 @@
 import { Check, Hamburger, Minus, Plus, ShoppingBag, X } from "@phosphor-icons/react";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { Sheet } from "@/components/customer/sheet";
 import { ProductCard } from "@/modules/catalog/components/product-card";
 import { ProductDialog, type MenuProduct } from "@/modules/catalog/components/product-dialog";
 import { addToCart, canPersistCart, cartTotal, clearCart, loadCart, removeCartItem, replaceCartItem, saveCart, type CartItem } from "@/modules/orders/cart-store";
@@ -289,7 +290,7 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
       {selectedProduct && <ProductDialog product={selectedProduct} initialItem={editingCartIndex === null ? undefined : cart[editingCartIndex]} onClose={closeProductDialog} onAdd={saveProduct} />}
       {cartOpen && (
         <div className="cm-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCartOpen(false); }}>
-          <section className="cm-sheet" role="dialog" aria-modal="true" aria-labelledby="cart-title">
+          <Sheet labelledBy="cart-title">
             <button className="cm-close" type="button" onClick={() => setCartOpen(false)} aria-label="Cerrar"><X size={20} weight="bold" aria-hidden="true" /></button>
             <div className="cm-sheet-body">
               <h2 id="cart-title">El pedido de {menu.table.label}</h2>
@@ -321,7 +322,7 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
                 <button className="cm-btn-text" type="button" onClick={clearCurrentCart}>Vaciar pedido</button>
               </div>
             </div>
-          </section>
+          </Sheet>
         </div>
       )}
     </main>

@@ -4,6 +4,8 @@
   Spacing scale: 4 / 8 / 12 / 16 / 24 / 32 / 48.
 */
 :root {
+  color-scheme: light dark;
+  /* Layers: toolbar 20, cart bar 30, sheets 40, toast 50. */
   --cm-bg: #f8f1e7;
   --cm-surface: #fffaf3;
   --cm-surface-2: #f0e6d8;
@@ -231,8 +233,8 @@ body:has(.cm-shell, .cm-welcome-shell, .cm-page) {
 .cm-featured-row {
   display: flex;
   gap: 12px;
-  margin: 0 -16px;
-  padding: 0 16px 4px;
+  margin: -6px -16px;
+  padding: 6px 16px;
   overflow-x: auto;
   scroll-padding: 0 16px;
   scroll-snap-type: x proximity;
@@ -312,7 +314,8 @@ body:has(.cm-shell, .cm-welcome-shell, .cm-page) {
 }
 
 .cm-chips {
-  padding-right: 24px;
+  margin-block: -6px;
+  padding: 6px 24px 6px 0;
   mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
 }
 
@@ -765,6 +768,10 @@ body:has(.cm-shell, .cm-welcome-shell, .cm-page) {
   color: var(--cm-text);
   box-shadow: 0 2px 12px rgb(43 24 16 / 25%);
   cursor: pointer;
+}
+
+.cm-sheet:focus {
+  outline: none;
 }
 
 .cm-sheet-image {
