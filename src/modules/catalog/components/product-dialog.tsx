@@ -1,5 +1,6 @@
 "use client";
 
+import { Minus, Plus, X } from "@phosphor-icons/react";
 import Image from "next/image";
 import { useState } from "react";
 import { useEscapeKey } from "@/lib/client/use-escape-key";
@@ -70,50 +71,51 @@ export function ProductDialog({
   }
 
   return (
-    <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <section className="product-dialog" role="dialog" aria-modal="true" aria-labelledby="product-dialog-title">
-        <button className="dialog-close" type="button" onClick={onClose} aria-label="Cerrar">×</button>
-        {product.imageUrl && <Image className="dialog-image" src={product.imageUrl} alt="" width={560} height={320} unoptimized />}
-        <p className="eyebrow">Personalizá tu pedido</p>
-        <h2 id="product-dialog-title">{product.name}</h2>
-        {product.description && <p className="dialog-description">{product.description}</p>}
-        <p className="dialog-base-price">Desde {formatArs(product.priceCents)}</p>
-        <div className="dialog-options">
-          {product.optionGroups.map((group) => (
-            <fieldset key={group.id} className="dialog-option-group">
-              <legend>{group.name}{group.required && <span> · obligatorio</span>}</legend>
-              {group.values.map((value) => {
-                const checked = (selected[group.id] ?? []).includes(value.id);
-                if (value.available === false) return null;
-                return (
-                  <label key={value.id} className="dialog-option">
-                    <input
-                      // An optional single choice must be un-checkable, which a radio is not.
-                      type={group.maxSelections === 1 && group.minSelections >= 1 ? "radio" : "checkbox"}
-                      name={`option-${group.id}`}
-                      checked={checked}
-                      onChange={() => toggleValue(group.id, value.id, group.maxSelections)}
-                    />
-                    <span>{value.name}</span>
-                    {value.priceDeltaCents > 0 && <span>+{formatArs(value.priceDeltaCents)}</span>}
-                  </label>
-                );
-              })}
-            </fieldset>
-          ))}
-        </div>
-        <label className="form-field">
-          Nota para la cocina
-          <textarea className="form-input dialog-notes" maxLength={160} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Ej. sin mayonesa" />
-        </label>
-        {error && <p role="alert" className="login-error">{error}</p>}
-        <div className="dialog-footer">
-          <div className="quantity-control" aria-label="Cantidad">
-            <button type="button" aria-label="Restar uno" disabled={quantity <= 1} onClick={() => setQuantity((value) => value - 1)}>-</button>
-            <span>{quantity}</span>
-            <button type="button" aria-label="Sumar uno" disabled={quantity >= (product.stockLeft ?? 99)} onClick={() => setQuantity((value) => Math.min(product.stockLeft ?? 99, 99, value + 1))}>+</button>
+    <div className="cm-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <section className="cm-sheet" role="dialog" aria-modal="true" aria-labelledby="product-dialog-title">
+        <button className="cm-close" type="button" onClick={onClose} aria-label="Cerrar"><X size={20} weight="bold" aria-hidden="true" /></button>
+        {product.imageUrl && <Image className="cm-sheet-image" src={product.imageUrl} alt="" width={560} height={320} unoptimized />}
+        <div className="cm-sheet-body">
+          <h2 id="product-dialog-title">{product.name}</h2>
+          {product.description && <p className="cm-sheet-desc">{product.description}</p>}
+          <p className="cm-base-price">Desde {formatArs(product.priceCents)}</p>
+          <div className="cm-options">
+            {product.optionGroups.map((group) => (
+              <fieldset key={group.id} className="cm-group">
+                <legend>{group.name}{group.required && <span> · obligatorio</span>}</legend>
+                {group.values.map((value) => {
+                  const checked = (selected[group.id] ?? []).includes(value.id);
+                  if (value.available === false) return null;
+                  return (
+                    <label key={value.id} className="cm-option">
+                      <input
+                        // An optional single choice must be un-checkable, which a radio is not.
+                        type={group.maxSelections === 1 && group.minSelections >= 1 ? "radio" : "checkbox"}
+                        name={`option-${group.id}`}
+                        checked={checked}
+                        onChange={() => toggleValue(group.id, value.id, group.maxSelections)}
+                      />
+                      <span>{value.name}</span>
+                      {value.priceDeltaCents > 0 && <span>+{formatArs(value.priceDeltaCents)}</span>}
+                    </label>
+                  );
+                })}
+              </fieldset>
+            ))}
           </div>
-          <button className="primary-link" type="button" onClick={add}>{initialItem ? "Guardar cambios" : "Agregar al carrito"} · {formatArs(unitTotal * quantity)}</button>
+          <label className="cm-field">
+            Nota para la cocina
+            <textarea className="cm-input" rows={2} maxLength={160} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Ej. sin mayonesa" />
+          </label>
+          {error && <p role="alert" className="cm-error">{error}</p>}
+        </div>
+        <div className="cm-sheet-footer">
+          <div className="cm-stepper" aria-label="Cantidad">
+            <button type="button" aria-label="Restar uno" disabled={quantity <= 1} onClick={() => setQuantity((value) => value - 1)}><Minus size={18} weight="bold" aria-hidden="true" /></button>
+            <span>{quantity}</span>
+            <button type="button" aria-label="Sumar uno" disabled={quantity >= (product.stockLeft ?? 99)} onClick={() => setQuantity((value) => Math.min(product.stockLeft ?? 99, 99, value + 1))}><Plus size={18} weight="bold" aria-hidden="true" /></button>
+          </div>
+          <button className="cm-btn" type="button" onClick={add}>{initialItem ? "Guardar cambios" : "Agregar al carrito"} · {formatArs(unitTotal * quantity)}</button>
         </div>
       </section>
     </div>

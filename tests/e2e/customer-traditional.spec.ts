@@ -102,10 +102,10 @@ test("la carta entra en una pantalla de 320px sin desborde horizontal", async ({
   await page.getByRole("button", { name: "Ver la carta" }).click();
   await expect(page.getByRole("heading", { name: "Elegí algo rico." })).toBeVisible();
 
-  const firstProduct = page.locator(".menu-product").first();
-  await expect(firstProduct.locator(".menu-product-image, .menu-product-image-placeholder")).toBeVisible();
+  const firstProduct = page.locator(".cm-product").first();
+  await expect(firstProduct.locator(".cm-product-image, .cm-product-image-placeholder")).toBeVisible();
   await expect(firstProduct.getByRole("heading")).toBeVisible();
-  await expect(firstProduct.locator(".menu-product-price")).toBeVisible();
+  await expect(firstProduct.locator(".cm-product-price")).toBeVisible();
   await expect(firstProduct.getByRole("button", { name: /^Agregar / })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   expect(browserErrors).toEqual([]);

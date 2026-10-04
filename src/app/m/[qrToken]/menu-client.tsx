@@ -1,5 +1,6 @@
 "use client";
 
+import { Check, Hamburger, Minus, Plus, ShoppingBag, X } from "@phosphor-icons/react";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { ProductCard } from "@/modules/catalog/components/product-card";
@@ -165,34 +166,41 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
 
   if (sessionStatus === "checking") {
     return (
-      <main className="public-menu-shell menu-skeleton" aria-busy="true" aria-live="polite">
-        <span className="sr-only">Abriendo la carta…</span>
-        <div className="skeleton skeleton-brand" />
-        <div className="skeleton skeleton-hero" />
-        <div className="skeleton-chips"><div className="skeleton" /><div className="skeleton" /><div className="skeleton" /></div>
-        {[0, 1, 2, 3].map((index) => <div className="skeleton skeleton-card" key={index} />)}
+      <main className="cm-shell" aria-busy="true" aria-live="polite">
+        <span className="cm-sr-only">Abriendo la carta…</span>
+        <div className="cm-skel cm-skel-brand" />
+        <div className="cm-skel cm-skel-hero" />
+        <div className="cm-skel cm-skel-chips" />
+        {[0, 1, 2, 3].map((index) => <div className="cm-skel cm-skel-row" key={index} />)}
       </main>
     );
   }
 
   if (sessionStatus === "error") {
-    return <main className="qr-welcome-shell"><section className="qr-welcome-card"><p className="eyebrow">No pudimos conectar</p><h1>La carta no cargó</h1><p>{message}</p><button className="primary-link login-button" type="button" onClick={() => { setMessage(null); setSessionStatus("checking"); void checkSession(); }}>Reintentar</button></section></main>;
+    return (
+      <main className="cm-welcome-shell">
+        <section className="cm-welcome">
+          <h1>La carta no cargó</h1>
+          <p>{message}</p>
+          <button className="cm-btn" type="button" onClick={() => { setMessage(null); setSessionStatus("checking"); void checkSession(); }}>Reintentar</button>
+        </section>
+      </main>
+    );
   }
 
   if (sessionStatus === "needs-name" || sessionStatus === "starting") {
     const starting = sessionStatus === "starting";
     return (
-      <main className="qr-welcome-shell">
-        <section className="qr-welcome-card">
-          <p className="eyebrow">Tu mesa, tu pedido</p>
+      <main className="cm-welcome-shell">
+        <section className="cm-welcome">
           <h1>¿Cómo te llamamos?</h1>
           <p>Así podemos identificar tus pedidos cuando pidas en el bar.</p>
-          <form className="login-form" onSubmit={startSession}>
-            <label className="form-field" htmlFor="customer-nickname">Tu nombre o apodo
-              <input id="customer-nickname" className="form-input" autoComplete="nickname" autoFocus disabled={starting} minLength={1} maxLength={40} value={nickname} onChange={(event) => setNickname(event.target.value)} required />
+          <form onSubmit={startSession}>
+            <label className="cm-field" htmlFor="customer-nickname">Tu nombre o apodo
+              <input id="customer-nickname" className="cm-input" autoComplete="nickname" autoFocus disabled={starting} minLength={1} maxLength={40} value={nickname} onChange={(event) => setNickname(event.target.value)} required />
             </label>
-            {message && <p className="login-error" role="alert">{message}</p>}
-            <button className="primary-link login-button" type="submit" disabled={starting}>{starting ? "Abriendo…" : "Ver la carta"}</button>
+            {message && <p className="cm-error" role="alert">{message}</p>}
+            <button className="cm-btn" type="submit" disabled={starting}>{starting ? "Abriendo…" : "Ver la carta"}</button>
           </form>
         </section>
       </main>
@@ -224,30 +232,27 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
   }
 
   return (
-    <main className="public-menu-shell">
+    <main className={`cm-shell${itemCount > 0 ? " has-cartbar" : ""}`}>
       {addedNotice && (
-        <div key={addedNotice.id} className="cart-toast" role="status">
-          <span>✓ {addedNotice.name} agregado</span>
+        <div key={addedNotice.id} className="cm-toast" role="status">
+          <span><Check size={18} weight="bold" aria-hidden="true" />{addedNotice.name} agregado</span>
           <button type="button" onClick={() => { setAddedNotice(null); setCartOpen(true); }}>Ver pedido</button>
         </div>
       )}
       <MenuHeader business={menu.business} hoursLabel={menu.service.hoursLabel} />
-      <header className="public-menu-header">
-        <div className="menu-hero-copy">
-          <div className="menu-hero-meta"><span className="table-badge">{menu.table.label}</span><span>Menú digital</span></div>
-          <h1>Elegí algo rico.</h1>
-          <p className="menu-subtitle">Todo lo que sale de la cocina, directo a tu mesa.</p>
-        </div>
-        <p className="menu-greeting">Hola, {nickname}</p>
+      <header className="cm-hero">
+        <div className="cm-hero-meta"><span className="cm-table">{menu.table.label}</span><span className="cm-greeting">Hola, {nickname}</span></div>
+        <h1>Elegí algo rico.</h1>
+        <p>Todo lo que sale de la cocina, directo a tu mesa.</p>
       </header>
-      {!canOrder && <aside className={`service-mode-note${menu.service.mode === "PAUSED" ? " is-paused" : ""}`} role="status">{modeMessage}</aside>}
+      {!canOrder && <aside className="cm-notice" role="status">{modeMessage}</aside>}
       {featured.length > 0 && (
-        <section className="menu-featured" aria-labelledby="featured-title">
+        <section className="cm-featured" aria-labelledby="featured-title">
           <h2 id="featured-title">Recomendados</h2>
-          <div className="menu-featured-row">
+          <div className="cm-featured-row">
             {featured.map((product) => (
-              <button className="menu-featured-card" key={product.id} type="button" onClick={() => setSelectedProduct(product)} aria-label={`Ver ${product.name}`}>
-                {product.imageUrl ? <Image src={product.imageUrl} alt="" width={220} height={150} loading="eager" unoptimized /> : <span className="menu-featured-placeholder" aria-hidden="true">Menú</span>}
+              <button className="cm-featured-card" key={product.id} type="button" onClick={() => setSelectedProduct(product)} aria-label={`Ver ${product.name}`}>
+                {product.imageUrl ? <Image src={product.imageUrl} alt="" width={156} height={156} loading="eager" unoptimized /> : <span className="cm-featured-placeholder" aria-hidden="true"><Hamburger size={40} weight="duotone" /></span>}
                 <strong>{product.name}</strong>
                 <span>{formatPrice(product.priceCents)}</span>
               </button>
@@ -255,56 +260,67 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
           </div>
         </section>
       )}
-      <div className="menu-toolbar">
-        <nav className="category-nav" aria-label="Categorías" ref={categoryNav}>
-          {menu.categories.map((category) => <button className={activeCategoryId === category.id ? "is-active" : ""} id={`category-chip-${category.id}`} key={category.id} type="button" aria-current={activeCategoryId === category.id ? "true" : undefined} onClick={() => document.getElementById(`category-${category.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}>{category.name}</button>)}
+      <div className="cm-toolbar">
+        <nav className="cm-chips" aria-label="Categorías" ref={categoryNav}>
+          {menu.categories.map((category) => <button className={`cm-chip${activeCategoryId === category.id ? " is-active" : ""}`} id={`category-chip-${category.id}`} key={category.id} type="button" aria-current={activeCategoryId === category.id ? "true" : undefined} onClick={() => document.getElementById(`category-${category.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}>{category.name}</button>)}
         </nav>
-        <button className="cart-fab" type="button" aria-label={`Ver pedido, ${itemCount} ${itemCount === 1 ? "producto" : "productos"}`} onClick={() => setCartOpen(true)}>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2.2l2.1 11h10.4l2-8H6.2" /><circle cx="9" cy="19.5" r="1.5" /><circle cx="17" cy="19.5" r="1.5" /></svg>
-          {itemCount > 0 && <span key={itemCount} className="cart-fab-badge">{itemCount}</span>}
-        </button>
+        {itemCount === 0 && (
+          <button className="cm-cart-icon" type="button" aria-label="Ver pedido, 0 productos" onClick={() => setCartOpen(true)}>
+            <ShoppingBag size={22} weight="bold" aria-hidden="true" />
+          </button>
+        )}
       </div>
       {menu.categories.map((category) => (
-        <section id={`category-${category.id}`} className="menu-category" key={category.id}>
-          <div className="menu-category-heading"><h2>{category.name}</h2><span>{category.products.length} opciones</span></div>
-          <div className="menu-product-list">
+        <section id={`category-${category.id}`} className="cm-category" key={category.id}>
+          <div className="cm-category-head"><h2>{category.name}</h2><span>{category.products.length} opciones</span></div>
+          <div className="cm-product-list">
             {category.products.map((product) => <ProductCard key={product.id} product={product} onSelect={setSelectedProduct} />)}
           </div>
         </section>
       ))}
-      {menu.categories.length === 0 && <p className="menu-empty-state">Todavía no hay productos publicados en la carta.</p>}
-      {message && <p className="login-error menu-message" role="alert">{message}</p>}
+      {menu.categories.length === 0 && <p className="cm-empty">Todavía no hay productos publicados en la carta.</p>}
+      {message && <p className="cm-error" role="alert">{message}</p>}
+      {itemCount > 0 && (
+        <button className="cm-cartbar" type="button" aria-label={`Ver pedido, ${itemCount} ${itemCount === 1 ? "producto" : "productos"}`} onClick={() => setCartOpen(true)}>
+          <span className="cm-cartbar-label"><ShoppingBag size={22} weight="bold" aria-hidden="true" />Ver pedido<span key={itemCount} className="cm-count">{itemCount}</span></span>
+          <span className="cm-cartbar-total">{formatPrice(total)}</span>
+        </button>
+      )}
       {selectedProduct && <ProductDialog product={selectedProduct} initialItem={editingCartIndex === null ? undefined : cart[editingCartIndex]} onClose={closeProductDialog} onAdd={saveProduct} />}
       {cartOpen && (
-        <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCartOpen(false); }}>
-          <section className="cart-dialog" role="dialog" aria-modal="true" aria-labelledby="cart-title">
-            <button className="dialog-close" type="button" onClick={() => setCartOpen(false)} aria-label="Cerrar">×</button>
-            <p className="eyebrow">Tu selección</p><h2 id="cart-title">El pedido de {menu.table.label}</h2>
-            <ul className="cart-lines">
-              {cart.map((item, index) => {
-                const product = products.get(item.productId);
-                return <li className="cart-line" key={`${item.productId}-${index}`}>
-                  <div className="cart-line-main"><strong>{item.quantity} × {product?.name ?? "Producto"}</strong><strong>{formatPrice(item.displayedTotalCents * item.quantity)}</strong></div>
-                  {item.optionIds.map((id) => <span className="cart-line-detail" key={id}>{product?.optionGroups.flatMap((group) => group.values).find((value) => value.id === id)?.name}</span>)}
-                  {item.notes && <span className="cart-line-detail">Nota: {item.notes}</span>}
-                  <div className="cart-line-actions cart-line-controls">
-                    <div className="cart-line-quantity" aria-label={`Cantidad de ${product?.name ?? "producto"}`}>
-                      <button type="button" aria-label={`Restar una porción de ${product?.name ?? "producto"}`} onClick={() => setCart((current) => current.flatMap((line, lineIndex) => lineIndex !== index ? [line] : line.quantity > 1 ? [{ ...line, quantity: line.quantity - 1 }] : []))}>−</button>
-                      <span>{item.quantity}</span>
-                      <button type="button" aria-label={`Agregar una porción de ${product?.name ?? "producto"}`} onClick={() => setCart((current) => current.map((line, lineIndex) => lineIndex === index ? { ...line, quantity: Math.min(99, line.quantity + 1) } : line))}>+</button>
+        <div className="cm-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCartOpen(false); }}>
+          <section className="cm-sheet" role="dialog" aria-modal="true" aria-labelledby="cart-title">
+            <button className="cm-close" type="button" onClick={() => setCartOpen(false)} aria-label="Cerrar"><X size={20} weight="bold" aria-hidden="true" /></button>
+            <div className="cm-sheet-body">
+              <h2 id="cart-title">El pedido de {menu.table.label}</h2>
+              <ul className="cm-lines">
+                {cart.map((item, index) => {
+                  const product = products.get(item.productId);
+                  return <li className="cm-line" key={`${item.productId}-${index}`}>
+                    <div className="cm-line-main"><strong>{item.quantity} × {product?.name ?? "Producto"}</strong><strong>{formatPrice(item.displayedTotalCents * item.quantity)}</strong></div>
+                    {item.optionIds.map((id) => <span className="cm-line-detail" key={id}>{product?.optionGroups.flatMap((group) => group.values).find((value) => value.id === id)?.name}</span>)}
+                    {item.notes && <span className="cm-line-detail">Nota: {item.notes}</span>}
+                    <div className="cm-line-actions">
+                      <div className="cm-stepper" aria-label={`Cantidad de ${product?.name ?? "producto"}`}>
+                        <button type="button" aria-label={`Restar una porción de ${product?.name ?? "producto"}`} onClick={() => setCart((current) => current.flatMap((line, lineIndex) => lineIndex !== index ? [line] : line.quantity > 1 ? [{ ...line, quantity: line.quantity - 1 }] : []))}><Minus size={18} weight="bold" aria-hidden="true" /></button>
+                        <span>{item.quantity}</span>
+                        <button type="button" aria-label={`Agregar una porción de ${product?.name ?? "producto"}`} onClick={() => setCart((current) => current.map((line, lineIndex) => lineIndex === index ? { ...line, quantity: Math.min(99, line.quantity + 1) } : line))}><Plus size={18} weight="bold" aria-hidden="true" /></button>
+                      </div>
+                      <div>
+                        <button className="cm-btn-text" type="button" onClick={() => { if (!product) return; setEditingCartIndex(index); setSelectedProduct(product); setCartOpen(false); }}>Editar</button>
+                        <button className="cm-btn-text" type="button" onClick={() => setCart((current) => removeCartItem(current, index))}>Quitar</button>
+                      </div>
                     </div>
-                    <div className="cart-line-buttons">
-                      <button className="cart-line-edit" type="button" onClick={() => { if (!product) return; setEditingCartIndex(index); setSelectedProduct(product); setCartOpen(false); }}>Editar</button>
-                      <button className="cart-line-remove" type="button" onClick={() => setCart((current) => removeCartItem(current, index))}>Quitar</button>
-                    </div>
-                  </div>
-                </li>;
-              })}
-            </ul>
-            <div className="cart-total"><span>Total estimado</span><strong>{formatPrice(total)}</strong></div>
-            <button className="cart-continue-shopping" type="button" onClick={() => setCartOpen(false)}>Seguir agregando</button>
-            {canOrder ? <a className="primary-link cart-continue" href={`/m/${encodeURIComponent(qrToken)}/checkout`}>Continuar con el pedido</a> : <p className="cart-counter-note">Cuando quieras pedir, acercate a la barra o caja.</p>}
-            <button className="cart-clear-button" type="button" onClick={clearCurrentCart}>Vaciar pedido</button>
+                  </li>;
+                })}
+              </ul>
+              <div className="cm-total"><span>Total estimado</span><strong>{formatPrice(total)}</strong></div>
+              <div className="cm-stack">
+                {canOrder ? <a className="cm-btn" href={`/m/${encodeURIComponent(qrToken)}/checkout`}>Continuar con el pedido</a> : <p className="cm-note">Cuando quieras pedir, acercate a la barra o caja.</p>}
+                <button className="cm-btn cm-btn-quiet" type="button" onClick={() => setCartOpen(false)}>Seguir agregando</button>
+                <button className="cm-btn-text" type="button" onClick={clearCurrentCart}>Vaciar pedido</button>
+              </div>
+            </div>
           </section>
         </div>
       )}
