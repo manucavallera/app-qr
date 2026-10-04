@@ -1,5 +1,6 @@
 "use client";
 
+import { Check, CircleNotch, CreditCard, Money } from "@phosphor-icons/react";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CustomerShell } from "@/components/customer/customer-shell";
@@ -79,30 +80,31 @@ export default function CustomerOrderPage() {
     setPaymentLoading(false);
   }
 
-  if (error) return <CustomerShell eyebrow="Seguimiento" title="No pudimos cargar tu pedido" backHref={`/m/${encodeURIComponent(qrToken)}`}><p className="login-error" role="alert">{error}</p><button className="button-secondary customer-retry" type="button" onClick={() => void refresh()}>Reintentar</button></CustomerShell>;
-  if (!order) return <main className="menu-loading" aria-live="polite"><span className="menu-loader" aria-hidden="true" />Cargando tu pedido…</main>;
+  if (error) return <CustomerShell eyebrow="Seguimiento" title="No pudimos cargar tu pedido" backHref={`/m/${encodeURIComponent(qrToken)}`}><p className="cm-error" role="alert">{error}</p><button className="cm-btn cm-btn-quiet" type="button" onClick={() => void refresh()}>Reintentar</button></CustomerShell>;
+  if (!order) return <main className="cm-page"><div className="cm-state" role="status" aria-live="polite"><CircleNotch className="cm-spin" size={20} weight="bold" aria-hidden="true" />Cargando tu pedido…</div></main>;
   const title = order.status === "AWAITING_PAYMENT" ? "Pedido recibido" : order.status === "CANCELLED" ? "Pedido cancelado" : order.status === "READY" ? "¡Ya está listo!" : order.status === "DELIVERED" ? "¡Disfrutá tu pedido!" : "Seguimiento del pedido";
   return <CustomerShell eyebrow={`Pedido #${order.number}`} title={title} backHref={`/m/${encodeURIComponent(qrToken)}`}>
     {order.status !== "CANCELLED" && order.status !== "DELIVERED" && (
-      <div className={`order-pager${readyNotice ? " is-ready" : ""}`}>
+      <div className={`cm-pager${readyNotice ? " is-ready" : ""}`}>
         <small>Tu número</small>
         <strong>{order.number}</strong>
-        {!readyNotice && <button className="order-pager-sound" type="button" aria-pressed={soundOn} onClick={toggleSound}>{soundOn ? "Aviso sonoro activado" : "Avisarme con sonido"}</button>}
+        {!readyNotice && <button className="cm-btn-text" type="button" aria-pressed={soundOn} onClick={toggleSound}>{soundOn ? "Aviso sonoro activado" : "Avisarme con sonido"}</button>}
       </div>
     )}
-    {readyNotice && <aside className="service-mode-note" role="status">¡Tu pedido está listo! {isPickup ? "Acercate a retirarlo en la barra." : order.table ? `Te lo llevamos a ${order.table.label}.` : "Acercate a retirarlo."}</aside>}
-    <p className="customer-description">{order.status === "AWAITING_PAYMENT" ? "Completá el pago o esperá la confirmación de Caja." : order.status === "DELIVERED" ? "Este pedido ya terminó su recorrido." : order.status === "CANCELLED" ? "Este pedido se canceló. Podés volver a la carta y pedir de nuevo, o consultar en la caja." : "Te avisamos acá cuando cambie el estado."}</p>
+    {readyNotice && <aside className="cm-notice is-ready" role="status">¡Tu pedido está listo! {isPickup ? "Acercate a retirarlo en la barra." : order.table ? `Te lo llevamos a ${order.table.label}.` : "Acercate a retirarlo."}</aside>}
+    <p className="cm-lead">{order.status === "AWAITING_PAYMENT" ? "Completá el pago o esperá la confirmación de Caja." : order.status === "DELIVERED" ? "Este pedido ya terminó su recorrido." : order.status === "CANCELLED" ? "Este pedido se canceló. Podés volver a la carta y pedir de nuevo, o consultar en la caja." : "Te avisamos acá cuando cambie el estado."}</p>
     {order.status === "AWAITING_PAYMENT" && (currentPayment?.method === "CASH" || currentPayment?.method === "CARD_AT_COUNTER") && currentPayment.status !== "APPROVED" && (
-      <aside className="service-mode-note" role="status">
-        {currentPayment.method === "CASH" ? "💵 Acercate a la caja a pagar en efectivo para que confirmen tu pedido." : "💳 Acercate a la caja a pagar con tarjeta para que confirmen tu pedido."}
+      <aside className="cm-notice cm-notice-icon" role="status">
+        {currentPayment.method === "CASH" ? <Money size={22} weight="bold" aria-hidden="true" /> : <CreditCard size={22} weight="bold" aria-hidden="true" />}
+        <span>{currentPayment.method === "CASH" ? "Acercate a la caja a pagar en efectivo para que confirmen tu pedido." : "Acercate a la caja a pagar con tarjeta para que confirmen tu pedido."}</span>
       </aside>
     )}
-    {order.status === "DELIVERED" && <aside className="order-complete-note" role="status"><span aria-hidden="true">✓</span><div><strong>Pedido entregado</strong><p>Esperamos que lo disfrutes. ¡Gracias por elegirnos!</p></div></aside>}
+    {order.status === "DELIVERED" && <aside className="cm-notice cm-notice-icon" role="status"><Check size={22} weight="bold" aria-hidden="true" /><div><strong>Pedido entregado</strong><p>Esperamos que lo disfrutes. ¡Gracias por elegirnos!</p></div></aside>}
     {order.status !== "CANCELLED" && <OrderProgress currentStatus={order.status} />}
-    <section className="order-payment-panel"><strong>Pago: {currentPayment ? methodLabels[currentPayment.method] : "Pendiente"}</strong><span>{currentPayment?.status === "APPROVED" ? "Confirmado" : currentPayment?.status === "REJECTED" ? "Rechazado" : "Pendiente de confirmación"}</span>{currentPayment?.method === "MERCADO_PAGO" && currentPayment.status !== "APPROVED" && order.status === "AWAITING_PAYMENT" && <button className="primary-link" disabled={paymentLoading} onClick={() => void payWithMercadoPago()} type="button">{paymentLoading ? "Preparando pago…" : "Pagar con Mercado Pago"}</button>}{currentPayment?.method === "BANK_TRANSFER" && currentPayment.status !== "APPROVED" && payment.transfer && <div className="transfer-instructions"><strong>Transferí a {payment.transfer.alias ?? payment.transfer.cbuCvu}</strong><span>{payment.transfer.accountHolder && `Titular: ${payment.transfer.accountHolder}`}</span>{payment.transfer.instructions && <small>{payment.transfer.instructions}</small>}</div>}</section>
-    <ul className="cart-lines">{order.items.map((item, index) => <li key={`${item.productName}-${index}`}><div><span>{item.quantity} × {item.productName}</span>{item.options.map((option) => <span className="cart-line-detail" key={option.valueName}>{option.valueName}</span>)}{item.notes && <span className="cart-line-detail">Nota: {item.notes}</span>}</div><strong>{ars(item.lineTotalCents)}</strong></li>)}</ul>
-    <div className="cart-total"><span>Total</span><strong>{ars(order.totalCents)}</strong></div>
-    {currentPayment?.status === "APPROVED" && <a className="button-secondary customer-order-more" href={`/m/${encodeURIComponent(qrToken)}/orders/${encodeURIComponent(id)}/comprobante`}>Ver comprobante</a>}
-    <a className="button-secondary customer-order-more" href={`/m/${encodeURIComponent(qrToken)}`}>Pedir algo más</a>
+    <section className="cm-panel"><strong>Pago: {currentPayment ? methodLabels[currentPayment.method] : "Pendiente"}</strong><span>{currentPayment?.status === "APPROVED" ? "Confirmado" : currentPayment?.status === "REJECTED" ? "Rechazado" : "Pendiente de confirmación"}</span>{currentPayment?.method === "MERCADO_PAGO" && currentPayment.status !== "APPROVED" && order.status === "AWAITING_PAYMENT" && <button className="cm-btn" disabled={paymentLoading} onClick={() => void payWithMercadoPago()} type="button">{paymentLoading ? "Preparando pago…" : "Pagar con Mercado Pago"}</button>}{currentPayment?.method === "BANK_TRANSFER" && currentPayment.status !== "APPROVED" && payment.transfer && <div className="cm-transfer-plain"><strong>Transferí a {payment.transfer.alias ?? payment.transfer.cbuCvu}</strong><span>{payment.transfer.accountHolder && `Titular: ${payment.transfer.accountHolder}`}</span>{payment.transfer.instructions && <small>{payment.transfer.instructions}</small>}</div>}</section>
+    <ul className="cm-lines">{order.items.map((item, index) => <li className="cm-line" key={`${item.productName}-${index}`}><div className="cm-line-main"><span>{item.quantity} × {item.productName}</span><strong>{ars(item.lineTotalCents)}</strong></div>{item.options.map((option) => <span className="cm-line-detail" key={option.valueName}>{option.valueName}</span>)}{item.notes && <span className="cm-line-detail">Nota: {item.notes}</span>}</li>)}</ul>
+    <div className="cm-total"><span>Total</span><strong>{ars(order.totalCents)}</strong></div>
+    {currentPayment?.status === "APPROVED" && <a className="cm-btn cm-btn-quiet" href={`/m/${encodeURIComponent(qrToken)}/orders/${encodeURIComponent(id)}/comprobante`}>Ver comprobante</a>}
+    <a className="cm-btn cm-btn-quiet" href={`/m/${encodeURIComponent(qrToken)}`}>Pedir algo más</a>
   </CustomerShell>;
 }

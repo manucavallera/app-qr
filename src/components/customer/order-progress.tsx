@@ -14,7 +14,7 @@ export function OrderProgress({ currentStatus }: OrderProgressProps) {
   const currentIndex = customerOrderSteps.findIndex((step) => step.status === currentStatus);
 
   return (
-    <ol className="order-steps" aria-label="Estado del pedido">
+    <ol className="cm-steps" aria-label="Estado del pedido">
       {customerOrderSteps.map((step, index) => {
         const isDone = currentIndex >= index;
         return (

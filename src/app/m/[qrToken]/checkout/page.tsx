@@ -1,5 +1,6 @@
 "use client";
 
+import { CircleNotch, Prohibit } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { formatArs as ars } from "@/lib/format";
@@ -101,20 +102,21 @@ export default function CheckoutPage() {
     }
   }
 
+  const canSend = !sending && paymentStatus === "ready" && Boolean(paymentMethod) && paymentMethod !== null && payment.methods.includes(paymentMethod);
   return (
     <CustomerShell eyebrow="Paso 3 de 4" title="Forma de pago" backHref={`/m/${encodeURIComponent(qrToken)}`}>
-      <ol className="checkout-steps" aria-label="Progreso del pedido"><li className="is-done">Carta</li><li className="is-done">Tu pedido</li><li className="is-current">Forma de pago</li><li>Seguimiento</li></ol>
-      {cart.length === 0 ? <p className="customer-empty">Tu selección está vacía. Volvé a la carta para agregar productos.</p> : <>
-        <ul className="cart-lines">{cart.map((item, index) => { const product = productMap.get(item.productId); const optionNames = product?.optionGroups.flatMap((group) => group.values).filter((value) => item.optionIds.includes(value.id)).map((value) => value.name) ?? []; return <li key={`${item.productId}-${index}`}><div><strong>{item.quantity} × {product?.name ?? "Producto"}</strong>{optionNames.map((name) => <span className="cart-line-detail" key={name}>{name}</span>)}{item.notes && <span className="cart-line-detail">Nota: {item.notes}</span>}</div><strong>{ars(item.displayedTotalCents * item.quantity)}</strong></li>; })}</ul>
-        <div className="cart-total"><span>Total</span><strong>{ars(total)}</strong></div>
-        {paymentStatus === "loading" && <div className="payment-load-state" role="status"><span className="menu-loader" aria-hidden="true" />Cargando medios de pago…</div>}
-        {paymentStatus === "error" && <div className="payment-load-error" role="alert"><strong>No pudimos cargar los medios de pago</strong><button className="button-secondary" type="button" onClick={() => { setMessage(null); setPaymentStatus("loading"); void loadPayment(); }}>Reintentar</button></div>}
-        {paymentStatus === "ready" && payment.methods.length === 0 && payment.unavailable.length === 0 && <p className="payment-load-error" role="alert">El local no tiene medios de pago disponibles en este momento.</p>}
+      <ol className="cm-progress" aria-label="Progreso del pedido"><li className="is-done">Carta</li><li className="is-done">Tu pedido</li><li className="is-current">Forma de pago</li><li>Seguimiento</li></ol>
+      {cart.length === 0 ? <p className="cm-empty">Tu selección está vacía. Volvé a la carta para agregar productos.</p> : <>
+        <ul className="cm-lines">{cart.map((item, index) => { const product = productMap.get(item.productId); const optionNames = product?.optionGroups.flatMap((group) => group.values).filter((value) => item.optionIds.includes(value.id)).map((value) => value.name) ?? []; return <li className="cm-line" key={`${item.productId}-${index}`}><div className="cm-line-main"><strong>{item.quantity} × {product?.name ?? "Producto"}</strong><strong>{ars(item.displayedTotalCents * item.quantity)}</strong></div>{optionNames.map((name) => <span className="cm-line-detail" key={name}>{name}</span>)}{item.notes && <span className="cm-line-detail">Nota: {item.notes}</span>}</li>; })}</ul>
+        <div className="cm-total"><span>Total</span><strong>{ars(total)}</strong></div>
+        {paymentStatus === "loading" && <div className="cm-state" role="status"><CircleNotch className="cm-spin" size={20} weight="bold" aria-hidden="true" />Cargando medios de pago…</div>}
+        {paymentStatus === "error" && <div className="cm-state is-error" role="alert"><strong>No pudimos cargar los medios de pago</strong><button className="cm-btn cm-btn-quiet" type="button" onClick={() => { setMessage(null); setPaymentStatus("loading"); void loadPayment(); }}>Reintentar</button></div>}
+        {paymentStatus === "ready" && payment.methods.length === 0 && payment.unavailable.length === 0 && <p className="cm-state is-error" role="alert">El local no tiene medios de pago disponibles en este momento.</p>}
         {paymentStatus === "ready" && (payment.methods.length > 0 || payment.unavailable.length > 0) && (
-          <fieldset className="payment-methods">
+          <fieldset className="cm-group">
             <legend>Elegí cómo pagar</legend>
             {payment.methods.map((method) => (
-              <label className={`payment-choice${paymentMethod === method ? " selected" : ""}`} key={method}>
+              <label className="cm-option cm-choice" key={method}>
                 <input aria-label={paymentLabels[method]} type="radio" name="payment" checked={paymentMethod === method} onChange={() => { setPaymentMethod(method); setCopied(false); }} />
                 <span>
                   <strong>{paymentLabels[method]}</strong>
@@ -123,8 +125,8 @@ export default function CheckoutPage() {
               </label>
             ))}
             {payment.unavailable.map(({ method, reason }) => (
-              <div className="payment-choice payment-choice-disabled" key={method} aria-disabled="true">
-                <span className="payment-choice-unavailable-icon" aria-hidden="true">—</span>
+              <div className="cm-option cm-choice is-disabled" key={method} aria-disabled="true">
+                <Prohibit size={22} weight="bold" aria-hidden="true" />
                 <span>
                   <strong>{paymentLabels[method]}</strong>
                   <small>{reason}</small>
@@ -133,9 +135,11 @@ export default function CheckoutPage() {
             ))}
           </fieldset>
         )}
-        {paymentStatus === "ready" && paymentMethod === "BANK_TRANSFER" && payment.transfer && <aside className="transfer-instructions"><div><strong>Datos para transferir</strong><span>{payment.transfer.alias && `Alias: ${payment.transfer.alias}`}</span><span>{payment.transfer.cbuCvu && `CBU/CVU: ${payment.transfer.cbuCvu}`}</span><span>{payment.transfer.accountHolder && `Titular: ${payment.transfer.accountHolder}`}</span>{payment.transfer.instructions && <small>{payment.transfer.instructions}</small>}</div><button className="button-secondary" type="button" onClick={() => void copyTransferDetails()}>{copied ? "Datos copiados" : "Copiar datos"}</button></aside>}
-        {message && <p className="login-error" role="alert">{message}</p>}
-        <button className="primary-link customer-primary-action" type="button" disabled={sending || paymentStatus !== "ready" || !paymentMethod || !payment.methods.includes(paymentMethod)} onClick={() => void submit()}>{sending ? "Procesando…" : paymentMethod === "MERCADO_PAGO" ? "Ir a Mercado Pago" : "Enviar pedido"}</button>
+        {paymentStatus === "ready" && paymentMethod === "BANK_TRANSFER" && payment.transfer && <aside className="cm-transfer"><div><strong>Datos para transferir</strong><span>{payment.transfer.alias && `Alias: ${payment.transfer.alias}`}</span><span>{payment.transfer.cbuCvu && `CBU/CVU: ${payment.transfer.cbuCvu}`}</span><span>{payment.transfer.accountHolder && `Titular: ${payment.transfer.accountHolder}`}</span>{payment.transfer.instructions && <small>{payment.transfer.instructions}</small>}</div><button className="cm-btn cm-btn-quiet" type="button" onClick={() => void copyTransferDetails()}>{copied ? "Datos copiados" : "Copiar datos"}</button></aside>}
+        {message && <p className="cm-error" role="alert">{message}</p>}
+        <div className="cm-sticky-cta">
+          <button className="cm-btn" type="button" disabled={!canSend} onClick={() => void submit()}>{sending ? "Procesando…" : paymentMethod === "MERCADO_PAGO" ? "Ir a Mercado Pago" : "Enviar pedido"}</button>
+        </div>
       </>}
     </CustomerShell>
   );
