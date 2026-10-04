@@ -35,24 +35,23 @@ Verificación del 2 de octubre: typecheck, lint, 91 tests unitarios, 30 de integ
 
 ## Bloqueantes para producción
 
-1. **Build de producción.** Las dependencias ya están actualizadas (Next 16.3.8, sin el paquete `mercadopago`). Falta confirmar que `npm run build` termina bien. No ejecutar `npm audit fix --force`: baja Prisma a la versión 6. Los avisos restantes son de `vitest` y del CLI de Prisma, que no corren en la app. Usar Node 24 (`nvm use`).
+1. **Build de producción.** (Verificado el 4 de octubre: `npm run build` termina bien tras el rediseño del cliente.) Las dependencias ya están actualizadas (Next 16.3.8, sin el paquete `mercadopago`). Falta confirmar que `npm run build` termina bien. No ejecutar `npm audit fix --force`: baja Prisma a la versión 6. Los avisos restantes son de `vitest` y del CLI de Prisma, que no corren en la app. Usar Node 24 (`nvm use`).
 2. **Imágenes.** Con `IMAGE_STORAGE_DRIVER=local` la subida falla en el contenedor (`/app` es de root y el proceso corre como `appuser`) y las fotos se pierden en cada redeploy. Crear una cuenta en Cloudflare R2 o Cloudinary, pasar las credenciales y adaptar el driver. Luego cargar las fotos reales: hoy todos los productos muestran el placeholder.
-3. **Mercado Pago.** Probar en sandbox con credenciales de prueba. Confirmar la firma del webhook: `validateMercadoPagoSignature` usa `data.id` tal cual llega y Mercado Pago lo pide en minúsculas cuando es alfanumérico. Agregar timeout al `fetch` de `MercadoPagoGateway`.
+3. **Mercado Pago.** Corregido el 4 de octubre: la firma del webhook usa el id en minúsculas y las llamadas a la API tienen timeout de 10 s. Falta probar en sandbox con credenciales de prueba y comprobar qué `status` devuelve Mercado Pago con una tarjeta rechazada (el código solo reconoce `processed` con `status_detail` `rejected` o `cancelled`; si llega `failed` el pedido espera al cron). Confirmar la firma del webhook: `validateMercadoPagoSignature` usa `data.id` tal cual llega y Mercado Pago lo pide en minúsculas cuando es alfanumérico. Agregar timeout al `fetch` de `MercadoPagoGateway`.
 4. **Migraciones.** Stock y destacados agregan `20261002_product_stock` y `20261003_product_featured`. Ejecutar `npm run db:deploy` en producción antes de iniciar la nueva versión.
 5. **Cron y secreto interno.** Definir `INTERNAL_SECRET` en producción y programar el cron de `docs/runbooks/deployment.md`. Sin eso no corren el corte nocturno ni el vencimiento de pedidos sin pagar.
 6. **Merge.** Llevar la rama `work/pedidos-qr` a `main`. `next-env.d.ts` no se commitea: lo modifica `next dev`.
 
 ## Seguridad y operación
 
+Resuelto el 4 de octubre: CSRF (el proxy bloquea escrituras de otro sitio), cierre de sesiones al cambiar la contraseña (también las demás sesiones de quien cambia la propia) y purga de sesiones y límites vencidos (corre dentro del cron de `session-cleanup`, por eso el cron es obligatorio).
+
 - Límite de intentos de login: la clave usa email más el primer valor de `x-forwarded-for`. Confirmar que el proxy de EasyPanel pisa ese header y sumar un límite por email solo.
-- CSRF: `assertAllowedOrigin` existe pero ninguna ruta lo usa; hoy solo protege `sameSite: lax`.
 - CSP: `script-src` permite `'unsafe-inline'` en producción.
-- Páginas `/staff/*` sin chequeo de sesión en el servidor; las APIs sí lo tienen.
-- Cambiar la contraseña de un usuario no cierra sus sesiones abiertas.
-- `RateLimitBucket` y `StaffSession` crecen sin purga.
+- Las páginas `/staff/*` solo comprueban que exista la cookie; son cascarones estáticos sin datos y todas las APIs validan la sesión, así que una cookie falsa muestra una pantalla vacía y redirige al login.
 - Backups: automatizar el backup diario y probar una restauración; el runbook solo lo describe.
 - Pago aprobado sobre un pedido ya cancelado: queda registrado en Auditoría como "Pago aprobado sobre pedido cancelado", pero no hay aviso en pantalla ni reembolso automático.
-- CI: sumar e2e, `npm audit` y build de Docker.
+- CI: ya corre lint, typecheck, tests unitarios, de integración y build. Faltan los e2e (requieren sembrar la base e instalar Chromium), `npm audit` (hoy fallaría por avisos de dependencias de desarrollo) y el build de Docker.
 - Imagen Docker: copia `node_modules` completo; las migraciones son manuales.
 - `tests/integration/realtime-reconnect.test.ts`, `command-concurrency.test.ts`, `mercado-pago-webhook.test.ts` y `admin-authorization.test.ts` corren en 3 ms y conviene revisar qué cubren; el primero compara un literal consigo mismo.
 - El test de límite de sesiones por QR puede superar los 5 segundos con la máquina cargada.
