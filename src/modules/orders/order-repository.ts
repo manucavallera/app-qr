@@ -5,6 +5,7 @@ import { resolveServiceMode } from "../operations/service-mode";
 import { DomainError } from "./errors";
 import { calculateQuote, type OrderQuote, type QuoteProduct, type QuoteRequest } from "./quote";
 import type { CreateCounterOrderInput, CreateQrOrderInput, ConfirmTraditionalPaymentInput } from "./order-contracts";
+import { hasStock, releaseOrderStock, reserveStock } from "./stock";
 import { createCheckoutIdempotencyKey } from "../payments/payment-service";
 import { availablePaymentMethods, type PaymentSettingsView } from "../payments/payment-methods";
 
@@ -57,7 +58,7 @@ async function findQuoteProducts(tx: Tx, items: QuoteRequest["items"]): Promise<
     id: product.id,
     name: product.name,
     priceCents: product.priceCents,
-    available: product.available,
+    available: product.available && hasStock(product.stockQuantity),
     visible: product.visible && product.category.visible,
     station: product.station,
     fulfillment: product.fulfillment,
@@ -177,6 +178,7 @@ export class PrismaOrderRepository {
 
       const products = await findQuoteProducts(tx, input.items);
       const quote = quoteOrReportFresh(input, products);
+      await reserveStock(tx, quote.items);
       const order = await tx.order.create({
         data: {
           clientRequestId: input.clientRequestId,
@@ -227,6 +229,7 @@ export class PrismaOrderRepository {
       assertPaymentMethodAvailable(paymentConfiguration, input.paymentMethod);
       const products = await findQuoteProducts(tx, input.items);
       const quote = quoteOrReportFresh(input, products);
+      await reserveStock(tx, quote.items);
       const awaitsPaymentConfirmation = ["BANK_TRANSFER", "MERCADO_PAGO"].includes(input.paymentMethod);
       const initialStatus = awaitsPaymentConfirmation ? "AWAITING_PAYMENT" : "CONFIRMED";
       const order = await tx.order.create({
@@ -349,11 +352,16 @@ export class PrismaOrderRepository {
         data: { status: "CANCELLED", cancellationReason: input.reason, version: { increment: 1 } },
         include: orderInclude,
       });
+      await releaseOrderStock(tx, orderId);
       await tx.orderStatusEvent.create({ data: { orderId, fromStatus: "AWAITING_PAYMENT", toStatus: "CANCELLED", actorStaffId: staffId, reason: input.reason } });
       await tx.auditEvent.create({ data: { actorStaffId: staffId, action: "PAYMENT_TRADITIONAL_REJECTED", entityType: "Order", entityId: orderId, metadata: { method: payment.method, reason: input.reason } } });
       await notifyOrderChanged(tx, { id: cancelled.id, number: cancelled.number, status: cancelled.status, version: cancelled.version, tableId: cancelled.tableId });
       return cancelled;
     });
+  }
+
+  findStaffOrder(orderId: string) {
+    return this.db.order.findUnique({ where: { id: orderId }, include: orderInclude });
   }
 
   async listStaffOrders(options?: { limit?: number; skip?: number }) {
@@ -400,8 +408,10 @@ export class PrismaOrderRepository {
 
   async processGatewayUpdate(input: { providerOrderId: string; externalReference: string; status: string; statusDetail: string; totalPaidCents: number; raw: unknown }) {
     return this.db.$transaction(async (tx) => {
-      const attempt = await tx.paymentAttempt.findUnique({ where: { providerOrderId: input.providerOrderId }, include: { order: true } });
-      if (!attempt || attempt.order.id !== input.externalReference) throw new DomainError("PAYMENT_NOT_FOUND", "No encontramos el pago asociado.");
+      // Mercado Pago reports its own payment id, so fall back to the attempt id we sent as external reference.
+      const attempt = await tx.paymentAttempt.findUnique({ where: { providerOrderId: input.providerOrderId }, include: { order: true } })
+        ?? await tx.paymentAttempt.findFirst({ where: { id: input.externalReference, method: "MERCADO_PAGO" }, include: { order: true } });
+      if (!attempt || (attempt.order.id !== input.externalReference && attempt.id !== input.externalReference)) throw new DomainError("PAYMENT_NOT_FOUND", "No encontramos el pago asociado.");
       if (attempt.amountCents !== input.totalPaidCents && input.status === "processed" && input.statusDetail === "accredited") {
         await tx.auditEvent.create({ data: { action: "PAYMENT_AMOUNT_MISMATCH", entityType: "PaymentAttempt", entityId: attempt.id, metadata: { expected: attempt.amountCents, received: input.totalPaidCents, providerOrderId: input.providerOrderId } } });
         return tx.order.findUnique({ where: { id: attempt.orderId }, include: orderInclude });
@@ -413,6 +423,9 @@ export class PrismaOrderRepository {
             const order = await tx.order.update({ where: { id: attempt.orderId }, data: { status: "CONFIRMED", version: { increment: 1 } }, include: orderInclude });
             await tx.orderStatusEvent.create({ data: { orderId: attempt.orderId, fromStatus: "AWAITING_PAYMENT", toStatus: "CONFIRMED" } });
             await notifyOrderChanged(tx, { id: order.id, number: order.number, status: order.status, version: order.version, tableId: order.tableId });
+          } else if (attempt.order.status === "CANCELLED") {
+            // Money arrived for an order that already expired or was cancelled: staff must refund or re-enter it.
+            await tx.auditEvent.create({ data: { action: "PAYMENT_APPROVED_AFTER_CANCELLATION", entityType: "PaymentAttempt", entityId: attempt.id, metadata: { orderId: attempt.orderId, providerOrderId: input.providerOrderId, amountCents: attempt.amountCents } } });
           }
         }
       } else if (input.status === "processed" && ["rejected", "cancelled"].includes(input.statusDetail) && attempt.status !== "REJECTED") {

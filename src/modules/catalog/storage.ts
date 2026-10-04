@@ -126,7 +126,8 @@ export class S3ImageStorage implements ImageStorage {
 
 export function createImageStorage(env: ServerEnv = getServerEnv()): ImageStorage {
   if (env.IMAGE_STORAGE_DRIVER === "local") {
-    return new LocalImageStorage(path.resolve(process.cwd(), env.UPLOAD_DIR));
+    // The upload folder comes from configuration, so keep the bundler from tracing the whole project.
+    return new LocalImageStorage(path.resolve(/*turbopackIgnore: true*/ process.cwd(), env.UPLOAD_DIR));
   }
 
   const bucket = env.S3_BUCKET;
@@ -142,8 +143,11 @@ export function createImageStorage(env: ServerEnv = getServerEnv()): ImageStorag
     ...(endpoint ? { endpoint, forcePathStyle: true } : {}),
     credentials: { accessKeyId, secretAccessKey },
   });
-  const publicBaseUrl = endpoint
-    ? `${endpoint.replace(/\/$/, "")}/${bucket}`
-    : `https://${bucket}.s3.${env.S3_REGION}.amazonaws.com`;
+  // The API endpoint of providers like R2 is not publicly readable, so the public URL is separate.
+  const publicBaseUrl = env.S3_PUBLIC_URL
+    ? env.S3_PUBLIC_URL.replace(/\/$/, "")
+    : endpoint
+      ? `${endpoint.replace(/\/$/, "")}/${bucket}`
+      : `https://${bucket}.s3.${env.S3_REGION}.amazonaws.com`;
   return new S3ImageStorage(client, bucket, publicBaseUrl);
 }

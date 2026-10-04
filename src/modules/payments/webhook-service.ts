@@ -12,7 +12,8 @@ export function validateMercadoPagoSignature(input: WebhookInput & { secret: str
   const timestamp = parts.ts;
   const signature = parts.v1;
   if (!timestamp || !signature || !/^\d+$/.test(timestamp)) return false;
-  const manifest = `id:${input.dataId};request-id:${input.xRequestId};ts:${timestamp};`;
+  // Mercado Pago signs alphanumeric ids in lowercase; the original id is still the one used to fetch the order.
+  const manifest = `id:${input.dataId.toLowerCase()};request-id:${input.xRequestId};ts:${timestamp};`;
   const expected = createHmac("sha256", input.secret).update(manifest).digest("hex");
   const actual = Buffer.from(signature, "hex");
   const expectedBuffer = Buffer.from(expected, "hex");

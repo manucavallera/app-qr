@@ -7,6 +7,8 @@ if (!testDatabaseUrl) {
   throw new Error("TEST_DATABASE_URL is required for integration tests");
 }
 process.env.DATABASE_URL = testDatabaseUrl;
+// Never let tests write to a real bucket, whatever the developer's .env says.
+process.env.IMAGE_STORAGE_DRIVER = "local";
 
 export default defineConfig({
   plugins: [tsconfigPaths()],

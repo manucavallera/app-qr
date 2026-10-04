@@ -41,7 +41,7 @@ export class PaymentService {
     if (!attempt) throw new DomainError("PAYMENT_ATTEMPT_NOT_FOUND", "No pudimos preparar el pago.");
     if (attempt.providerOrderId && attempt.checkoutUrl) return { providerOrderId: attempt.providerOrderId, checkoutUrl: attempt.checkoutUrl };
     const checkout = await this.gateway.createCheckout({
-      externalReference: order.id,
+      externalReference: attempt.id,
       idempotencyKey: attempt.idempotencyKey,
       totalCents: order.totalCents,
       items: order.items.map((item) => ({ title: item.productName, quantity: item.quantity, unitPriceCents: item.unitBaseCents + (item.optionsTotalCents ?? 0) })),

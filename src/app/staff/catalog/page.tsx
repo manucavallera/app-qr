@@ -23,6 +23,8 @@ type Product = {
   imageUrl: string | null;
   priceCents: number;
   available: boolean;
+  stockQuantity: number | null;
+  featured: boolean;
   visible: boolean;
   station: "GENERAL" | "KITCHEN" | "BAR";
   fulfillment: "TABLE" | "PICKUP";
@@ -42,7 +44,10 @@ type ProductDraft = {
   name: string;
   description: string;
   price: string;
+  /** Empty means the product is not stock-tracked. */
+  stock: string;
   available: boolean;
+  featured: boolean;
   visible: boolean;
   station: Product["station"];
   fulfillment: Product["fulfillment"];
@@ -55,7 +60,9 @@ const emptyDraft: ProductDraft = {
   name: "",
   description: "",
   price: "",
+  stock: "",
   available: true,
+  featured: false,
   visible: true,
   station: "GENERAL",
   fulfillment: "TABLE",
@@ -122,7 +129,9 @@ export default function StaffCatalogPage() {
       name: product.name,
       description: product.description,
       price: (product.priceCents / 100).toFixed(2),
+      stock: product.stockQuantity === null ? "" : String(product.stockQuantity),
       available: product.available,
+      featured: product.featured,
       visible: product.visible,
       station: product.station,
       fulfillment: product.fulfillment,
@@ -168,7 +177,9 @@ export default function StaffCatalogPage() {
         name: draft.name,
         description: draft.description,
         priceCents: parseCents(draft.price),
+        stockQuantity: draft.stock.trim() === "" ? null : Number(draft.stock),
         available: draft.available,
+        featured: draft.featured,
         visible: draft.visible,
         station: draft.station,
         fulfillment: draft.fulfillment,
@@ -333,11 +344,11 @@ export default function StaffCatalogPage() {
                 <div className="product-info">
                   <div className="product-title-row">
                     <h3>{product.name}</h3>
-                    <span className={product.available && product.visible ? "availability-badge is-available" : "availability-badge"}>
-                      {!product.visible ? "Oculto" : product.available ? "Disponible" : "Agotado"}
+                    <span className={product.available && product.visible && product.stockQuantity !== 0 ? "availability-badge is-available" : "availability-badge"}>
+                      {!product.visible ? "Oculto" : product.available && product.stockQuantity !== 0 ? "Disponible" : "Agotado"}
                     </span>
                   </div>
-                  <p>{product.category.name} · {formatPrice(product.priceCents)}</p>
+                  <p>{product.category.name} · {formatPrice(product.priceCents)}{product.stockQuantity === null ? "" : ` · Stock: ${product.stockQuantity}`}{product.featured ? " · Destacado" : ""}</p>
                   {product.optionGroups.length > 0 ? (
                     <p className="muted">{product.optionGroups.map((group) => group.name).join(" · ")}</p>
                   ) : null}
@@ -379,6 +390,10 @@ export default function StaffCatalogPage() {
               <input inputMode="decimal" min="0" onChange={(event) => updateDraft("price", event.target.value)} required step="0.01" type="number" value={draft.price} />
             </label>
             <label className="form-field">
+              <span>Stock (vacío = sin límite)</span>
+              <input inputMode="numeric" min="0" onChange={(event) => updateDraft("stock", event.target.value)} placeholder="Sin límite" step="1" type="number" value={draft.stock} />
+            </label>
+            <label className="form-field">
               <span>Orden dentro de la categoría</span>
               <input min="0" onChange={(event) => updateDraft("sortOrder", Number(event.target.value))} type="number" value={draft.sortOrder} />
             </label>
@@ -404,7 +419,7 @@ export default function StaffCatalogPage() {
               <input accept="image/jpeg,image/png,image/webp" onChange={(event) => setImageFile(event.target.files?.[0] ?? null)} type="file" />
             </label>
             <div className="option-editor-heading">
-              <div><h3>Opciones y extras</h3><p className="muted">Por ejemplo, punto de cocción o agregados.</p></div>
+              <div><h3>Opciones y extras</h3><p className="muted">Por ejemplo, extras con costo o ingredientes para sacar.</p></div>
               <button className="button-secondary" onClick={addOptionGroup} type="button">Agregar grupo</button>
             </div>
             {draft.optionGroups.map((group, groupIndex) => (
@@ -447,6 +462,7 @@ export default function StaffCatalogPage() {
             ))}
             <div className="check-row">
               <label className="check-field"><input checked={draft.available} onChange={(event) => updateDraft("available", event.target.checked)} type="checkbox" /><span>Disponible</span></label>
+              <label className="check-field"><input checked={draft.featured} onChange={(event) => updateDraft("featured", event.target.checked)} type="checkbox" /><span>Destacado en la carta (Recomendados)</span></label>
               <label className="check-field"><input checked={draft.visible} onChange={(event) => updateDraft("visible", event.target.checked)} type="checkbox" /><span>Visible en el menú</span></label>
             </div>
             <div className="button-row">

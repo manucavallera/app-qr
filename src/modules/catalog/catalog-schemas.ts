@@ -44,7 +44,10 @@ export const catalogProductInputSchema = z.object({
   description: z.string().trim().max(600),
   priceCents: z.number().int().min(0).max(2_000_000_000),
   available: z.boolean(),
+  // Null means unlimited. Defaults to null so existing callers stay valid.
+  stockQuantity: z.number().int().min(0).max(100_000).nullable().default(null),
   visible: z.boolean(),
+  featured: z.boolean().default(false),
   station: z.enum(["GENERAL", "KITCHEN", "BAR"]),
   fulfillment: z.enum(["TABLE", "PICKUP"]),
   sortOrder: z.number().int().min(0),

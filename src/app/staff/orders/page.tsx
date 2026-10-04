@@ -1,7 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { formatArs } from "@/lib/format";
+import { useSseResource } from "@/lib/client/use-sse-resource";
 import { StaffShell } from "@/components/staff/staff-shell";
 import { fulfillmentLabel, orderOriginLabel, orderStatusLabel, paymentMethodLabel, paymentStatusLabel } from "@/components/staff/status-copy";
 
@@ -19,9 +21,7 @@ type Order = {
   payments: Array<{ method: string; status: string; amountCents: number }>;
 };
 
-function ars(cents: number): string {
-  return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(cents / 100);
-}
+const ars = formatArs;
 
 export default function OrdersPage() {
   const router = useRouter();
@@ -49,13 +49,27 @@ export default function OrdersPage() {
 
   useEffect(() => {
     const initialLoad = window.setTimeout(() => { void loadOrders(true); }, 0);
-    const timer = window.setInterval(() => { void loadOrders(false); }, 10_000);
-    return () => { window.clearTimeout(initialLoad); window.clearInterval(timer); };
+    return () => window.clearTimeout(initialLoad);
   }, [loadOrders]);
 
-  async function cancel(order: Order) {
-    const reason = window.prompt("Motivo de cancelación (opcional):", "Cancelado desde Pedidos");
-    if (reason === null) return;
+  const refreshQuietly = useCallback(() => loadOrders(false), [loadOrders]);
+  useSseResource("/api/staff/commands/events", refreshQuietly);
+
+  const cancelDialog = useRef<HTMLDialogElement>(null);
+  const [cancelTarget, setCancelTarget] = useState<Order | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+
+  function askCancel(order: Order) {
+    setCancelTarget(order);
+    setCancelReason("Cancelado desde Pedidos");
+    cancelDialog.current?.showModal();
+  }
+
+  async function confirmCancel() {
+    const order = cancelTarget;
+    cancelDialog.current?.close();
+    if (!order) return;
+    const reason = cancelReason;
     setMessage(null);
     const response = await fetch(`/api/staff/orders/${order.id}/transition`, {
       method: "POST",
@@ -68,6 +82,18 @@ export default function OrdersPage() {
   }
 
   return <StaffShell title="Pedidos" section="orders">
+    <dialog ref={cancelDialog} className="staff-panel" aria-labelledby="cancel-title" onClose={() => setCancelTarget(null)}>
+      <form method="dialog" onSubmit={(event) => { event.preventDefault(); void confirmCancel(); }}>
+        <h2 id="cancel-title">Cancelar pedido #{cancelTarget?.number}</h2>
+        <label className="form-field">Motivo (opcional)
+          <input className="form-input" maxLength={160} value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} />
+        </label>
+        <div className="order-footer">
+          <button className="button-secondary" type="button" onClick={() => cancelDialog.current?.close()}>Volver</button>
+          <button className="button-text danger-text" type="submit">Cancelar pedido</button>
+        </div>
+      </form>
+    </dialog>
     <section className="staff-panel">
       <div className="panel-heading"><div><p className="eyebrow">Historial y seguimiento</p><h2>Pedidos del local</h2><p className="muted">Revisá el detalle, el origen y el estado de cada pedido.{lastUpdated ? ` · Actualizado ${lastUpdated.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : ""}</p></div><button className="button-secondary" type="button" onClick={() => void loadOrders(true)}>Actualizar</button></div>
       {message && <p className="staff-message" role="status">{message}</p>}
@@ -75,7 +101,8 @@ export default function OrdersPage() {
         <div className="panel-heading"><div><strong>Pedido #{order.number}</strong><span className="order-meta">{orderOriginLabel[order.origin] ?? order.origin} · {order.table?.label ?? "Mostrador"} · {order.customerName ?? "Cliente"}</span><small>{new Date(order.createdAt).toLocaleString("es-AR")}</small></div><span className="status-badge">{orderStatusLabel[order.status] ?? order.status}</span></div>
         <ul className="order-items">{order.items.map((item) => <li key={item.id}><span><strong>{item.quantity} × {item.productName}</strong><small>{item.options.map((option) => `${option.groupName}: ${option.valueName}`).join(" · ")}{item.notes ? `${item.options.length > 0 ? " · " : ""}Nota: ${item.notes}` : ""}</small></span><span>{fulfillmentLabel[item.fulfillment] ?? item.fulfillment} · {ars(item.lineTotalCents)}</span></li>)}</ul>
         <div className="order-footer"><div>{order.payments.map((payment, index) => <small key={`${payment.method}-${index}`}>{paymentMethodLabel(payment.method as Parameters<typeof paymentMethodLabel>[0])}: {paymentStatusLabel(payment.status)}</small>)}</div><strong>{ars(order.totalCents)}</strong></div>
-        {!['DELIVERED', 'CANCELLED'].includes(order.status) && <button className="button-text danger-text" type="button" onClick={() => void cancel(order)}>Cancelar pedido</button>}
+        {order.status !== "CANCELLED" && <a className="button-text" href={`/staff/orders/${order.id}/comprobante`} target="_blank" rel="noreferrer">Comprobante</a>}
+        {!['DELIVERED', 'CANCELLED'].includes(order.status) && <button className="button-text danger-text" type="button" onClick={() => askCancel(order)}>Cancelar pedido</button>}
       </article>)}{orders.length >= 50 && <p className="muted" style={{ textAlign: "center", padding: "12px 0" }}>Mostrando los últimos 50 pedidos. Los anteriores quedan en el historial completo.</p>}</div>}
     </section>
   </StaffShell>;

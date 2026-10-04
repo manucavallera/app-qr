@@ -16,7 +16,7 @@ export class UserAdminService {
     await this.db.$transaction([this.db.staffUser.update({ where: { id: userId }, data: { active: false } }), this.db.staffSession.deleteMany({ where: { userId } }), this.db.auditEvent.create({ data: { actorStaffId: actorId, action: "STAFF_USER_DEACTIVATED", entityType: "StaffUser", entityId: userId, metadata: {} } })]);
   }
 
-  async update(input: { id: string; email?: string; displayName?: string; password?: string; role?: "ADMIN" | "OPERATOR"; active?: boolean }, actorId: string) {
+  async update(input: { id: string; email?: string; displayName?: string; password?: string; role?: "ADMIN" | "OPERATOR"; active?: boolean }, actorId: string, currentSessionTokenHash?: string) {
     const current = await this.db.staffUser.findUnique({ where: { id: input.id } });
     if (!current) throw new DomainError("USER_NOT_FOUND", "No encontramos ese usuario.");
 
@@ -34,7 +34,11 @@ export class UserAdminService {
     if (input.active !== undefined) data.active = input.active;
 
     const user = await this.db.staffUser.update({ where: { id: input.id }, data });
-    if (input.active === false) await this.db.staffSession.deleteMany({ where: { userId: input.id } });
+    // A new password signs that user out everywhere. Changing your own keeps only the session making the change.
+    if (input.active === false || input.password) {
+      const keepTokenHash = input.id === actorId && input.active !== false ? currentSessionTokenHash : undefined;
+      await this.db.staffSession.deleteMany({ where: { userId: input.id, ...(keepTokenHash ? { tokenHash: { not: keepTokenHash } } : {}) } });
+    }
     await this.db.auditEvent.create({ data: { actorStaffId: actorId, action: input.active === true && !current.active ? "STAFF_USER_ACTIVATED" : "STAFF_USER_UPDATED", entityType: "StaffUser", entityId: user.id, metadata: { role: user.role, active: user.active } } });
     return { id: user.id, email: user.email, displayName: user.displayName, role: user.role, active: user.active };
   }

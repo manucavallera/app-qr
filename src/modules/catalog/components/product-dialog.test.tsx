@@ -32,7 +32,7 @@ describe("ProductDialog", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/elegí/i);
 
     fireEvent.click(screen.getByLabelText("Bien cocida"));
-    fireEvent.change(screen.getByPlaceholderText("Ej. sin hielo"), { target: { value: "sin sal" } });
+    fireEvent.change(screen.getByPlaceholderText("Ej. sin mayonesa"), { target: { value: "sin sal" } });
     fireEvent.click(screen.getByRole("button", { name: /agregar al carrito/i }));
     expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ productId: "burger", optionIds: ["well"], notes: "sin sal", quantity: 1 }));
   });
@@ -49,7 +49,7 @@ describe("ProductDialog", () => {
     );
 
     expect(screen.getByLabelText("Bien cocida")).toBeChecked();
-    expect(screen.getByPlaceholderText("Ej. sin hielo")).toHaveValue("sin hielo");
+    expect(screen.getByPlaceholderText("Ej. sin mayonesa")).toHaveValue("sin hielo");
     expect(screen.getByRole("button", { name: /guardar cambios/i })).toBeVisible();
   });
 });

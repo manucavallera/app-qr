@@ -1,3 +1,4 @@
+import { ArrowLeft } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -10,15 +11,15 @@ type CustomerShellProps = Readonly<{
 
 export function CustomerShell({ eyebrow, title, backHref, children }: CustomerShellProps) {
   return (
-    <main className="customer-page">
-      <section className="customer-card">
+    <main className="cm-page">
+      <section className="cm-page-card">
         {backHref && (
-          <Link className="customer-back-link" href={backHref}>
-            <span aria-hidden="true">←</span> Volver a la carta
+          <Link className="cm-back" href={backHref}>
+            <ArrowLeft size={18} weight="bold" aria-hidden="true" /> Volver a la carta
           </Link>
         )}
-        <header className="customer-title">
-          <p className="eyebrow">{eyebrow}</p>
+        <header className="cm-page-title">
+          <p>{eyebrow}</p>
           <h1>{title}</h1>
         </header>
         {children}

@@ -36,3 +36,11 @@ export function collectBrowserErrors(page: Page): string[] {
 }
 
 export { expect };
+
+/**
+ * The proxy only checks that a staff cookie exists before showing /staff pages.
+ * Tests that mock the staff API use this placeholder instead of a real login.
+ */
+export async function withStaffCookie(page: Page, baseURL: string | undefined): Promise<void> {
+  await page.context().addCookies([{ name: "staff_session", value: "e2e-placeholder", url: baseURL ?? "http://localhost:3000" }]);
+}

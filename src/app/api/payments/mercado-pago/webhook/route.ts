@@ -9,6 +9,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const env = getServerEnv();
     const service = new WebhookService(createPaymentGateway(), orderRepository, (input) => validateMercadoPagoSignature({ ...input, secret: env.MERCADOPAGO_WEBHOOK_SECRET ?? "" }));
+    // Checkout Pro also sends merchant-order notifications; only payments carry an id we can read back.
+    const notificationType = request.nextUrl.searchParams.get("type") ?? request.nextUrl.searchParams.get("topic");
+    if (notificationType && notificationType !== "payment") return NextResponse.json({ received: true, ignored: true });
     const dataId = request.nextUrl.searchParams.get("data.id") ?? request.nextUrl.searchParams.get("id");
     await service.process({ xSignature: request.headers.get("x-signature"), xRequestId: request.headers.get("x-request-id"), dataId });
     return NextResponse.json({ received: true });

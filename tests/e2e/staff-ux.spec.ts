@@ -1,4 +1,8 @@
-import { test, expect } from "./fixtures";
+import { test, expect, withStaffCookie } from "./fixtures";
+
+test.beforeEach(async ({ page, baseURL }) => {
+  await withStaffCookie(page, baseURL);
+});
 
 test("Pedidos muestra historial, detalle y estados legibles", async ({ page }) => {
   await page.route("**/api/staff/orders", (route) => route.fulfill({ json: [{

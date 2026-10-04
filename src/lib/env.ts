@@ -13,6 +13,8 @@ const serverEnvSchema = z
     UPLOAD_DIR: z.string().default("var/uploads"),
     S3_ENDPOINT: z.union([z.string().url(), z.literal("")]).optional(),
     S3_REGION: z.string().default("us-east-1"),
+    // Public address the browser uses to load images (R2 public bucket URL or custom domain).
+    S3_PUBLIC_URL: z.union([z.string().url(), z.literal("")]).optional(),
     S3_BUCKET: z.string().optional(),
     S3_ACCESS_KEY_ID: z.string().optional(),
     S3_SECRET_ACCESS_KEY: z.string().optional(),

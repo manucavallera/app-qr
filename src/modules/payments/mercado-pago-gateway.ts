@@ -1,5 +1,13 @@
-import type { CheckoutInput, PaymentGateway } from "./payment-gateway";
+import type { CheckoutInput, PaymentGateway, RemotePaymentOrder } from "./payment-gateway";
 
+const REQUEST_TIMEOUT_MS = 10_000;
+// Matches the cron that cancels unpaid online orders after two hours.
+const PAYMENT_LINK_LIFETIME_MS = 2 * 60 * 60 * 1000;
+
+/**
+ * Checkout Pro: a payment preference gives the customer a link to pay on Mercado Pago.
+ * The webhook reports a payment id, which is read back from the payments API.
+ */
 export class MercadoPagoGateway implements PaymentGateway {
   constructor(private readonly accessToken: string) {}
 
@@ -7,6 +15,10 @@ export class MercadoPagoGateway implements PaymentGateway {
     const response = await fetch(`https://api.mercadopago.com${path}`, {
       ...init,
       headers: { authorization: `Bearer ${this.accessToken}`, "content-type": "application/json", ...(init?.headers ?? {}) },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    }).catch((error: unknown) => {
+      if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) throw new Error("Mercado Pago request timed out");
+      throw error;
     });
     const body = await response.json().catch(() => null) as Record<string, unknown> | null;
     if (!response.ok || !body) throw new Error(`Mercado Pago request failed (${response.status})`);
@@ -14,37 +26,38 @@ export class MercadoPagoGateway implements PaymentGateway {
   }
 
   async createCheckout(input: CheckoutInput) {
-    const body = await this.request("/v1/orders", {
+    const body = await this.request("/checkout/preferences", {
       method: "POST",
-      headers: { "x-idempotency-key": input.idempotencyKey },
       body: JSON.stringify({
-        type: "online",
         external_reference: input.externalReference,
-        total_amount: (input.totalCents / 100).toFixed(2),
-        transactions: { payments: [{ amount: (input.totalCents / 100).toFixed(2) }] },
-        items: input.items.map((item) => ({ title: item.title, quantity: item.quantity, unit_price: (item.unitPriceCents / 100).toFixed(2), currency_id: "ARS" })),
-        processing_mode: "automatic",
-        notification_url: input.notificationUrl,
+        items: input.items.map((item) => ({ title: item.title, quantity: item.quantity, unit_price: item.unitPriceCents / 100, currency_id: "ARS" })),
         back_urls: { success: input.successUrl, failure: input.failureUrl, pending: input.pendingUrl },
+        // Mercado Pago only accepts public HTTPS addresses for these two fields.
+        ...(input.successUrl.startsWith("https://") ? { auto_return: "approved" } : {}),
+        ...(input.notificationUrl.startsWith("https://") ? { notification_url: input.notificationUrl } : {}),
+        expires: true,
+        expiration_date_to: new Date(Date.now() + PAYMENT_LINK_LIFETIME_MS).toISOString(),
       }),
     });
     const providerOrderId = String(body.id ?? "");
-    const checkoutUrl = String(body.checkout_url ?? body.init_point ?? "");
+    const checkoutUrl = String(body.init_point ?? "");
     if (!providerOrderId || !checkoutUrl) throw new Error("Mercado Pago returned no checkout URL");
     return { providerOrderId, checkoutUrl, raw: body };
   }
 
-  async getOrder(providerOrderId: string) {
-    const body = await this.request(`/v1/orders/${encodeURIComponent(providerOrderId)}`);
-    const payment = Array.isArray(body.transactions && (body.transactions as Record<string, unknown>).payments)
-      ? ((body.transactions as Record<string, unknown>).payments as Array<Record<string, unknown>>)[0]
-      : undefined;
+  async getOrder(paymentId: string): Promise<RemotePaymentOrder> {
+    const body = await this.request(`/v1/payments/${encodeURIComponent(paymentId)}`);
+    const status = String(body.status ?? "");
+    // The rest of the system speaks "processed" + detail; translate the payment status once, here.
+    const mapped = status === "approved" ? { status: "processed", statusDetail: "accredited" }
+      : status === "rejected" ? { status: "processed", statusDetail: "rejected" }
+      : status === "cancelled" ? { status: "processed", statusDetail: "cancelled" }
+      : { status: "created", statusDetail: status || "pending" };
     return {
-      providerOrderId,
+      providerOrderId: String(body.id ?? paymentId),
       externalReference: String(body.external_reference ?? ""),
-      status: String(body.status ?? payment?.status ?? ""),
-      statusDetail: String(body.status_detail ?? payment?.status_detail ?? ""),
-      totalPaidCents: Math.round(Number(payment?.amount ?? body.total_amount ?? 0) * 100),
+      ...mapped,
+      totalPaidCents: Math.round(Number(body.transaction_amount ?? 0) * 100),
       raw: body,
     };
   }

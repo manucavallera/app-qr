@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { apiErrorResponse } from "@/lib/api-errors";
 import { AuthService, loginRateLimitKey, STAFF_SESSION_COOKIE, STAFF_SESSION_MAX_AGE_SECONDS } from "@/modules/auth/auth-service";
 import { DomainError } from "@/modules/orders/errors";
 import { sessionRepository } from "@/modules/auth/session-repository";
@@ -22,9 +23,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const forwardedFor = request.headers.get("x-forwarded-for");
   const ipAddress = forwardedFor?.split(",")[0]?.trim() || "unknown";
   const rateLimitKey = loginRateLimitKey(normalizedEmail, ipAddress);
+  // Second bucket per email alone, so rotating the forwarded IP cannot lift the limit.
+  const emailRateLimitKey = `staff-login-email:${normalizedEmail}`;
 
   try {
-    const rateLimit = await sessionRepository.consumeRateLimit(rateLimitKey, 5, 15 * 60);
+    const ipRateLimit = await sessionRepository.consumeRateLimit(rateLimitKey, 5, 15 * 60);
+    const emailRateLimit = await sessionRepository.consumeRateLimit(emailRateLimitKey, 20, 15 * 60);
+    const rateLimit = ipRateLimit.allowed ? emailRateLimit : ipRateLimit;
     if (!rateLimit.allowed) {
       const retryAfterSeconds = Math.max(1, Math.ceil((rateLimit.resetsAt.getTime() - Date.now()) / 1000));
       return NextResponse.json(
@@ -35,6 +40,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const session = await authService.login(normalizedEmail, parsed.data.password);
     await sessionRepository.clearRateLimit(rateLimitKey);
+    await sessionRepository.clearRateLimit(emailRateLimitKey);
 
     const response = NextResponse.json({
       id: session.user.id,
@@ -54,6 +60,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (error instanceof DomainError && error.code === "INVALID_CREDENTIALS") {
       return NextResponse.json({ error: "INVALID_CREDENTIALS" }, { status: 401 });
     }
-    return NextResponse.json({ error: "INTERNAL_SERVER_ERROR" }, { status: 500 });
+    return apiErrorResponse(error);
   }
 }

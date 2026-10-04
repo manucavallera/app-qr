@@ -8,7 +8,7 @@ test("un pago digital pendiente puede reabrir Mercado Pago", async ({ page }, te
     status: "AWAITING_PAYMENT",
     totalCents: 950000,
     table: { label: "Mesa 1" },
-    items: [{ productName: "Hamburguesa clásica", quantity: 1, lineTotalCents: 950000, fulfillment: "TABLE" }],
+    items: [{ productName: "Hamburguesa clásica", quantity: 1, lineTotalCents: 950000, fulfillment: "TABLE", notes: null, options: [] }],
     payments: [{ method: "MERCADO_PAGO", status: "UNPAID" }],
   } }));
   await page.route("**/api/public/orders/order-mp/events", (route) => route.fulfill({ status: 200, contentType: "text/event-stream", body: "" }));

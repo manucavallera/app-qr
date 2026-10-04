@@ -44,6 +44,55 @@ async function ensureProduct(product: ProductSeed) {
   }
 }
 
+const burgerOptionGroups = [
+  {
+    name: "Extras",
+    required: false,
+    minSelections: 0,
+    maxSelections: 1,
+    sortOrder: 0,
+    values: [{ name: "Medallón extra", priceDeltaCents: 250000, sortOrder: 0 }],
+  },
+  {
+    name: "Sacar",
+    required: false,
+    minSelections: 0,
+    maxSelections: 4,
+    sortOrder: 1,
+    values: [
+      { name: "Sin queso", priceDeltaCents: 0, sortOrder: 0 },
+      { name: "Sin lechuga", priceDeltaCents: 0, sortOrder: 1 },
+      { name: "Sin tomate", priceDeltaCents: 0, sortOrder: 2 },
+      { name: "Sin mayonesa", priceDeltaCents: 0, sortOrder: 3 },
+    ],
+  },
+];
+
+// Smash burgers have no cooking point: drop the old demo group and make sure
+// the extras and "remove ingredient" groups exist. Groups edited from the
+// staff panel are left untouched.
+async function ensureBurgerOptions(categoryId: string, name: string) {
+  const burger = await prisma.product.findFirst({
+    where: { categoryId, name },
+    include: { optionGroups: { select: { name: true } } },
+  });
+  if (!burger) return;
+
+  // Refresh only the untouched demo descriptions so they match the new options.
+  await prisma.product.updateMany({
+    where: { id: burger.id, description: { in: ["Medallón de carne, queso, lechuga y tomate.", "Medallón de vegetales, queso, rúcula y tomate."] } },
+    data: { description: name === "Hamburguesa clásica" ? "Medallón smash, queso, lechuga, tomate y mayonesa." : "Medallón de vegetales, queso, lechuga, tomate y mayonesa." },
+  });
+
+  await prisma.optionGroup.deleteMany({ where: { productId: burger.id, name: "Punto de cocción" } });
+  for (const { values, ...group } of burgerOptionGroups) {
+    if (burger.optionGroups.some((existing) => existing.name === group.name)) continue;
+    await prisma.optionGroup.create({
+      data: { ...group, productId: burger.id, values: { create: values } },
+    });
+  }
+}
+
 async function seed() {
   const { email: adminEmail, password: adminPassword } = getAdminCredentials();
 
@@ -89,37 +138,15 @@ async function seed() {
   const sides = await ensureCategory("Para compartir", 1);
   const drinks = await ensureCategory("Bebidas", 2);
 
-  const existingBurger = await prisma.product.findFirst({
-    where: { categoryId: burgers.id, name: "Hamburguesa clásica" },
+  await ensureProduct({
+    categoryId: burgers.id,
+    name: "Hamburguesa clásica",
+    description: "Medallón smash, queso, lechuga, tomate y mayonesa.",
+    priceCents: 950000,
+    station: "KITCHEN",
+    fulfillment: "TABLE",
+    sortOrder: 0,
   });
-  if (!existingBurger) {
-    await prisma.product.create({
-      data: {
-        categoryId: burgers.id,
-        name: "Hamburguesa clásica",
-        description: "Medallón de carne, queso, lechuga y tomate.",
-        priceCents: 950000,
-        station: "KITCHEN",
-        fulfillment: "TABLE",
-        sortOrder: 0,
-        optionGroups: {
-          create: {
-            name: "Punto de cocción",
-            required: true,
-            minSelections: 1,
-            maxSelections: 1,
-            values: {
-              create: [
-                { name: "Jugosa", sortOrder: 0 },
-                { name: "A punto", sortOrder: 1 },
-                { name: "Bien cocida", sortOrder: 2 },
-              ],
-            },
-          },
-        },
-      },
-    });
-  }
 
   const existingDrink = await prisma.product.findFirst({
     where: { categoryId: drinks.id, name: "Limonada" },
@@ -141,12 +168,15 @@ async function seed() {
   await ensureProduct({
     categoryId: burgers.id,
     name: "Hamburguesa vegetariana",
-    description: "Medallón de vegetales, queso, rúcula y tomate.",
+    description: "Medallón de vegetales, queso, lechuga, tomate y mayonesa.",
     priceCents: 890000,
     station: "KITCHEN",
     fulfillment: "TABLE",
     sortOrder: 1,
   });
+
+  await ensureBurgerOptions(burgers.id, "Hamburguesa clásica");
+  await ensureBurgerOptions(burgers.id, "Hamburguesa vegetariana");
 
   await ensureProduct({
     categoryId: sides.id,

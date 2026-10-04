@@ -12,6 +12,7 @@ import { prisma } from "@/lib/db";
 import { AuthService } from "@/modules/auth/auth-service";
 import { customerSessionService } from "@/modules/tables/customer-session-service";
 import { hashPassword } from "@/modules/auth/password";
+import { cancelStaleUnpaidOrders, UNPAID_CANCELLATION_REASON, UNPAID_ORDER_TTL_MS } from "@/modules/orders/stale-orders";
 
 const suffix = randomUUID();
 const firstQrToken = randomBytes(24).toString("base64url");
@@ -240,5 +241,55 @@ describe("customer and counter order flow", () => {
     );
     expect(reject.status).toBe(200);
     expect((await reject.json()).status).toBe("CANCELLED");
+  });
+
+  it("cancels unpaid orders past the time limit and leaves recent ones waiting", async () => {
+    const stale = await (await createQrOrder(firstSessionToken, createBody(5100, randomUUID()))).json();
+    const recent = await (await createQrOrder(firstSessionToken, createBody(5100, randomUUID()))).json();
+    const now = new Date();
+    await prisma.order.update({ where: { id: stale.id }, data: { createdAt: new Date(now.getTime() - UNPAID_ORDER_TTL_MS - 60_000) } });
+
+    await cancelStaleUnpaidOrders(now);
+
+    await expect(prisma.order.findUnique({ where: { id: stale.id } })).resolves.toMatchObject({
+      status: "CANCELLED",
+      cancellationReason: UNPAID_CANCELLATION_REASON,
+      version: stale.version + 1,
+    });
+    expect(await prisma.paymentAttempt.count({ where: { orderId: stale.id, status: "REJECTED" } })).toBe(1);
+    expect(await prisma.orderStatusEvent.count({ where: { orderId: stale.id, toStatus: "CANCELLED" } })).toBe(1);
+    await expect(prisma.order.findUnique({ where: { id: recent.id } })).resolves.toMatchObject({ status: "AWAITING_PAYMENT" });
+    await prisma.auditEvent.deleteMany({ where: { action: "ORDER_EXPIRED_UNPAID", entityId: stale.id } });
+  });
+
+  it("reserves stock on order, returns it on rejection and blocks orders beyond what is left", async () => {
+    const stock = async () => (await prisma.product.findUniqueOrThrow({ where: { id: productId } })).stockQuantity;
+    await prisma.product.update({ where: { id: productId }, data: { stockQuantity: 2 } });
+
+    const ordered = await (await createQrOrder(firstSessionToken, createBody(5100, randomUUID()))).json();
+    expect(await stock()).toBe(1);
+
+    const reject = await rejectPaymentRoute(
+      new NextRequest(`http://localhost/api/staff/orders/${ordered.id}/reject-payment`, {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie: `staff_session=${adminToken}` },
+        body: JSON.stringify({ reason: "El cliente no pagó.", expectedOrderVersion: ordered.version }),
+      }),
+      { params: Promise.resolve({ id: ordered.id }) },
+    );
+    expect(reject.status).toBe(200);
+    expect(await stock()).toBe(2);
+
+    const tooMany = await createQrOrder(firstSessionToken, { ...createBody(15300, randomUUID()), items: [{ productId, quantity: 3, optionValueIds: [optionValueId] }] });
+    expect(tooMany.status).toBe(409);
+    await expect(tooMany.json()).resolves.toMatchObject({ error: "INSUFFICIENT_STOCK", available: 2 });
+    expect(await stock()).toBe(2);
+
+    await prisma.product.update({ where: { id: productId }, data: { stockQuantity: 0 } });
+    const soldOut = await createQrOrder(firstSessionToken, createBody(5100, randomUUID()));
+    expect(soldOut.status).toBe(409);
+    await expect(soldOut.json()).resolves.toMatchObject({ error: "PRODUCT_UNAVAILABLE" });
+
+    await prisma.product.update({ where: { id: productId }, data: { stockQuantity: null } });
   });
 });

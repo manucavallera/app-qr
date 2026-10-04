@@ -4,6 +4,7 @@ import { requireStaff } from "@/modules/auth/require-staff";
 import { CatalogService } from "@/modules/catalog/catalog-service";
 import { catalogRepository } from "@/modules/catalog/catalog-repository";
 import { createImageStorage } from "@/modules/catalog/storage";
+import { LOW_STOCK_THRESHOLD } from "@/modules/orders/stock";
 
 const catalog = new CatalogService(catalogRepository);
 const staffRoles = ["ADMIN", "OPERATOR"] as const;
@@ -13,11 +14,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (principal instanceof NextResponse) return principal;
 
   try {
-    const products = await catalog.listProducts() as Array<{ imageKey: string | null; [key: string]: unknown }>;
+    const products = await catalog.listProducts() as Array<{ imageKey: string | null; stockQuantity: number | null; [key: string]: unknown }>;
     const storage = createImageStorage();
     return NextResponse.json(products.map((product) => ({
       ...product,
       imageUrl: product.imageKey ? storage.publicUrl(product.imageKey) : null,
+      stockLeft: product.stockQuantity !== null && product.stockQuantity <= LOW_STOCK_THRESHOLD ? product.stockQuantity : null,
     })));
   } catch (error) {
     return apiErrorResponse(error);
