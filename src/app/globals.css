@@ -1133,6 +1133,9 @@ html:has(.ready-board), body:has(.ready-board) { background: var(--night-bg); }
 .stock-alert { display: grid; gap: 6px; margin: 0 0 16px; padding: 14px 16px; border: 1px solid #e8c9a0; border-radius: 14px; background: #fff6ea; color: #6b3d0c; font-size: 0.9rem; }
 .stock-alert ul { margin: 0; padding-left: 18px; }
 .stock-alert a { font-weight: 700; }
+.refund-alert { border-color: #d9a3a0; background: #fdeceb; color: #6e1d18; }
+.refund-alert p { margin: 0; }
+.refund-alert li { margin-bottom: 6px; }
 
 /* Staff reports: cash close and sales by product. */
 .report-range { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) auto; align-items: end; gap: 12px; margin: 0 0 20px; }

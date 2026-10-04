@@ -50,7 +50,7 @@ Resuelto el 4 de octubre: CSRF (el proxy bloquea escrituras de otro sitio), cier
 - CSP: `script-src` permite `'unsafe-inline'` en producción.
 - Las páginas `/staff/*` solo comprueban que exista la cookie; son cascarones estáticos sin datos y todas las APIs validan la sesión, así que una cookie falsa muestra una pantalla vacía y redirige al login.
 - Backups: automatizar el backup diario y probar una restauración; el runbook solo lo describe.
-- Pago aprobado sobre un pedido ya cancelado: queda registrado en Auditoría como "Pago aprobado sobre pedido cancelado", pero no hay aviso en pantalla ni reembolso automático.
+- Pago aprobado sobre un pedido ya cancelado: el inicio de Staff muestra el aviso "Dinero para devolver" y el administrador lo marca con "Ya lo devolví" una vez que devuelve el dinero. La devolución en sí (por ejemplo desde el panel de Mercado Pago) sigue siendo manual; no hay reembolso automático.
 - CI: ya corre lint, typecheck, tests unitarios, de integración y build. Faltan los e2e (requieren sembrar la base e instalar Chromium), `npm audit` (hoy fallaría por avisos de dependencias de desarrollo) y el build de Docker.
 - Imagen Docker: copia `node_modules` completo; las migraciones son manuales.
 - Tests de integración: se reemplazaron los que comparaban un literal consigo mismo. Ahora hay pruebas reales de conciliación de Mercado Pago contra la base (acreditado, duplicado, monto distinto, rechazo, pago sobre pedido cancelado, pago inexistente), de autorización de usuarios y de sesiones. Quedan dos pendientes visibles (`it.todo`) en `command-concurrency.test.ts`: conflicto de versión entre dos operadores sobre la misma comanda.

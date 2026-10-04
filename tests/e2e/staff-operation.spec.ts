@@ -25,6 +25,18 @@ test("el personal ve las tareas principales en el inicio", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Cerrar sesión" })).toBeVisible();
 });
 
+test("el administrador ve el dinero a devolver y lo marca como devuelto", async ({ page }) => {
+  let returned = false;
+  const reconciliations: unknown[] = [];
+  await page.route("**/api/staff/summary", (route) => route.fulfill({ json: { pendingPayments: 0, activeCommands: 0, qrMode: "QR_OPEN", role: "ADMIN", refundsDue: returned ? [] : [{ id: "pay-1", method: "MERCADO_PAGO", amountCents: 950000, orderNumber: 42 }] } }));
+  await page.route("**/api/staff/payments/pay-1/reconciliation", async (route) => { reconciliations.push(route.request().postDataJSON()); returned = true; await route.fulfill({ json: { id: "pay-1", status: "REFUNDED", refundedCents: 950000 } }); });
+  await page.goto("/staff");
+  await expect(page.getByRole("alert").filter({ hasText: "Dinero para devolver" })).toContainText("Pedido #42");
+  await page.getByRole("button", { name: "Ya lo devolví" }).click();
+  await expect(page.getByText("Dinero para devolver")).toHaveCount(0);
+  expect(reconciliations).toEqual([expect.objectContaining({ status: "REFUNDED", refundedCents: 950000 })]);
+});
+
 test("Caja puede confirmar efectivo, tarjeta y transferencia", async ({ page }) => {
   const confirmedMethods: string[] = [];
   await page.route(/\/api\/staff\/payments\/pending(?:\?.*)?$/, (route) => route.fulfill({ json: [paymentOrder("cash", 1, "CASH"), paymentOrder("card", 2, "CARD_AT_COUNTER"), paymentOrder("transfer", 3, "BANK_TRANSFER")] }));

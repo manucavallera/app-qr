@@ -11,7 +11,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const principal = await requireStaff(request, roles);
   if (principal instanceof NextResponse) return principal;
   try {
-    const [pendingPayments, activeCommands, settings, windows, lowStock] = await Promise.all([
+    const [pendingPayments, activeCommands, settings, windows, lowStock, paymentsToReturn] = await Promise.all([
       prisma.order.count({ where: { status: "AWAITING_PAYMENT", payments: { some: { status: "UNPAID", method: { in: ["CASH", "CARD_AT_COUNTER", "BANK_TRANSFER"] } } } } }),
       prisma.order.count({ where: { status: { in: ["CONFIRMED", "PREPARING", "READY"] } } }),
       prisma.businessSettings.findUnique({ where: { id: "default" } }),
@@ -21,9 +21,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         orderBy: [{ stockQuantity: "asc" }, { name: "asc" }],
         select: { id: true, name: true, stockQuantity: true },
       }),
+      // Money that was accepted for an order that is now cancelled and has not been marked as returned.
+      prisma.paymentAttempt.findMany({
+        where: { status: "APPROVED", order: { status: "CANCELLED" } },
+        orderBy: { updatedAt: "desc" },
+        take: 20,
+        select: { id: true, method: true, amountCents: true, order: { select: { number: true } } },
+      }),
     ]);
+    const refundsDue = paymentsToReturn.map((payment) => ({ id: payment.id, method: payment.method, amountCents: payment.amountCents, orderNumber: payment.order.number }));
     const qrMode = settings ? resolveServiceMode(new Date(), settings.timezone, windows, settings.manualMode) : "COUNTER_ONLY";
-    return NextResponse.json({ pendingPayments, activeCommands, qrMode, lowStock, role: principal.role }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ pendingPayments, activeCommands, qrMode, lowStock, refundsDue, role: principal.role }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return apiErrorResponse(error);
   }
