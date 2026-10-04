@@ -65,6 +65,22 @@ test("el personal puede crear un pedido en caja", async ({ page }) => {
   await expect(page.getByRole("button", { name: /crear pedido/i })).toBeVisible();
 });
 
+test("Caja marca los productos agotados y avisa cuando queda poco stock", async ({ page }) => {
+  await page.route("**/api/staff/catalog/products", (route) => route.fulfill({ json: [
+    { id: "burger", name: "Hamburguesa clásica", priceCents: 950000, available: true, optionGroups: [], stockLeft: 0 },
+    { id: "soda", name: "Limonada", priceCents: 300000, available: true, optionGroups: [], stockLeft: 2 },
+    { id: "fries", name: "Papas", priceCents: 400000, available: true, optionGroups: [], stockLeft: null },
+  ] }));
+  await page.route("**/api/staff/catalog/categories", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/staff/tables", (route) => route.fulfill({ json: [{ id: "table", label: "Mesa 1", active: true }] }));
+  await page.route("**/api/staff/settings", (route) => route.fulfill({ json: { role: "ADMIN", paymentSettings: { cashEnabled: true, cardAtCounterEnabled: true }, mercadoPagoConfigured: false } }));
+  await page.route("**/api/staff/orders", (route) => route.fulfill({ json: [] }));
+  await page.goto("/staff/counter");
+  await expect(page.getByRole("button", { name: "Hamburguesa clásica, agotado" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: /Limonada/ })).toContainText("Quedan 2");
+  await expect(page.getByRole("button", { name: /Papas/ })).toBeEnabled();
+});
+
 test("Caja muestra el QR de Mercado Pago y deja el pedido pendiente", async ({ page }) => {
   await page.route("**/api/staff/catalog/products", (route) => route.fulfill({ json: [{ id: "burger", name: "Hamburguesa clásica", priceCents: 950000, available: true, optionGroups: [] }] }));
   await page.route("**/api/staff/catalog/categories", (route) => route.fulfill({ json: [] }));

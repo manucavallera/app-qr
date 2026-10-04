@@ -62,7 +62,7 @@ Resuelto el 4 de octubre: CSRF (el proxy bloquea escrituras de otro sitio), cier
 - Pedidos (Staff) en celular: el nombre del producto y el precio quedan apretados en la misma fila.
 - El seguimiento muestra cuatro etapas en una grilla de cuatro columnas aunque el componente define cinco (falta ver dónde queda "Entregado").
 - Reportes, Usuarios y Auditoría solo aparecen en el menú desde Inicio y desde sus propias pantallas; las demás pantallas de Staff no reciben el rol.
-- Caja sigue listando los productos sin stock; el servidor rechaza el pedido con un mensaje claro.
+- Caja marca los productos sin stock como "Agotado" (botón deshabilitado), avisa "Quedan N" con stock bajo y limita la cantidad al stock disponible.
 - Tailwind está importado y casi no se usa.
 
 ## Decisiones del cliente
