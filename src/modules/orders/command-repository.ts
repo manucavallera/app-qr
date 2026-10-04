@@ -20,6 +20,10 @@ const itemTransitions: Record<string, readonly string[]> = {
 };
 
 // Customer tracking and the staff board refetch on this event.
+async function lockOrder(tx: Prisma.TransactionClient, orderId: string): Promise<void> {
+  await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${orderId} FOR UPDATE`;
+}
+
 async function notifyOrderChanged(tx: Prisma.TransactionClient, orderId: string, version: number): Promise<void> {
   await tx.$executeRaw`SELECT pg_notify('appqr_order_events', ${JSON.stringify({ type: "order.changed", orderId, version, occurredAt: new Date().toISOString() })})`;
 }
@@ -40,6 +44,8 @@ export class PrismaCommandRepository implements CommandRepository {
 
   async transitionOrder(orderId: string, input: OrderTransitionInput, actorStaffId: string, role: StaffRole) {
     return this.db.$transaction(async (tx) => {
+      // Lock the order first so two operators cannot both pass the version check and apply the same change.
+      await lockOrder(tx, orderId);
       const current = await tx.order.findUnique({ where: { id: orderId }, include: { items: true } });
       if (!current) throw new DomainError("ORDER_NOT_FOUND", "No encontramos ese pedido.");
       if (current.version !== input.expectedVersion) throw new DomainError("ORDER_VERSION_CONFLICT", "El pedido cambió. Actualizá la pantalla.");
@@ -55,6 +61,9 @@ export class PrismaCommandRepository implements CommandRepository {
 
   async transitionItem(itemId: string, input: ItemTransitionInput, actorStaffId: string) {
     return this.db.$transaction(async (tx) => {
+      const found = await tx.orderItem.findUnique({ where: { id: itemId }, select: { orderId: true } });
+      if (!found) throw new DomainError("ORDER_ITEM_NOT_FOUND", "No encontramos ese ítem.");
+      await lockOrder(tx, found.orderId);
       const item = await tx.orderItem.findUnique({ where: { id: itemId }, include: { order: true } });
       if (!item) throw new DomainError("ORDER_ITEM_NOT_FOUND", "No encontramos ese ítem.");
       if (item.order.version !== input.expectedOrderVersion) throw new DomainError("ORDER_VERSION_CONFLICT", "El pedido cambió. Actualizá la pantalla.");
