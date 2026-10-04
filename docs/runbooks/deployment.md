@@ -1,6 +1,6 @@
 # Despliegue
 
-Configurar `DATABASE_URL`, `APP_URL` HTTPS, `SESSION_SECRET` de 32+ caracteres, `INTERNAL_SECRET` aleatorio de 32+ caracteres, `PAYMENT_PROVIDER`, credenciales de Mercado Pago y, si corresponde, S3. El webhook es `https://DOMINIO/api/payments/mercado-pago/webhook`.
+Configurar `DATABASE_URL`, `APP_URL` HTTPS, `SESSION_SECRET` de 32+ caracteres, `INTERNAL_SECRET` aleatorio de 32+ caracteres, `PAYMENT_PROVIDER`, credenciales de Mercado Pago y, si corresponde, S3. El webhook es `https://DOMINIO/api/payments/mercado-pago/webhook` y en el panel de Mercado Pago (Webhooks de la aplicación) se suscribe al evento **Pagos**. La integración es Checkout Pro: se crea una preferencia de pago (`POST /checkout/preferences`) y el aviso trae el id del pago, que se consulta en `GET /v1/payments/{id}`. Crear la aplicación como **Checkout Pro**.
 
 Ejecutar migraciones (`npm run db:deploy`) antes de iniciar la nueva revisión. Verificar `/api/health`, `/api/ready`, login de staff, escaneo de QR y un pago de prueba. Para rollback, volver a la imagen anterior y no revertir migraciones destructivas sin backup.
 

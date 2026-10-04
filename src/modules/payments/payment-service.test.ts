@@ -20,7 +20,7 @@ describe("PaymentService", () => {
     const repository = {
       findOrderForCustomer: vi.fn(),
       findOrderForCounter: vi.fn().mockResolvedValue({ id: "order-counter", totalCents: 5000, status: "AWAITING_PAYMENT", items: [{ productName: "Burger", quantity: 1, unitBaseCents: 5000 }] }),
-      findOrCreateCheckoutAttempt: vi.fn().mockResolvedValue({ idempotencyKey: "counter-key", providerOrderId: null, checkoutUrl: null }),
+      findOrCreateCheckoutAttempt: vi.fn().mockResolvedValue({ id: "attempt-counter", idempotencyKey: "counter-key", providerOrderId: null, checkoutUrl: null }),
       saveCheckout: vi.fn(),
       processGatewayUpdate: vi.fn(),
     };
@@ -30,5 +30,6 @@ describe("PaymentService", () => {
     await expect(service.createCounterCheckout("order-counter")).resolves.toEqual({ checkoutUrl: "https://pay.test/counter", providerOrderId: "mp-counter" });
     expect(repository.findOrderForCounter).toHaveBeenCalledWith("order-counter");
     expect(repository.findOrCreateCheckoutAttempt).toHaveBeenCalledWith("order-counter", null);
+    expect(gateway.createCheckout).toHaveBeenCalledWith(expect.objectContaining({ externalReference: "attempt-counter" }));
   });
 });

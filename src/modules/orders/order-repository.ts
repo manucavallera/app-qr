@@ -408,8 +408,10 @@ export class PrismaOrderRepository {
 
   async processGatewayUpdate(input: { providerOrderId: string; externalReference: string; status: string; statusDetail: string; totalPaidCents: number; raw: unknown }) {
     return this.db.$transaction(async (tx) => {
-      const attempt = await tx.paymentAttempt.findUnique({ where: { providerOrderId: input.providerOrderId }, include: { order: true } });
-      if (!attempt || attempt.order.id !== input.externalReference) throw new DomainError("PAYMENT_NOT_FOUND", "No encontramos el pago asociado.");
+      // Mercado Pago reports its own payment id, so fall back to the attempt id we sent as external reference.
+      const attempt = await tx.paymentAttempt.findUnique({ where: { providerOrderId: input.providerOrderId }, include: { order: true } })
+        ?? await tx.paymentAttempt.findFirst({ where: { id: input.externalReference, method: "MERCADO_PAGO" }, include: { order: true } });
+      if (!attempt || (attempt.order.id !== input.externalReference && attempt.id !== input.externalReference)) throw new DomainError("PAYMENT_NOT_FOUND", "No encontramos el pago asociado.");
       if (attempt.amountCents !== input.totalPaidCents && input.status === "processed" && input.statusDetail === "accredited") {
         await tx.auditEvent.create({ data: { action: "PAYMENT_AMOUNT_MISMATCH", entityType: "PaymentAttempt", entityId: attempt.id, metadata: { expected: attempt.amountCents, received: input.totalPaidCents, providerOrderId: input.providerOrderId } } });
         return tx.order.findUnique({ where: { id: attempt.orderId }, include: orderInclude });

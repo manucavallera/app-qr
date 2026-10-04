@@ -83,4 +83,23 @@ describe("Mercado Pago reconciliation", () => {
     await expect(update(attempt.providerOrderId!, randomUUID())).rejects.toMatchObject({ code: "PAYMENT_NOT_FOUND" });
     expect((await snapshot(order.id, attempt.id)).order.status).toBe("AWAITING_PAYMENT");
   });
+
+  it("finds the attempt by the reference sent to Mercado Pago when the payment id is new", async () => {
+    const { order, attempt } = await createPendingOrder();
+    await update(`payment-${randomUUID()}`, attempt.id);
+    const after = await snapshot(order.id, attempt.id);
+    expect(after.attempt.status).toBe("APPROVED");
+    expect(after.order.status).toBe("CONFIRMED");
+  });
+
+  it("does not let a reference of another attempt or payment method confirm an order", async () => {
+    const first = await createPendingOrder();
+    const second = await createPendingOrder();
+    await expect(update(`payment-${randomUUID()}`, "not-an-attempt")).rejects.toMatchObject({ code: "PAYMENT_NOT_FOUND" });
+    const cash = await prisma.paymentAttempt.create({ data: { orderId: second.order.id, method: "CASH", status: "UNPAID", amountCents: 9500, idempotencyKey: `cash-${randomUUID()}` } });
+    created.attemptIds.push(cash.id);
+    await expect(update(`payment-${randomUUID()}`, cash.id)).rejects.toMatchObject({ code: "PAYMENT_NOT_FOUND" });
+    expect((await snapshot(first.order.id, first.attempt.id)).order.status).toBe("AWAITING_PAYMENT");
+    expect((await snapshot(second.order.id, second.attempt.id)).order.status).toBe("AWAITING_PAYMENT");
+  });
 });
