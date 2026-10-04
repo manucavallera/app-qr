@@ -43,6 +43,7 @@ test("el personal puede crear un pedido en caja", async ({ page }) => {
   await page.route("**/api/staff/catalog/products", (route) => route.fulfill({ json: [{ id: "burger", name: "Hamburguesa clásica", priceCents: 950000, available: true, optionGroups: [] }] }));
   await page.route("**/api/staff/catalog/categories", (route) => route.fulfill({ json: [] }));
   await page.route("**/api/staff/tables", (route) => route.fulfill({ json: [{ id: "table", label: "Mesa 1", active: true }] }));
+  await page.route("**/api/staff/settings", (route) => route.fulfill({ json: { role: "ADMIN", paymentSettings: { cashEnabled: true, cardAtCounterEnabled: true }, mercadoPagoConfigured: false } }));
   await page.route("**/api/staff/orders", async (route) => {
     if (route.request().method() === "POST") return route.fulfill({ status: 201, json: { id: "counter-order", status: "CONFIRMED" } });
     return route.fulfill({ json: [] });

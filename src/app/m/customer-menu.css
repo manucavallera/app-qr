@@ -777,7 +777,7 @@ body:has(.cm-shell, .cm-welcome-shell, .cm-page) {
 .cm-sheet-image {
   display: block;
   width: calc(100% + 32px);
-  height: 200px;
+  height: clamp(96px, 28dvh, 200px);
   margin: 0 -16px;
   object-fit: cover;
   background: var(--cm-surface-2);
