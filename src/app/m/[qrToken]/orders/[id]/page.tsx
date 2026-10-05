@@ -10,11 +10,11 @@ import { playReadyTone } from "@/lib/client/ready-alert";
 import { useSseResource } from "@/lib/client/use-sse-resource";
 import { selectCurrentPayment } from "@/modules/payments/payment-selection";
 
-type PaymentMethod = "MERCADO_PAGO" | "CASH" | "CARD_AT_COUNTER" | "BANK_TRANSFER";
+type PaymentMethod = "MERCADO_PAGO" | "CASH" | "CARD_AT_COUNTER" | "BANK_TRANSFER" | "ON_TAB";
 type Order = { number: number; status: string; totalCents: number; table: { label: string } | null; items: { productName: string; quantity: number; lineTotalCents: number; fulfillment: "TABLE" | "PICKUP"; notes: string | null; options: { valueName: string }[] }[]; payments: { method: PaymentMethod; status: string }[] };
 type TransferDetails = { alias: string | null; cbuCvu: string | null; accountHolder: string | null; instructions: string | null };
 type PublicPayment = { transfer: TransferDetails | null };
-const methodLabels: Record<PaymentMethod, string> = { MERCADO_PAGO: "Mercado Pago", CASH: "Efectivo en caja", CARD_AT_COUNTER: "Tarjeta en caja", BANK_TRANSFER: "Transferencia bancaria" };
+const methodLabels: Record<PaymentMethod, string> = { MERCADO_PAGO: "Mercado Pago", CASH: "Efectivo en caja", CARD_AT_COUNTER: "Tarjeta en caja", BANK_TRANSFER: "Transferencia bancaria", ON_TAB: "Al pedir la cuenta" };
 
 
 export default function CustomerOrderPage() {
@@ -101,10 +101,11 @@ export default function CustomerOrderPage() {
     )}
     {order.status === "DELIVERED" && <aside className="cm-notice cm-notice-icon" role="status"><Check size={22} weight="bold" aria-hidden="true" /><div><strong>Pedido entregado</strong><p>Esperamos que lo disfrutes. ¡Gracias por elegirnos!</p></div></aside>}
     {order.status !== "CANCELLED" && <OrderProgress currentStatus={order.status} />}
-    <section className="cm-panel"><strong>Pago: {currentPayment ? methodLabels[currentPayment.method] : "Pendiente"}</strong><span>{currentPayment?.status === "APPROVED" ? "Confirmado" : currentPayment?.status === "REJECTED" ? "Rechazado" : "Pendiente de confirmación"}</span>{currentPayment?.method === "MERCADO_PAGO" && currentPayment.status !== "APPROVED" && order.status === "AWAITING_PAYMENT" && <button className="cm-btn" disabled={paymentLoading} onClick={() => void payWithMercadoPago()} type="button">{paymentLoading ? "Preparando pago…" : "Pagar con Mercado Pago"}</button>}{currentPayment?.method === "BANK_TRANSFER" && currentPayment.status !== "APPROVED" && payment.transfer && <div className="cm-transfer-plain"><strong>Transferí a {payment.transfer.alias ?? payment.transfer.cbuCvu}</strong><span>{payment.transfer.accountHolder && `Titular: ${payment.transfer.accountHolder}`}</span>{payment.transfer.instructions && <small>{payment.transfer.instructions}</small>}</div>}</section>
+    <section className="cm-panel"><strong>Pago: {currentPayment ? methodLabels[currentPayment.method] : "Pendiente"}</strong><span>{currentPayment?.method === "ON_TAB" && currentPayment.status !== "APPROVED" ? "Se suma a la cuenta de tu mesa" : currentPayment?.status === "APPROVED" ? "Confirmado" : currentPayment?.status === "REJECTED" ? "Rechazado" : "Pendiente de confirmación"}</span>{currentPayment?.method === "MERCADO_PAGO" && currentPayment.status !== "APPROVED" && order.status === "AWAITING_PAYMENT" && <button className="cm-btn" disabled={paymentLoading} onClick={() => void payWithMercadoPago()} type="button">{paymentLoading ? "Preparando pago…" : "Pagar con Mercado Pago"}</button>}{currentPayment?.method === "BANK_TRANSFER" && currentPayment.status !== "APPROVED" && payment.transfer && <div className="cm-transfer-plain"><strong>Transferí a {payment.transfer.alias ?? payment.transfer.cbuCvu}</strong><span>{payment.transfer.accountHolder && `Titular: ${payment.transfer.accountHolder}`}</span>{payment.transfer.instructions && <small>{payment.transfer.instructions}</small>}</div>}</section>
     <ul className="cm-lines">{order.items.map((item, index) => <li className="cm-line" key={`${item.productName}-${index}`}><div className="cm-line-main"><span>{item.quantity} × {item.productName}</span><strong>{ars(item.lineTotalCents)}</strong></div>{item.options.map((option) => <span className="cm-line-detail" key={option.valueName}>{option.valueName}</span>)}{item.notes && <span className="cm-line-detail">Nota: {item.notes}</span>}</li>)}</ul>
     <div className="cm-total"><span>Total</span><strong>{ars(order.totalCents)}</strong></div>
     {currentPayment?.status === "APPROVED" && <a className="cm-btn cm-btn-quiet" href={`/m/${encodeURIComponent(qrToken)}/orders/${encodeURIComponent(id)}/comprobante`}>Ver comprobante</a>}
+    {currentPayment?.method === "ON_TAB" && <a className="cm-btn" href={`/m/${encodeURIComponent(qrToken)}/account`}>Ver mi cuenta</a>}
     <a className="cm-btn cm-btn-quiet" href={`/m/${encodeURIComponent(qrToken)}`}>Pedir algo más</a>
   </CustomerShell>;
 }

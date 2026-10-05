@@ -7,13 +7,13 @@ import { formatArs as ars } from "@/lib/format";
 import { CustomerShell } from "@/components/customer/customer-shell";
 import { cartTotal, clearCart, loadCart, type CartItem } from "@/modules/orders/cart-store";
 
-type PaymentMethod = "MERCADO_PAGO" | "CASH" | "CARD_AT_COUNTER" | "BANK_TRANSFER";
+type PaymentMethod = "MERCADO_PAGO" | "CASH" | "CARD_AT_COUNTER" | "BANK_TRANSFER" | "ON_TAB";
 type TransferDetails = { alias: string | null; cbuCvu: string | null; accountHolder: string | null; instructions: string | null };
 type MenuProduct = { id: string; name: string; optionGroups: { values: { id: string; name: string }[] }[] };
 type UnavailableMethod = { method: PaymentMethod; reason: string };
 type MenuPayment = { methods: PaymentMethod[]; unavailable: UnavailableMethod[]; transfer: TransferDetails | null };
 type PaymentStatus = "loading" | "ready" | "error";
-const paymentLabels: Record<PaymentMethod, string> = { MERCADO_PAGO: "Mercado Pago", CASH: "Efectivo en caja", CARD_AT_COUNTER: "Tarjeta en caja", BANK_TRANSFER: "Transferencia bancaria" };
+const paymentLabels: Record<PaymentMethod, string> = { MERCADO_PAGO: "Mercado Pago", CASH: "Efectivo en caja", CARD_AT_COUNTER: "Tarjeta en caja", BANK_TRANSFER: "Transferencia bancaria", ON_TAB: "Pagar al final, con la cuenta de la mesa" };
 
 export default function CheckoutPage() {
   const { qrToken } = useParams<{ qrToken: string }>();
