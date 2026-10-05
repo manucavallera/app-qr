@@ -33,6 +33,7 @@ const domainStatus: Record<string, number> = {
   SUPPLY_CONFLICT: 409,
   INSUFFICIENT_SUPPLY: 409,
   TAB_EMPTY: 409,
+  TAB_NOT_FOUND: 404,
 };
 
 export function apiErrorResponse(error: unknown): NextResponse {

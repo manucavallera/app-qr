@@ -150,12 +150,26 @@ model DiningTable {
   label            String            @unique
   qrToken          String            @unique
   active           Boolean           @default(true)
-  /// Se completa cuando la mesa pide la cuenta; se limpia al cobrarla.
-  billRequestedAt  DateTime?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   customerSessions CustomerSession[]
   orders           Order[]
+  tabs             TableTab[]
+}
+
+/// Cuenta de una mesa: junta los pedidos "pagar al final" hasta que se cobran.
+/// Una mesa tiene como mucho una cuenta abierta (closedAt nulo) a la vez.
+model TableTab {
+  id              String      @id @default(uuid())
+  number          Int         @unique @default(autoincrement())
+  tableId         String
+  openedAt        DateTime    @default(now())
+  billRequestedAt DateTime?
+  closedAt        DateTime?
+  table           DiningTable @relation(fields: [tableId], references: [id])
+  orders          Order[]
+
+  @@index([tableId, closedAt])
 }
 
 model CustomerSession {
@@ -238,6 +252,7 @@ model Order {
   clientRequestId    String             @unique
   tableId            String?
   customerSessionId  String?
+  tabId              String?
   createdByStaffId   String?
   customerName       String?
   origin             OrderOrigin
@@ -248,6 +263,7 @@ model Order {
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   table              DiningTable?       @relation(fields: [tableId], references: [id])
+  tab                TableTab?          @relation(fields: [tabId], references: [id])
   customerSession    CustomerSession?   @relation(fields: [customerSessionId], references: [id])
   createdByStaff     StaffUser?         @relation("OrderCreator", fields: [createdByStaffId], references: [id])
   items              OrderItem[]
@@ -257,6 +273,7 @@ model Order {
   @@index([status, createdAt])
   @@index([customerSessionId])
   @@index([tableId])
+  @@index([tabId])
 }
 
 model OrderItem {

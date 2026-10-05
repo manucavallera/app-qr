@@ -17,8 +17,8 @@ export const createQrOrderInputSchema = z.object({
 export const createCounterOrderInputSchema = createQrOrderInputSchema.extend({
   nickname: z.string().trim().min(1).max(40),
   tableId: z.string().uuid().optional(),
-  paymentMethod: z.enum(["CASH", "CARD_AT_COUNTER", "BANK_TRANSFER", "MERCADO_PAGO"]),
-}).strict();
+  paymentMethod: z.enum(["CASH", "CARD_AT_COUNTER", "BANK_TRANSFER", "MERCADO_PAGO", "ON_TAB"]),
+}).strict().refine((order) => order.paymentMethod !== "ON_TAB" || Boolean(order.tableId), { path: ["tableId"], message: "Elegí la mesa para sumar el pedido a su cuenta." });
 
 export const confirmTraditionalPaymentInputSchema = z.object({
   method: z.enum(["CASH", "CARD_AT_COUNTER", "BANK_TRANSFER"]),

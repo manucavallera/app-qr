@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 export const settleTabInputSchema = z.object({
-  tableId: z.string().uuid(),
-  // Solo una persona de la mesa; sin esto se cobra la cuenta entera.
-  customerSessionId: z.string().uuid().optional(),
+  tabId: z.string().uuid(),
+  // Clave de una persona de la cuenta (ver TabPerson.key); sin esto se cobra la cuenta entera.
+  personKey: z.string().min(1).max(200).optional(),
   method: z.enum(["CASH", "CARD_AT_COUNTER", "BANK_TRANSFER"]),
 }).strict();
 

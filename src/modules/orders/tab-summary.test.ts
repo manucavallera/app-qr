@@ -24,13 +24,13 @@ describe("summarizeTab", () => {
 });
 
 describe("settleTabInputSchema", () => {
-  const tableId = "8d2c4c4e-6f2b-4d5e-9b8a-0a1b2c3d4e5f";
+  const tabId = "8d2c4c4e-6f2b-4d5e-9b8a-0a1b2c3d4e5f";
   it("accepts a whole table or one person with a manual method", () => {
-    expect(settleTabInputSchema.safeParse({ tableId, method: "CASH" }).success).toBe(true);
-    expect(settleTabInputSchema.safeParse({ tableId, method: "BANK_TRANSFER", customerSessionId: tableId }).success).toBe(true);
+    expect(settleTabInputSchema.safeParse({ tabId, method: "CASH" }).success).toBe(true);
+    expect(settleTabInputSchema.safeParse({ tabId, method: "BANK_TRANSFER", personKey: "name:Caja" }).success).toBe(true);
   });
   it("rejects online or unknown methods", () => {
-    expect(settleTabInputSchema.safeParse({ tableId, method: "MERCADO_PAGO" }).success).toBe(false);
-    expect(settleTabInputSchema.safeParse({ tableId, method: "ON_TAB" }).success).toBe(false);
+    expect(settleTabInputSchema.safeParse({ tabId, method: "MERCADO_PAGO" }).success).toBe(false);
+    expect(settleTabInputSchema.safeParse({ tabId, method: "ON_TAB" }).success).toBe(false);
   });
 });

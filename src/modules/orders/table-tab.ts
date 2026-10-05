@@ -3,6 +3,9 @@ import { prisma } from "../../lib/db";
 import { DomainError } from "./errors";
 import { summarizeTab, type SettleTabInput, type TabOrder } from "./tab-summary";
 
+type Tx = Prisma.TransactionClient;
+
+/** Pedidos de una cuenta que todavía hay que cobrar. */
 const unpaidTabOrders = {
   status: { not: "CANCELLED" as const },
   payments: { some: { method: "ON_TAB" as const, status: "UNPAID" as const } },
@@ -29,21 +32,51 @@ function toTabOrder(row: TabOrderRow): TabOrder {
   };
 }
 
+/** Filtro de pedidos de una persona, a partir de la clave que arma summarizeTab. */
+function personFilter(personKey: string): Prisma.OrderWhereInput {
+  return personKey.startsWith("name:")
+    ? { customerSessionId: null, customerName: personKey.slice("name:".length) }
+    : { customerSessionId: personKey };
+}
+
+/**
+ * Cuenta abierta de la mesa, creándola si no hay. Bloquea la fila de la mesa para que dos
+ * pedidos simultáneos no abran dos cuentas.
+ */
+export async function openTabForTable(tx: Tx, tableId: string): Promise<string> {
+  await tx.$queryRaw`SELECT id FROM "DiningTable" WHERE id = ${tableId} FOR UPDATE`;
+  const open = await tx.tableTab.findFirst({ where: { tableId, closedAt: null }, select: { id: true } });
+  if (open) return open.id;
+  return (await tx.tableTab.create({ data: { tableId }, select: { id: true } })).id;
+}
+
+/** Cierra la cuenta cuando ya no queda nada por cobrar (todo pagado o cancelado). */
+export async function closeTabIfSettled(tx: Tx, tabId: string): Promise<boolean> {
+  const remaining = await tx.order.count({ where: { tabId, ...unpaidTabOrders } });
+  if (remaining > 0) return false;
+  await tx.tableTab.updateMany({ where: { id: tabId, closedAt: null }, data: { closedAt: new Date() } });
+  return true;
+}
+
 export class PrismaTableTabRepository {
   constructor(private readonly db: PrismaClient) {}
 
   /** La cuenta que ve el cliente: solo sus propios pedidos y el total de la mesa. */
   async getCustomerTab(customerSessionId: string, tableId: string) {
-    const [table, rows] = await Promise.all([
-      this.db.diningTable.findUnique({ where: { id: tableId }, select: { label: true, billRequestedAt: true } }),
-      this.db.order.findMany({ where: { tableId, ...unpaidTabOrders }, select: tabOrderSelect, orderBy: { createdAt: "asc" } }),
+    const [table, tab] = await Promise.all([
+      this.db.diningTable.findUnique({ where: { id: tableId }, select: { label: true } }),
+      this.db.tableTab.findFirst({
+        where: { tableId, closedAt: null },
+        select: { id: true, number: true, billRequestedAt: true, orders: { where: unpaidTabOrders, select: tabOrderSelect, orderBy: { createdAt: "asc" } } },
+      }),
     ]);
     if (!table) throw new DomainError("TABLE_NOT_FOUND", "No encontramos la mesa.");
-    const summary = summarizeTab(rows.map(toTabOrder));
+    const summary = summarizeTab((tab?.orders ?? []).map(toTabOrder));
     const mine = summary.people.find((person) => person.customerSessionId === customerSessionId);
     return {
       tableLabel: table.label,
-      billRequestedAt: table.billRequestedAt,
+      tabNumber: tab?.number ?? null,
+      billRequestedAt: tab?.billRequestedAt ?? null,
       mine: mine ? { totalCents: mine.totalCents, orders: mine.orders } : { totalCents: 0, orders: [] },
       tableTotalCents: summary.totalCents,
     };
@@ -51,67 +84,62 @@ export class PrismaTableTabRepository {
 
   async requestBill(tableId: string): Promise<{ billRequestedAt: Date }> {
     return this.db.$transaction(async (tx) => {
-      const open = await tx.order.count({ where: { tableId, ...unpaidTabOrders } });
-      if (open === 0) throw new DomainError("TAB_EMPTY", "La mesa no tiene nada para pagar.");
-      const table = await tx.diningTable.findUnique({ where: { id: tableId }, select: { billRequestedAt: true } });
-      if (table?.billRequestedAt) return { billRequestedAt: table.billRequestedAt };
-      const updated = await tx.diningTable.update({ where: { id: tableId }, data: { billRequestedAt: new Date() }, select: { billRequestedAt: true } });
-      return { billRequestedAt: updated.billRequestedAt! };
+      const tab = await tx.tableTab.findFirst({ where: { tableId, closedAt: null, orders: { some: unpaidTabOrders } }, select: { id: true, billRequestedAt: true } });
+      if (!tab) throw new DomainError("TAB_EMPTY", "La mesa no tiene nada para pagar.");
+      if (tab.billRequestedAt) return { billRequestedAt: tab.billRequestedAt };
+      const billRequestedAt = new Date();
+      await tx.tableTab.update({ where: { id: tab.id }, data: { billRequestedAt } });
+      return { billRequestedAt };
     });
   }
 
-  /** Mesas con cuenta abierta; las que pidieron la cuenta van primero. */
+  /** Al cerrar el horario del QR, toda cuenta abierta pasa a "pidió la cuenta" para que el staff la cobre. */
+  async requestBillForOpenTabs(): Promise<number> {
+    const result = await this.db.tableTab.updateMany({ where: { closedAt: null, billRequestedAt: null, orders: { some: unpaidTabOrders } }, data: { billRequestedAt: new Date() } });
+    return result.count;
+  }
+
+  /** Cuentas abiertas; las que pidieron la cuenta van primero. */
   async listOpenTabs() {
-    const rows = await this.db.order.findMany({
-      where: { tableId: { not: null }, ...unpaidTabOrders },
-      select: { ...tabOrderSelect, table: { select: { id: true, label: true, billRequestedAt: true } } },
-      orderBy: { createdAt: "asc" },
+    const tabs = await this.db.tableTab.findMany({
+      where: { closedAt: null, orders: { some: unpaidTabOrders } },
+      select: { id: true, number: true, openedAt: true, billRequestedAt: true, table: { select: { id: true, label: true } }, orders: { where: unpaidTabOrders, select: tabOrderSelect, orderBy: { createdAt: "asc" } } },
     });
-    const tables = new Map<string, { id: string; label: string; billRequestedAt: Date | null; orders: TabOrder[] }>();
-    for (const row of rows) {
-      if (!row.table) continue;
-      const entry = tables.get(row.table.id) ?? { ...row.table, orders: [] };
-      entry.orders.push(toTabOrder(row));
-      tables.set(row.table.id, entry);
-    }
-    return [...tables.values()]
-      .map(({ orders, ...table }) => ({ ...table, ...summarizeTab(orders) }))
+    return tabs
+      .map(({ orders, table, ...tab }) => ({ ...tab, tableId: table.id, label: table.label, ...summarizeTab(orders.map(toTabOrder)) }))
       .sort((a, b) => Number(Boolean(b.billRequestedAt)) - Number(Boolean(a.billRequestedAt)) || a.label.localeCompare(b.label, "es", { numeric: true }));
   }
 
-  async settleTab(input: SettleTabInput, staffId: string): Promise<{ settledOrders: number; settledCents: number }> {
+  async settleTab(input: SettleTabInput, staffId: string): Promise<{ settledOrders: number; settledCents: number; closed: boolean }> {
     return this.db.$transaction(async (tx) => {
-      const locked = await tx.$queryRaw<Array<{ id: string }>>`SELECT id FROM "DiningTable" WHERE id = ${input.tableId} FOR UPDATE`;
-      if (locked.length === 0) throw new DomainError("TABLE_NOT_FOUND", "No encontramos la mesa.");
+      const locked = await tx.$queryRaw<Array<{ id: string }>>`SELECT id FROM "TableTab" WHERE id = ${input.tabId} FOR UPDATE`;
+      if (locked.length === 0) throw new DomainError("TAB_NOT_FOUND", "No encontramos esa cuenta.");
       const payments = await tx.paymentAttempt.findMany({
         where: {
           method: "ON_TAB",
           status: "UNPAID",
-          order: { tableId: input.tableId, status: { not: "CANCELLED" }, ...(input.customerSessionId ? { customerSessionId: input.customerSessionId } : {}) },
+          order: { tabId: input.tabId, status: { not: "CANCELLED" }, ...(input.personKey ? personFilter(input.personKey) : {}) },
         },
       });
       if (payments.length === 0) throw new DomainError("TAB_EMPTY", "No hay nada para cobrar en esta cuenta.");
 
-      for (const payment of payments) {
-        await tx.paymentAttempt.update({
-          where: { id: payment.id },
-          data: { method: input.method, status: "APPROVED", confirmedByStaffId: staffId },
-        });
-      }
+      await tx.paymentAttempt.updateMany({
+        where: { id: { in: payments.map((payment) => payment.id) } },
+        data: { method: input.method, status: "APPROVED", confirmedByStaffId: staffId },
+      });
       const settledCents = payments.reduce((sum, payment) => sum + payment.amountCents, 0);
-      const remaining = await tx.order.count({ where: { tableId: input.tableId, ...unpaidTabOrders } });
-      if (remaining === 0) await tx.diningTable.update({ where: { id: input.tableId }, data: { billRequestedAt: null } });
+      const closed = await closeTabIfSettled(tx, input.tabId);
       await tx.auditEvent.create({
         data: {
           actorStaffId: staffId,
           action: "TAB_SETTLED",
-          entityType: "DiningTable",
-          entityId: input.tableId,
-          metadata: { method: input.method, settledCents, orders: payments.length, customerSessionId: input.customerSessionId ?? null },
+          entityType: "TableTab",
+          entityId: input.tabId,
+          metadata: { method: input.method, settledCents, orders: payments.length, personKey: input.personKey ?? null, closed },
         },
       });
-      await tx.$executeRaw`SELECT pg_notify('appqr_order_events', ${JSON.stringify({ type: "tab.changed", tableId: input.tableId, occurredAt: new Date().toISOString() })})`;
-      return { settledOrders: payments.length, settledCents };
+      await tx.$executeRaw`SELECT pg_notify('appqr_order_events', ${JSON.stringify({ type: "tab.changed", tabId: input.tabId, occurredAt: new Date().toISOString() })})`;
+      return { settledOrders: payments.length, settledCents, closed };
     });
   }
 }

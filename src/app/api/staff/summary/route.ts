@@ -30,16 +30,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }),
       // Cuentas de mesa sin cobrar: pedidos "pagar al final" que siguen vivos.
       prisma.paymentAttempt.findMany({
-        where: { method: "ON_TAB", status: "UNPAID", order: { status: { not: "CANCELLED" }, tableId: { not: null } } },
-        select: { amountCents: true, order: { select: { tableId: true, table: { select: { billRequestedAt: true } } } } },
+        where: { method: "ON_TAB", status: "UNPAID", order: { status: { not: "CANCELLED" }, tabId: { not: null } } },
+        select: { amountCents: true, order: { select: { tabId: true, tab: { select: { billRequestedAt: true } } } } },
       }),
     ]);
     const openTabTables = new Map<string, { cents: number; billRequested: boolean }>();
     for (const payment of tabPayments) {
-      const tableId = payment.order.tableId!;
-      const entry = openTabTables.get(tableId) ?? { cents: 0, billRequested: Boolean(payment.order.table?.billRequestedAt) };
+      const tabId = payment.order.tabId!;
+      const entry = openTabTables.get(tabId) ?? { cents: 0, billRequested: Boolean(payment.order.tab?.billRequestedAt) };
       entry.cents += payment.amountCents;
-      openTabTables.set(tableId, entry);
+      openTabTables.set(tabId, entry);
     }
     const openTabs = {
       tables: openTabTables.size,

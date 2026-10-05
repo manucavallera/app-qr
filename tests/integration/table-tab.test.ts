@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { POST as createOrderRoute } from "@/app/api/public/orders/route";
 import { GET as customerTabRoute } from "@/app/api/public/tab/route";
 import { POST as requestBillRoute } from "@/app/api/public/tab/bill/route";
+import { POST as counterOrderRoute } from "@/app/api/staff/orders/route";
 import { GET as summaryRoute } from "@/app/api/staff/summary/route";
 import { GET as staffTabsRoute } from "@/app/api/staff/tabs/route";
 import { POST as settleRoute } from "@/app/api/staff/tabs/settle/route";
@@ -11,6 +12,7 @@ import { prisma } from "@/lib/db";
 import { hashToken } from "@/lib/security/token";
 import { hashPassword } from "@/modules/auth/password";
 import { STAFF_SESSION_COOKIE } from "@/modules/auth/auth-service";
+import { tableTabRepository } from "@/modules/orders/table-tab";
 import { commandRepository } from "@/modules/orders/command-repository";
 import { customerSessionService } from "@/modules/tables/customer-session-service";
 
@@ -64,6 +66,7 @@ describe("table tab: order now, pay at the end", () => {
 
   afterAll(async () => {
     await prisma.order.deleteMany({ where: { tableId } });
+    await prisma.tableTab.deleteMany({ where: { tableId } });
     await prisma.auditEvent.deleteMany({ where: { actorStaffId: staffId } });
     await prisma.staffSession.deleteMany({ where: { userId: staffId } });
     if (staffId) await prisma.staffUser.delete({ where: { id: staffId } });
@@ -78,11 +81,15 @@ describe("table tab: order now, pay at the end", () => {
     else await prisma.paymentSettings.deleteMany({ where: { id: "default" } });
   });
 
+  const openTab = () => prisma.tableTab.findFirst({ where: { tableId, closedAt: null } });
+  const settle = (body: object) => settleRoute(call("http://localhost/api/staff/tabs/settle", { method: "POST", headers: staffHeaders(), body: JSON.stringify(body) }));
+
   it("sends the order to the kitchen unpaid and shows each person only their own part", async () => {
     const first = await orderOnTab(anaToken, 2);
     expect(first.status).toBe(201);
     expect(await first.json()).toMatchObject({ status: "CONFIRMED", totalCents: 2000 });
     expect((await orderOnTab(betoToken, 1)).status).toBe(201);
+    expect(await prisma.tableTab.count({ where: { tableId } })).toBe(1);
 
     const anaTab = await (await customerTabRoute(call("http://localhost/api/public/tab", { headers: customerHeaders(anaToken) }))).json();
     expect(anaTab.mine.totalCents).toBe(2000);
@@ -90,47 +97,64 @@ describe("table tab: order now, pay at the end", () => {
     expect(JSON.stringify(anaTab)).not.toContain("Beto");
   });
 
-  it("flags the table when it asks for the bill and lists it first for staff", async () => {
+  it("lets the waiter add an order to the tab from the counter, and only with a table", async () => {
+    const counter = (body: object) => counterOrderRoute(call("http://localhost/api/staff/orders", { method: "POST", headers: staffHeaders(), body: JSON.stringify({ clientRequestId: randomUUID(), expectedTotalCents: 1000, paymentMethod: "ON_TAB", nickname: "Caro", items: [{ productId, quantity: 1, optionValueIds: [] }], ...body }) }));
+    expect((await counter({})).status).toBe(400);
+    const created = await counter({ tableId });
+    expect(created.status).toBe(201);
+    expect(await created.json()).toMatchObject({ status: "CONFIRMED" });
+    const tab = await openTab();
+    expect(await prisma.order.count({ where: { tabId: tab!.id } })).toBe(3);
+  });
+
+  it("flags the tab when the table asks for the bill and lists it first for staff", async () => {
     const response = await requestBillRoute(call("http://localhost/api/public/tab/bill", { method: "POST", headers: customerHeaders(betoToken) }));
     expect(response.status).toBe(200);
     const tabs = await (await staffTabsRoute(call("http://localhost/api/staff/tabs", { headers: staffHeaders() }))).json();
-    const table = tabs.find((entry: { id: string }) => entry.id === tableId);
-    expect(table.billRequestedAt).not.toBeNull();
-    expect(table.totalCents).toBe(3000);
+    const tab = tabs.find((entry: { tableId: string }) => entry.tableId === tableId);
+    expect(tab.billRequestedAt).not.toBeNull();
+    expect(tab.totalCents).toBe(4000);
+    expect(tab.people.map((person: { name: string }) => person.name).sort()).toEqual(["Ana", "Beto", "Caro"]);
     const summary = await (await summaryRoute(call("http://localhost/api/staff/summary", { headers: staffHeaders() }))).json();
     expect(summary.openTabs.tables).toBeGreaterThanOrEqual(1);
     expect(summary.openTabs.billRequested).toBeGreaterThanOrEqual(1);
-    expect(summary.openTabs.totalCents).toBeGreaterThanOrEqual(3000);
-    expect(table.people.map((person: { name: string }) => person.name).sort()).toEqual(["Ana", "Beto"]);
+    expect(summary.openTabs.totalCents).toBeGreaterThanOrEqual(4000);
   });
 
-  it("settles one person, then the rest, and clears the bill request", async () => {
-    const settle = (body: object) => settleRoute(call("http://localhost/api/staff/tabs/settle", { method: "POST", headers: staffHeaders(), body: JSON.stringify(body) }));
-    const ana = await settle({ tableId, customerSessionId: anaSessionId, method: "CASH" });
-    expect(await ana.json()).toEqual({ settledOrders: 1, settledCents: 2000 });
-    expect((await prisma.diningTable.findUnique({ where: { id: tableId } }))?.billRequestedAt).not.toBeNull();
+  it("settles person by person, closes the tab when nothing is left, and opens a new one for the next group", async () => {
+    const tab = (await openTab())!;
+    expect(await (await settle({ tabId: tab.id, personKey: anaSessionId, method: "CASH" })).json()).toEqual({ settledOrders: 1, settledCents: 2000, closed: false });
+    expect(await (await settle({ tabId: tab.id, personKey: "name:Caro", method: "CARD_AT_COUNTER" })).json()).toEqual({ settledOrders: 1, settledCents: 1000, closed: false });
+    expect(await (await settle({ tabId: tab.id, method: "BANK_TRANSFER" })).json()).toEqual({ settledOrders: 1, settledCents: 1000, closed: true });
+    expect((await prisma.tableTab.findUnique({ where: { id: tab.id } }))?.closedAt).not.toBeNull();
+    const payments = await prisma.paymentAttempt.findMany({ where: { order: { tabId: tab.id } } });
+    expect(payments.map((payment) => `${payment.method}:${payment.status}`).sort()).toEqual(["BANK_TRANSFER:APPROVED", "CARD_AT_COUNTER:APPROVED", "CASH:APPROVED"]);
+    expect((await settle({ tabId: tab.id, method: "CASH" })).status).toBe(409);
 
-    const rest = await settle({ tableId, method: "BANK_TRANSFER" });
-    expect(await rest.json()).toEqual({ settledOrders: 1, settledCents: 1000 });
-    expect((await prisma.diningTable.findUnique({ where: { id: tableId } }))?.billRequestedAt).toBeNull();
-    const payments = await prisma.paymentAttempt.findMany({ where: { order: { tableId } }, orderBy: { amountCents: "desc" } });
-    expect(payments.map((payment) => [payment.method, payment.status])).toEqual([["CASH", "APPROVED"], ["BANK_TRANSFER", "APPROVED"]]);
-
-    const again = await settle({ tableId, method: "CASH" });
-    expect(again.status).toBe(409);
+    expect((await orderOnTab(betoToken)).status).toBe(201);
+    const next = (await openTab())!;
+    expect(next.id).not.toBe(tab.id);
+    expect(next.billRequestedAt).toBeNull();
+    const betoTab = await (await customerTabRoute(call("http://localhost/api/public/tab", { headers: customerHeaders(betoToken) }))).json();
+    expect(betoTab.tableTotalCents).toBe(1000);
   });
 
-  it("drops a cancelled order from the tab and clears the bill request when nothing is left", async () => {
-    const created = await (await orderOnTab(anaToken)).json() as { id: string; version: number };
-    await requestBillRoute(call("http://localhost/api/public/tab/bill", { method: "POST", headers: customerHeaders(anaToken) }));
-    expect((await prisma.diningTable.findUnique({ where: { id: tableId } }))?.billRequestedAt).not.toBeNull();
+  it("asks for the bill on every open tab when the QR hours end", async () => {
+    expect(await tableTabRepository.requestBillForOpenTabs()).toBeGreaterThanOrEqual(1);
+    expect((await openTab())?.billRequestedAt).not.toBeNull();
+    expect(await tableTabRepository.requestBillForOpenTabs()).toBe(0);
+  });
 
-    await commandRepository.transitionOrder(created.id, { targetStatus: "CANCELLED", reason: "Se equivocaron", expectedVersion: created.version }, staffId, "ADMIN");
+  it("drops a cancelled order from the tab and closes the tab when nothing is left", async () => {
+    const tab = (await openTab())!;
+    const order = await prisma.order.findFirstOrThrow({ where: { tabId: tab.id } });
+    await commandRepository.transitionOrder(order.id, { targetStatus: "CANCELLED", reason: "Se equivocaron", expectedVersion: order.version }, staffId, "ADMIN");
 
-    const tab = await (await customerTabRoute(call("http://localhost/api/public/tab", { headers: customerHeaders(anaToken) }))).json();
-    expect(tab.mine.totalCents).toBe(0);
-    expect(tab.billRequestedAt).toBeNull();
-    expect((await prisma.paymentAttempt.findFirst({ where: { orderId: created.id } }))?.status).toBe("REJECTED");
+    const view = await (await customerTabRoute(call("http://localhost/api/public/tab", { headers: customerHeaders(betoToken) }))).json();
+    expect(view.tableTotalCents).toBe(0);
+    expect(view.billRequestedAt).toBeNull();
+    expect((await prisma.tableTab.findUnique({ where: { id: tab.id } }))?.closedAt).not.toBeNull();
+    expect((await prisma.paymentAttempt.findFirst({ where: { orderId: order.id } }))?.status).toBe("REJECTED");
   });
 
   it("refuses pay-at-the-end when the owner has it switched off", async () => {
