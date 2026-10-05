@@ -66,9 +66,9 @@ function SupplyRow({ supply, onChanged, onError }: { supply: SupplyView; onChang
   return (
     <tr className={supply.active ? undefined : "supply-inactive"}>
       <th scope="row">{supply.name}{supply.low ? <span className="supply-low"> · Stock bajo</span> : null}{supply.active ? null : <span> · Desactivado</span>}</th>
-      <td>{formatSupplyQuantity(supply.quantity, supply.unit)}</td>
-      <td>{formatSupplyQuantity(supply.minQuantity, supply.unit)}</td>
-      <td className="supply-actions">
+      <td data-label="Stock">{formatSupplyQuantity(supply.quantity, supply.unit)}</td>
+      <td data-label="Mínimo">{formatSupplyQuantity(supply.minQuantity, supply.unit)}</td>
+      <td><div className="supply-actions">
         {action ? (
           <form className="supply-form" onSubmit={(event) => { void submit(event); }}>
             <QuantityField unit={supply.unit} value={amount} large={large} onChange={setAmount} onLarge={setLarge} label={action === "ADJUSTMENT" ? "Cantidad real" : actionLabel[action]} />
@@ -81,7 +81,7 @@ function SupplyRow({ supply, onChanged, onError }: { supply: SupplyView; onChang
             <button className="button-text" type="button" onClick={() => { void toggleActive(); }}>{supply.active ? "Desactivar" : "Activar"}</button>
           </>
         )}
-      </td>
+      </div></td>
     </tr>
   );
 }
@@ -137,7 +137,7 @@ export default function SuppliesPage() {
           </table>
         )}
 
-        <h3>Agregar insumo</h3>
+        <h3 className="section-title">Agregar insumo</h3>
         <form className="supply-form supply-create" onSubmit={(event) => { void create(event); }}>
           <label className="form-field"><span>Nombre</span><input className="form-input" required maxLength={80} value={name} onChange={(event) => setName(event.target.value)} /></label>
           <label className="form-field"><span>Se mide en</span>

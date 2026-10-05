@@ -53,12 +53,12 @@ export default function DashboardPage() {
               ))}
             </dl>
 
-            <h3>Pedidos en curso</h3>
+            <h3 className="section-title">Pedidos en curso</h3>
             <dl className="report-totals">
               {data.inProgress.map((row) => <div key={row.status}><dt>{orderStatusLabel[row.status]}</dt><dd>{row.orders}</dd></div>)}
             </dl>
 
-            <h3>Más vendidos (7 días)</h3>
+            <h3 className="section-title">Más vendidos (7 días)</h3>
             {data.topProducts.length === 0 ? <p className="empty-state">Todavía no hay ventas en estos días.</p> : (
               <table className="report-table">
                 <thead><tr><th scope="col">Producto</th><th scope="col">Unidades</th><th scope="col">Total</th></tr></thead>
@@ -66,7 +66,7 @@ export default function DashboardPage() {
               </table>
             )}
 
-            <h3>Ventas por hora (30 días)</h3>
+            <h3 className="section-title">Ventas por hora (30 días)</h3>
             {data.byHour.length === 0 ? <p className="empty-state">Sin ventas para mostrar.</p> : (
               <ul className="dashboard-hours">
                 {data.byHour.map((row) => (
@@ -79,7 +79,7 @@ export default function DashboardPage() {
               </ul>
             )}
 
-            <h3>Insumos con poco stock</h3>
+            <h3 className="section-title">Insumos con poco stock</h3>
             {data.lowStockSupplies.length === 0 ? <p className="empty-state">No hay insumos por debajo del mínimo.</p> : (
               <table className="report-table">
                 <thead><tr><th scope="col">Insumo</th><th scope="col">Quedan</th><th scope="col">Mínimo</th></tr></thead>
@@ -87,7 +87,7 @@ export default function DashboardPage() {
               </table>
             )}
 
-            <h3>Productos con stock bajo</h3>
+            <h3 className="section-title">Productos con stock bajo</h3>
             {data.lowStockProducts.length === 0 ? <p className="empty-state">No hay productos con poco stock.</p> : (
               <table className="report-table">
                 <thead><tr><th scope="col">Producto</th><th scope="col">Quedan</th></tr></thead>
