@@ -183,6 +183,8 @@ model Product {
   description   String
   imageKey      String?
   priceCents    Int
+  /// What one unit costs the business. Null means the cost is unknown.
+  costCents     Int?
   available     Boolean            @default(true)
   /// Units left to sell. Null means the product is not stock-tracked.
   stockQuantity Int?
@@ -260,6 +262,8 @@ model OrderItem {
   unitBaseCents     Int
   optionsTotalCents Int
   lineTotalCents    Int
+  /// Product cost per unit when the order was placed. Null when it was unknown.
+  unitCostCents     Int?
   station           PreparationStation
   fulfillment       FulfillmentType
   status            OrderItemStatus    @default(QUEUED)

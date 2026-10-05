@@ -8,7 +8,8 @@ const SOLD_STATUSES = ["CONFIRMED", "PREPARING", "READY", "DELIVERED"] as const;
 const IN_PROGRESS_STATUSES = ["AWAITING_PAYMENT", "CONFIRMED", "PREPARING", "READY"] as const;
 const TOP_PRODUCTS = 5;
 
-export type DashboardPeriod = { totalCents: number; orders: number; averageCents: number };
+/** profitCents counts only units with a known cost; null when none had one. */
+export type DashboardPeriod = { totalCents: number; orders: number; averageCents: number; profitCents: number | null };
 
 export type Dashboard = {
   timezone: string;
@@ -25,9 +26,13 @@ export type Dashboard = {
   lowStockProducts: { id: string; name: string; stockQuantity: number }[];
 };
 
-function summarize(rows: { totalCents: number }[]): DashboardPeriod {
+type SoldLine = { quantity: number; lineTotalCents: number; unitCostCents: number | null; order: { createdAt: Date } };
+
+function summarize(rows: { totalCents: number }[], lines: SoldLine[]): DashboardPeriod {
   const totalCents = rows.reduce((sum, row) => sum + row.totalCents, 0);
-  return { totalCents, orders: rows.length, averageCents: rows.length > 0 ? Math.round(totalCents / rows.length) : 0 };
+  const costed = lines.filter((line) => line.unitCostCents !== null);
+  const profitCents = costed.length === 0 ? null : costed.reduce((sum, line) => sum + line.lineTotalCents - line.quantity * line.unitCostCents!, 0);
+  return { totalCents, orders: rows.length, averageCents: rows.length > 0 ? Math.round(totalCents / rows.length) : 0, profitCents };
 }
 
 /** Owner dashboard: sales, open orders, best sellers and busiest hours. `now` is injectable for tests. */
@@ -38,8 +43,9 @@ export async function buildDashboard(now: Date = new Date()): Promise<Dashboard>
   const since7 = todayStart.minus({ days: 6 }).toJSDate();
   const since30 = todayStart.minus({ days: 29 }).toJSDate();
 
-  const [sales, open, items, lowStockProducts, lowStockSupplies] = await Promise.all([
+  const [sales, lines, open, items, lowStockProducts, lowStockSupplies] = await Promise.all([
     prisma.order.findMany({ where: { status: { in: [...SOLD_STATUSES] }, createdAt: { gte: since30 } }, select: { createdAt: true, totalCents: true } }),
+    prisma.orderItem.findMany({ where: { order: { status: { in: [...SOLD_STATUSES] }, createdAt: { gte: since30 } } }, select: { quantity: true, lineTotalCents: true, unitCostCents: true, order: { select: { createdAt: true } } } }),
     prisma.order.groupBy({ by: ["status"], where: { status: { in: [...IN_PROGRESS_STATUSES] } }, _count: true }),
     prisma.orderItem.groupBy({ by: ["productName"], where: { order: { status: { in: [...SOLD_STATUSES] }, createdAt: { gte: since7 } } }, _sum: { quantity: true, lineTotalCents: true } }),
     prisma.product.findMany({
@@ -62,9 +68,9 @@ export async function buildDashboard(now: Date = new Date()): Promise<Dashboard>
   const openByStatus = new Map(open.map((row) => [row.status, row._count]));
   return {
     timezone,
-    today: summarize(sales.filter((sale) => sale.createdAt >= todayStart.toJSDate())),
-    last7Days: summarize(sales.filter((sale) => sale.createdAt >= since7)),
-    last30Days: summarize(sales),
+    today: summarize(sales.filter((sale) => sale.createdAt >= todayStart.toJSDate()), lines.filter((line) => line.order.createdAt >= todayStart.toJSDate())),
+    last7Days: summarize(sales.filter((sale) => sale.createdAt >= since7), lines.filter((line) => line.order.createdAt >= since7)),
+    last30Days: summarize(sales, lines),
     inProgress: IN_PROGRESS_STATUSES.map((status) => ({ status, orders: openByStatus.get(status) ?? 0 })),
     topProducts: items
       .map((row) => ({ productName: row.productName, quantity: row._sum.quantity ?? 0, totalCents: row._sum.lineTotalCents ?? 0 }))

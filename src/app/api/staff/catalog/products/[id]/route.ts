@@ -18,7 +18,7 @@ export async function GET(request: NextRequest, context: RouteContext): Promise<
     const { id } = await context.params;
     const product = await catalog.findProduct(id);
     if (!product) throw new DomainError("PRODUCT_NOT_FOUND", "No encontramos ese producto.");
-    return NextResponse.json(product);
+    return NextResponse.json(principal.role === "ADMIN" ? product : { ...(product as object), costCents: null });
   } catch (error) {
     return apiErrorResponse(error);
   }
@@ -37,7 +37,11 @@ export async function PATCH(request: NextRequest, context: RouteContext): Promis
     if (productImageInputSchema.safeParse(body).success) {
       return NextResponse.json(await catalog.setProductImage(id, body, principal.userId));
     }
-    return NextResponse.json(await catalog.updateProduct(id, body));
+    if (principal.role === "ADMIN" || typeof body !== "object" || body === null) return NextResponse.json(await catalog.updateProduct(id, body));
+    // Operators never see the cost, so their edits must keep the one already loaded.
+    const current = await catalog.findProduct(id) as { costCents?: number | null } | null;
+    const updated = await catalog.updateProduct(id, { ...body, costCents: current?.costCents ?? null });
+    return NextResponse.json({ ...(updated as object), costCents: null });
   } catch (error) {
     return apiErrorResponse(error);
   }

@@ -24,6 +24,7 @@ type Product = {
   priceCents: number;
   available: boolean;
   stockQuantity: number | null;
+  costCents: number | null;
   featured: boolean;
   visible: boolean;
   station: "GENERAL" | "KITCHEN" | "BAR";
@@ -44,6 +45,8 @@ type ProductDraft = {
   name: string;
   description: string;
   price: string;
+  /** Empty means the cost is unknown. */
+  cost: string;
   /** Empty means the product is not stock-tracked. */
   stock: string;
   available: boolean;
@@ -60,6 +63,7 @@ const emptyDraft: ProductDraft = {
   name: "",
   description: "",
   price: "",
+  cost: "",
   stock: "",
   available: true,
   featured: false,
@@ -129,6 +133,7 @@ export default function StaffCatalogPage() {
       name: product.name,
       description: product.description,
       price: (product.priceCents / 100).toFixed(2),
+      cost: product.costCents === null || product.costCents === undefined ? "" : (product.costCents / 100).toFixed(2),
       stock: product.stockQuantity === null ? "" : String(product.stockQuantity),
       available: product.available,
       featured: product.featured,
@@ -177,6 +182,7 @@ export default function StaffCatalogPage() {
         name: draft.name,
         description: draft.description,
         priceCents: parseCents(draft.price),
+        costCents: draft.cost.trim() === "" ? null : parseCents(draft.cost),
         stockQuantity: draft.stock.trim() === "" ? null : Number(draft.stock),
         available: draft.available,
         featured: draft.featured,
@@ -388,6 +394,10 @@ export default function StaffCatalogPage() {
             <label className="form-field">
               <span>Precio en pesos</span>
               <input inputMode="decimal" min="0" onChange={(event) => updateDraft("price", event.target.value)} required step="0.01" type="number" value={draft.price} />
+            </label>
+            <label className="form-field">
+              <span>Costo en pesos (vacío = sin dato)</span>
+              <input inputMode="decimal" min="0" onChange={(event) => updateDraft("cost", event.target.value)} placeholder="Para calcular la ganancia" step="0.01" type="number" value={draft.cost} />
             </label>
             <label className="form-field">
               <span>Stock (vacío = sin límite)</span>

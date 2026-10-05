@@ -18,6 +18,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const storage = createImageStorage();
     return NextResponse.json(products.map((product) => ({
       ...product,
+      // Costs are the owner's business: operators get the catalog without them.
+      costCents: principal.role === "ADMIN" ? product.costCents ?? null : null,
       imageUrl: product.imageKey ? storage.publicUrl(product.imageKey) : null,
       stockLeft: product.stockQuantity !== null && product.stockQuantity <= LOW_STOCK_THRESHOLD ? product.stockQuantity : null,
     })));
@@ -32,7 +34,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const body: unknown = await request.json().catch(() => null);
   try {
-    return NextResponse.json(await catalog.createProduct(body), { status: 201 });
+    // Only the owner sets costs; an operator's new product starts without one.
+    const input = principal.role === "ADMIN" || typeof body !== "object" || body === null ? body : { ...body, costCents: null };
+    return NextResponse.json(await catalog.createProduct(input), { status: 201 });
   } catch (error) {
     return apiErrorResponse(error);
   }

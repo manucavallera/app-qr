@@ -43,6 +43,8 @@ export const catalogProductInputSchema = z.object({
   name: z.string().trim().min(1).max(120),
   description: z.string().trim().max(600),
   priceCents: z.number().int().min(0).max(2_000_000_000),
+  // Null means the cost is unknown; such products are left out of the profit.
+  costCents: z.number().int().min(0).max(2_000_000_000).nullable().default(null),
   available: z.boolean(),
   // Null means unlimited. Defaults to null so existing callers stay valid.
   stockQuantity: z.number().int().min(0).max(100_000).nullable().default(null),

@@ -1157,6 +1157,8 @@ html:has(.ready-board), body:has(.ready-board) { background: var(--night-bg); }
 .dashboard-hours li > :last-child { text-align: right; }
 .dashboard-bar { height: 10px; border-radius: 6px; background: var(--paper-divider); overflow: hidden; }
 .dashboard-bar > span { display: block; height: 100%; border-radius: 6px; background: var(--paper-text-muted); }
+.report-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.report-note { margin: -12px 0 24px; font-size: 0.85rem; }
 .staff-panel .section-title { margin: 28px 0 12px; font-size: 1rem; }
 .panel-heading + .report-totals { margin-top: 16px; }
 .supply-table td, .supply-table th { vertical-align: middle; }

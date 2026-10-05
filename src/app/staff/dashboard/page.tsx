@@ -49,7 +49,7 @@ export default function DashboardPage() {
           <>
             <dl className="report-totals">
               {periods.map(({ label, value }) => (
-                <div key={label}><dt>{label}</dt><dd>{formatArs(value.totalCents)}</dd><dd className="dashboard-sub">{value.orders} pedidos · promedio {formatArs(value.averageCents)}</dd></div>
+                <div key={label}><dt>{label}</dt><dd>{formatArs(value.totalCents)}</dd><dd className="dashboard-sub">{value.orders} pedidos · promedio {formatArs(value.averageCents)}</dd><dd className="dashboard-sub">{value.profitCents === null ? "Ganancia: cargá costos en Carta" : `Ganancia ${formatArs(value.profitCents)}`}</dd></div>
               ))}
             </dl>
 

@@ -8,7 +8,7 @@ const now = new Date("2001-03-15T18:00:00.000Z");
 const productName = `Dashboard ${randomUUID()}`;
 const orderIds: string[] = [];
 
-async function createOrder(createdAt: string, status: "DELIVERED" | "CANCELLED", quantity: number) {
+async function createOrder(createdAt: string, status: "DELIVERED" | "CANCELLED", quantity: number, unitCostCents: number | null = null) {
   const totalCents = 1000 * quantity;
   const order = await prisma.order.create({
     data: {
@@ -17,7 +17,7 @@ async function createOrder(createdAt: string, status: "DELIVERED" | "CANCELLED",
       status,
       totalCents,
       createdAt: new Date(createdAt),
-      items: { create: { productName, quantity, unitBaseCents: 1000, optionsTotalCents: 0, lineTotalCents: totalCents, station: "GENERAL", fulfillment: "TABLE" } },
+      items: { create: { productName, unitCostCents, quantity, unitBaseCents: 1000, optionsTotalCents: 0, lineTotalCents: totalCents, station: "GENERAL", fulfillment: "TABLE" } },
     },
   });
   orderIds.push(order.id);
@@ -26,7 +26,7 @@ async function createOrder(createdAt: string, status: "DELIVERED" | "CANCELLED",
 describe("dashboard", () => {
   beforeAll(async () => {
     await createOrder("2001-03-15T15:00:00.000Z", "DELIVERED", 2); // today
-    await createOrder("2001-03-12T15:00:00.000Z", "DELIVERED", 1); // 3 days ago
+    await createOrder("2001-03-12T15:00:00.000Z", "DELIVERED", 1, 300); // 3 days ago
     await createOrder("2001-03-01T15:00:00.000Z", "DELIVERED", 3); // 14 days ago
     await createOrder("2001-03-15T16:00:00.000Z", "CANCELLED", 9); // never counts
     await createOrder("2001-01-01T15:00:00.000Z", "DELIVERED", 7); // outside the 30-day window
@@ -39,9 +39,9 @@ describe("dashboard", () => {
   it("splits paid sales into today, 7 and 30 day windows and ignores cancelled orders", async () => {
     const dashboard = await buildDashboard(now);
 
-    expect(dashboard.today).toEqual({ totalCents: 2000, orders: 1, averageCents: 2000 });
-    expect(dashboard.last7Days).toEqual({ totalCents: 3000, orders: 2, averageCents: 1500 });
-    expect(dashboard.last30Days).toEqual({ totalCents: 6000, orders: 3, averageCents: 2000 });
+    expect(dashboard.today).toEqual({ totalCents: 2000, orders: 1, averageCents: 2000, profitCents: null });
+    expect(dashboard.last7Days).toEqual({ totalCents: 3000, orders: 2, averageCents: 1500, profitCents: 700 });
+    expect(dashboard.last30Days).toEqual({ totalCents: 6000, orders: 3, averageCents: 2000, profitCents: 700 });
   });
 
   it("ranks best sellers over the last 7 days and buckets sales by local hour", async () => {

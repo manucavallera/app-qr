@@ -30,6 +30,7 @@ function productScalars(input: CatalogProductInput) {
     name: input.name,
     description: input.description,
     priceCents: input.priceCents,
+    costCents: input.costCents,
     available: input.available,
     stockQuantity: input.stockQuantity,
     visible: input.visible,
