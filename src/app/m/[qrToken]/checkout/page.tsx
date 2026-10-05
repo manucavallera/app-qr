@@ -13,7 +13,7 @@ type MenuProduct = { id: string; name: string; optionGroups: { values: { id: str
 type UnavailableMethod = { method: PaymentMethod; reason: string };
 type MenuPayment = { methods: PaymentMethod[]; unavailable: UnavailableMethod[]; transfer: TransferDetails | null };
 type PaymentStatus = "loading" | "ready" | "error";
-const paymentLabels: Record<PaymentMethod, string> = { MERCADO_PAGO: "Mercado Pago", CASH: "Efectivo en caja", CARD_AT_COUNTER: "Tarjeta en caja", BANK_TRANSFER: "Transferencia bancaria", ON_TAB: "Pagar al final, con la cuenta de la mesa" };
+const paymentLabels: Record<PaymentMethod, string> = { MERCADO_PAGO: "Mercado Pago", CASH: "Efectivo en caja", CARD_AT_COUNTER: "Tarjeta en caja", BANK_TRANSFER: "Transferencia bancaria", ON_TAB: "Pagar al final" };
 
 export default function CheckoutPage() {
   const { qrToken } = useParams<{ qrToken: string }>();
@@ -120,7 +120,7 @@ export default function CheckoutPage() {
                 <input aria-label={paymentLabels[method]} type="radio" name="payment" checked={paymentMethod === method} onChange={() => { setPaymentMethod(method); setCopied(false); }} />
                 <span>
                   <strong>{paymentLabels[method]}</strong>
-                  <small>{method === "MERCADO_PAGO" ? "Pagás online y volvés al seguimiento." : method === "BANK_TRANSFER" ? "Transferís y Caja confirma el pedido." : "Se confirma en Caja."}</small>
+                  <small>{method === "MERCADO_PAGO" ? "Pagás online y volvés al seguimiento." : method === "BANK_TRANSFER" ? "Transferís y Caja confirma el pedido." : method === "ON_TAB" ? "Sale a preparación ahora. Pagás al pedir la cuenta." : "Se confirma en Caja."}</small>
                 </span>
               </label>
             ))}
