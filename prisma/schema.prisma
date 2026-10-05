@@ -69,6 +69,19 @@ enum FulfillmentType {
   PICKUP
 }
 
+/// Quantities are whole numbers in the base unit: units, grams or milliliters.
+enum SupplyUnit {
+  UNIT
+  GRAM
+  MILLILITER
+}
+
+enum SupplyMovementReason {
+  PURCHASE
+  ADJUSTMENT
+  WASTE
+}
+
 model BusinessSettings {
   id           String     @id @default("default")
   name         String
@@ -81,16 +94,16 @@ model BusinessSettings {
 }
 
 model PaymentSettings {
-  id                    String   @id @default("default")
-  mercadoPagoEnabled    Boolean  @default(false)
-  cashEnabled           Boolean  @default(true)
-  cardAtCounterEnabled  Boolean  @default(true)
-  bankTransferEnabled   Boolean  @default(false)
-  bankAlias             String?
-  bankCbuCvu            String?
-  bankAccountHolder     String?
-  bankInstructions      String?
-  updatedAt             DateTime @updatedAt
+  id                   String   @id @default("default")
+  mercadoPagoEnabled   Boolean  @default(false)
+  cashEnabled          Boolean  @default(true)
+  cardAtCounterEnabled Boolean  @default(true)
+  bankTransferEnabled  Boolean  @default(false)
+  bankAlias            String?
+  bankCbuCvu           String?
+  bankAccountHolder    String?
+  bankInstructions     String?
+  updatedAt            DateTime @updatedAt
 }
 
 model ServiceWindow {
@@ -116,6 +129,7 @@ model StaffUser {
   confirmedPayments PaymentAttempt[]   @relation("PaymentConfirmer")
   statusEvents      OrderStatusEvent[] @relation("StatusActor")
   auditEvents       AuditEvent[]
+  supplyMovements   SupplyMovement[]
 }
 
 model StaffSession {
@@ -163,26 +177,26 @@ model Category {
 }
 
 model Product {
-  id           String             @id @default(uuid())
-  categoryId   String
-  name         String
-  description  String
-  imageKey     String?
-  priceCents   Int
-  available    Boolean            @default(true)
+  id            String             @id @default(uuid())
+  categoryId    String
+  name          String
+  description   String
+  imageKey      String?
+  priceCents    Int
+  available     Boolean            @default(true)
   /// Units left to sell. Null means the product is not stock-tracked.
   stockQuantity Int?
   /// Shown in the "Recomendados" row at the top of the customer menu.
-  featured     Boolean            @default(false)
-  visible      Boolean            @default(true)
-  station      PreparationStation @default(GENERAL)
-  fulfillment  FulfillmentType    @default(TABLE)
-  sortOrder    Int                @default(0)
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
-  category     Category           @relation(fields: [categoryId], references: [id])
-  optionGroups OptionGroup[]
-  orderItems   OrderItem[]
+  featured      Boolean            @default(false)
+  visible       Boolean            @default(true)
+  station       PreparationStation @default(GENERAL)
+  fulfillment   FulfillmentType    @default(TABLE)
+  sortOrder     Int                @default(0)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  category      Category           @relation(fields: [categoryId], references: [id])
+  optionGroups  OptionGroup[]
+  orderItems    OrderItem[]
 
   @@index([categoryId, sortOrder])
 }
@@ -315,4 +329,33 @@ model RateLimitBucket {
   count     Int
   resetsAt  DateTime
   updatedAt DateTime @updatedAt
+}
+
+model Supply {
+  id          String           @id @default(uuid())
+  name        String           @unique
+  unit        SupplyUnit
+  /// Quantity on hand, in the base unit of `unit`.
+  quantity    Int              @default(0)
+  /// At or below this quantity the supply is flagged as running low.
+  minQuantity Int              @default(0)
+  active      Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  movements   SupplyMovement[]
+}
+
+model SupplyMovement {
+  id           String               @id @default(uuid())
+  supplyId     String
+  /// Signed change in the base unit: positive adds stock, negative removes it.
+  delta        Int
+  reason       SupplyMovementReason
+  note         String?
+  actorStaffId String?
+  createdAt    DateTime             @default(now())
+  supply       Supply               @relation(fields: [supplyId], references: [id], onDelete: Cascade)
+  actorStaff   StaffUser?           @relation(fields: [actorStaffId], references: [id])
+
+  @@index([supplyId, createdAt])
 }

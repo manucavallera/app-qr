@@ -1151,6 +1151,20 @@ html:has(.ready-board), body:has(.ready-board) { background: var(--night-bg); }
 .report-table th:first-child { text-align: left; }
 .report-table thead th { color: var(--paper-text-muted); font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; }
 .report-table tbody th { font-weight: 600; }
+.report-totals .dashboard-sub { margin: 4px 0 0; color: var(--paper-text-muted); font-size: 0.8rem; font-weight: 500; }
+.dashboard-hours { display: grid; gap: 6px; margin: 0 0 24px; padding: 0; list-style: none; font-size: 0.88rem; font-variant-numeric: tabular-nums; }
+.dashboard-hours li { display: grid; grid-template-columns: 52px minmax(0, 1fr) 96px; align-items: center; gap: 10px; }
+.dashboard-hours li > :last-child { text-align: right; }
+.dashboard-bar { height: 10px; border-radius: 6px; background: var(--paper-divider); overflow: hidden; }
+.dashboard-bar > span { display: block; height: 100%; border-radius: 6px; background: var(--paper-text-muted); }
+.supply-table td, .supply-table th { vertical-align: middle; }
+.supply-table .supply-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 2px 12px; border-bottom: 0; }
+.supply-inactive { opacity: 0.6; }
+.supply-low { color: #9b3d34; font-weight: 700; }
+.supply-form { display: flex; flex-wrap: wrap; align-items: end; gap: 10px 14px; }
+.supply-form .primary-link { border: 0; cursor: pointer; font: inherit; font-weight: 700; }
+.supply-quantity { display: flex; align-items: center; gap: 6px; }
+.supply-quantity .form-input { min-width: 0; width: 7rem; }
 @media (max-width: 520px) { .report-range { grid-template-columns: minmax(0, 1fr); } }
 @media print { .staff-nav, .staff-header form, .report-range, .report-print { display: none; } }
 
