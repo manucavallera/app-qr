@@ -1,12 +1,10 @@
+import { getClientIp } from "@/lib/http/client-ip";
 import { NextRequest, NextResponse } from "next/server";
 import { apiErrorResponse } from "@/lib/api-errors";
 import { CUSTOMER_SESSION_COOKIE, CUSTOMER_SESSION_TTL_SECONDS, customerSessionService } from "@/modules/tables/customer-session-service";
 
 type RouteContext = { params: Promise<{ qrToken: string }> };
 
-function getClientIp(request: NextRequest): string {
-  return (request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown").slice(0, 120);
-}
 export async function GET(request: NextRequest, { params }: RouteContext): Promise<NextResponse> {
   const { qrToken } = await params;
   const principal = await customerSessionService.authenticate(request.cookies.get(CUSTOMER_SESSION_COOKIE)?.value, qrToken);

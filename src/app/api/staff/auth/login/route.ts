@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { getClientIp } from "@/lib/http/client-ip";
 import { apiErrorResponse } from "@/lib/api-errors";
 import { AuthService, loginRateLimitKey, STAFF_SESSION_COOKIE, STAFF_SESSION_MAX_AGE_SECONDS } from "@/modules/auth/auth-service";
 import { DomainError } from "@/modules/orders/errors";
@@ -20,8 +21,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const normalizedEmail = parsed.data.email.toLowerCase();
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  const ipAddress = forwardedFor?.split(",")[0]?.trim() || "unknown";
+  const ipAddress = getClientIp(request);
   const rateLimitKey = loginRateLimitKey(normalizedEmail, ipAddress);
   // Second bucket per email alone, so rotating the forwarded IP cannot lift the limit.
   const emailRateLimitKey = `staff-login-email:${normalizedEmail}`;
