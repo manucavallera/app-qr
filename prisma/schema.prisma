@@ -46,6 +46,8 @@ enum PaymentMethod {
   CASH
   CARD_AT_COUNTER
   BANK_TRANSFER
+  /// Pedido de mesa que se paga al pedir la cuenta.
+  ON_TAB
   OTHER
 }
 
@@ -99,6 +101,8 @@ model PaymentSettings {
   cashEnabled          Boolean  @default(true)
   cardAtCounterEnabled Boolean  @default(true)
   bankTransferEnabled  Boolean  @default(false)
+  /// Permite pedir desde el QR y pagar al final, sobre la cuenta de la mesa.
+  tabEnabled           Boolean  @default(false)
   bankAlias            String?
   bankCbuCvu           String?
   bankAccountHolder    String?
@@ -146,6 +150,8 @@ model DiningTable {
   label            String            @unique
   qrToken          String            @unique
   active           Boolean           @default(true)
+  /// Se completa cuando la mesa pide la cuenta; se limpia al cobrarla.
+  billRequestedAt  DateTime?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   customerSessions CustomerSession[]

@@ -21,6 +21,7 @@ const paymentSettingsSchema = z.object({
   cashEnabled: z.boolean(),
   cardAtCounterEnabled: z.boolean(),
   bankTransferEnabled: z.boolean(),
+  tabEnabled: z.boolean().default(false),
   bankAlias: z.string().trim().max(120).nullable(),
   bankCbuCvu: z.string().trim().max(120).nullable(),
   bankAccountHolder: z.string().trim().max(120).nullable(),
