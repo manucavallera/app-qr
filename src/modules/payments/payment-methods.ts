@@ -3,6 +3,7 @@ export type PaymentMethodValue =
   | "CASH"
   | "CARD_AT_COUNTER"
   | "BANK_TRANSFER"
+  | "ON_TAB"
   | "OTHER";
 
 export type PublicPaymentMethod = Exclude<PaymentMethodValue, "OTHER">;
@@ -12,6 +13,7 @@ export type PaymentSettingsView = {
   cashEnabled: boolean;
   cardAtCounterEnabled: boolean;
   bankTransferEnabled: boolean;
+  tabEnabled: boolean;
   bankAlias: string | null;
   bankCbuCvu: string | null;
   bankAccountHolder: string | null;
@@ -27,6 +29,7 @@ const methodLabels: Record<PaymentMethodValue, string> = {
   CASH: "Efectivo en caja",
   CARD_AT_COUNTER: "Tarjeta en caja",
   BANK_TRANSFER: "Transferencia bancaria",
+  ON_TAB: "Pagar al final",
   OTHER: "Otro",
 };
 
@@ -66,5 +69,6 @@ export function availablePaymentMethods(
   if (settings.cashEnabled) methods.push("CASH");
   if (settings.cardAtCounterEnabled) methods.push("CARD_AT_COUNTER");
   if (settings.bankTransferEnabled && hasBankInstructions(settings)) methods.push("BANK_TRANSFER");
+  if (settings.tabEnabled) methods.push("ON_TAB");
   return methods;
 }

@@ -2,7 +2,7 @@
 
 import { type ReactNode } from "react";
 
-export type StaffSection = "home" | "payments" | "commands" | "counter" | "orders" | "catalog" | "tables" | "settings" | "users" | "audit" | "reports" | "dashboard" | "supplies";
+export type StaffSection = "home" | "payments" | "commands" | "counter" | "orders" | "catalog" | "tables" | "settings" | "users" | "audit" | "reports" | "dashboard" | "supplies" | "tabs";
 type StaffRole = "ADMIN" | "OPERATOR";
 
 type StaffShellProps = {
@@ -15,6 +15,7 @@ type StaffShellProps = {
 const links: Array<{ section: StaffSection; label: string; href: string }> = [
   { section: "home", label: "Inicio", href: "/staff" },
   { section: "payments", label: "Pagos", href: "/staff/payments" },
+  { section: "tabs", label: "Cuentas", href: "/staff/tabs" },
   { section: "commands", label: "Comandas", href: "/staff/commands" },
   { section: "counter", label: "Caja", href: "/staff/counter" },
   { section: "orders", label: "Pedidos", href: "/staff/orders" },

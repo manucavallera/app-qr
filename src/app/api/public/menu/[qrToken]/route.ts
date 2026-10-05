@@ -60,6 +60,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext): Prom
       cashEnabled: true,
       cardAtCounterEnabled: true,
       bankTransferEnabled: false,
+      tabEnabled: false,
       bankAlias: null,
       bankCbuCvu: null,
       bankAccountHolder: null,

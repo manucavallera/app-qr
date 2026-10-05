@@ -15,6 +15,7 @@ const defaultPaymentSettings: PaymentSettingsView = {
   cashEnabled: true,
   cardAtCounterEnabled: true,
   bankTransferEnabled: false,
+  tabEnabled: false,
   bankAlias: null,
   bankCbuCvu: null,
   bankAccountHolder: null,
@@ -182,6 +183,8 @@ export class PrismaOrderRepository {
 
       const paymentConfiguration = paymentSettingsView(paymentSettings);
       assertPaymentMethodAvailable(paymentConfiguration, input.paymentMethod);
+      // Con "pagar al final" el pedido sale a cocina ya, y se cobra al cerrar la cuenta de la mesa.
+      const onTab = input.paymentMethod === "ON_TAB";
 
       const products = await findQuoteProducts(tx, input.items);
       const quote = quoteOrReportFresh(input, products);
@@ -192,7 +195,7 @@ export class PrismaOrderRepository {
           tableId: session.tableId,
           customerSessionId: session.id,
           origin: "QR",
-          status: "AWAITING_PAYMENT",
+          status: onTab ? "CONFIRMED" : "AWAITING_PAYMENT",
           totalCents: quote.totalCents,
           items: { create: quoteItemCreates(quote, await findProductCosts(tx, quote)) },
           payments: {
@@ -203,7 +206,7 @@ export class PrismaOrderRepository {
               idempotencyKey: `${input.clientRequestId}:initial`,
             },
           },
-          statusEvents: { create: { fromStatus: null, toStatus: "AWAITING_PAYMENT" } },
+          statusEvents: { create: { fromStatus: null, toStatus: onTab ? "CONFIRMED" : "AWAITING_PAYMENT" } },
         },
         include: orderInclude,
       });

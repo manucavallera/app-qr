@@ -12,6 +12,7 @@ const defaultPaymentSettings = {
   cashEnabled: true,
   cardAtCounterEnabled: true,
   bankTransferEnabled: false,
+  tabEnabled: false,
   bankAlias: null,
   bankCbuCvu: null,
   bankAccountHolder: null,

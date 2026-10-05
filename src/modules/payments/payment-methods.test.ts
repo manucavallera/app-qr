@@ -11,6 +11,7 @@ const settings: PaymentSettingsView = {
   cashEnabled: true,
   cardAtCounterEnabled: true,
   bankTransferEnabled: false,
+  tabEnabled: false,
   bankAlias: null,
   bankCbuCvu: null,
   bankAccountHolder: null,
@@ -23,9 +24,15 @@ describe("payment method presentation", () => {
     expect(paymentMethodLabel("CASH")).toBe("Efectivo en caja");
     expect(paymentMethodLabel("CARD_AT_COUNTER")).toBe("Tarjeta en caja");
     expect(paymentMethodLabel("BANK_TRANSFER")).toBe("Transferencia bancaria");
+    expect(paymentMethodLabel("ON_TAB")).toBe("Pagar al final");
     expect(paymentMethodLabel("OTHER")).toBe("Otro");
     expect(paymentStatusLabel("AWAITING_PAYMENT")).toBe("Esperando pago");
     expect(paymentStatusLabel("APPROVED")).toBe("Pago confirmado");
+  });
+
+  it("offers pay-at-the-end only when the tab is enabled", () => {
+    expect(availablePaymentMethods(settings, { mercadoPagoConfigured: false })).not.toContain("ON_TAB");
+    expect(availablePaymentMethods({ ...settings, tabEnabled: true }, { mercadoPagoConfigured: false })).toContain("ON_TAB");
   });
 
   it("returns only enabled methods and configured Mercado Pago", () => {
