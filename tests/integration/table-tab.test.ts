@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { POST as createOrderRoute } from "@/app/api/public/orders/route";
 import { GET as customerTabRoute } from "@/app/api/public/tab/route";
 import { POST as requestBillRoute } from "@/app/api/public/tab/bill/route";
+import { GET as summaryRoute } from "@/app/api/staff/summary/route";
 import { GET as staffTabsRoute } from "@/app/api/staff/tabs/route";
 import { POST as settleRoute } from "@/app/api/staff/tabs/settle/route";
 import { prisma } from "@/lib/db";
@@ -96,6 +97,10 @@ describe("table tab: order now, pay at the end", () => {
     const table = tabs.find((entry: { id: string }) => entry.id === tableId);
     expect(table.billRequestedAt).not.toBeNull();
     expect(table.totalCents).toBe(3000);
+    const summary = await (await summaryRoute(call("http://localhost/api/staff/summary", { headers: staffHeaders() }))).json();
+    expect(summary.openTabs.tables).toBeGreaterThanOrEqual(1);
+    expect(summary.openTabs.billRequested).toBeGreaterThanOrEqual(1);
+    expect(summary.openTabs.totalCents).toBeGreaterThanOrEqual(3000);
     expect(table.people.map((person: { name: string }) => person.name).sort()).toEqual(["Ana", "Beto"]);
   });
 

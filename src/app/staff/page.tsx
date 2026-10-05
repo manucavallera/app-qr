@@ -5,7 +5,7 @@ import { formatArs } from "@/lib/format";
 import { StaffShell } from "@/components/staff/staff-shell";
 import { TaskCard } from "@/components/staff/task-card";
 
-type Summary = { pendingPayments: number; activeCommands: number; lowStock?: { id: string; name: string; stockQuantity: number }[]; refundsDue?: { id: string; method: string; amountCents: number; orderNumber: number }[]; qrMode: "QR_OPEN" | "COUNTER_ONLY" | "PAUSED"; role?: "ADMIN" | "OPERATOR" };
+type Summary = { pendingPayments: number; activeCommands: number; lowStock?: { id: string; name: string; stockQuantity: number }[]; refundsDue?: { id: string; method: string; amountCents: number; orderNumber: number }[]; openTabs?: { tables: number; totalCents: number; billRequested: number }; qrMode: "QR_OPEN" | "COUNTER_ONLY" | "PAUSED"; role?: "ADMIN" | "OPERATOR" };
 const methodNames: Record<string, string> = { MERCADO_PAGO: "Mercado Pago", CASH: "efectivo", CARD_AT_COUNTER: "tarjeta", BANK_TRANSFER: "transferencia" };
 const modeLabels: Record<Summary["qrMode"], string> = { QR_OPEN: "Pedidos QR abiertos", COUNTER_ONLY: "Solo pedidos en caja", PAUSED: "Pedidos QR pausados" };
 
@@ -49,6 +49,13 @@ export default function StaffHomePage() {
             ))}</ul>
             {summary.role !== "ADMIN" && <small>Avisá a un administrador para registrarlo.</small>}
             {returnError && <small role="alert">{returnError}</small>}
+          </aside>
+        )}
+        {summary?.openTabs && summary.openTabs.tables > 0 && (
+          <aside className={`stock-alert${summary.qrMode !== "QR_OPEN" || summary.openTabs.billRequested > 0 ? " refund-alert" : ""}`} role={summary.qrMode !== "QR_OPEN" ? "alert" : "status"}>
+            <strong>Cuentas sin cobrar</strong>
+            <p>{summary.openTabs.tables} {summary.openTabs.tables === 1 ? "mesa debe" : "mesas deben"} {formatArs(summary.openTabs.totalCents)}{summary.openTabs.billRequested > 0 ? `; ${summary.openTabs.billRequested} ya pidió la cuenta` : ""}.{summary.qrMode !== "QR_OPEN" ? " El horario de pedidos por QR ya cerró: cobrá estas cuentas antes de cerrar la caja." : ""}</p>
+            <a href="/staff/tabs">Ir a cobrar</a>
           </aside>
         )}
         {summary?.lowStock && summary.lowStock.length > 0 && (
