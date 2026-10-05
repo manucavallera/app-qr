@@ -20,6 +20,7 @@ export function salesReportCsv(report: SalesReport, methodLabel: (method: string
     ["Ventas sin costo cargado", pesos(report.uncostedCents)],
     ["Cancelados", report.cancelledOrders],
     ["Esperando pago", report.awaitingPaymentOrders],
+    ["Por cobrar en cuentas de mesa", pesos(report.onTabCents)],
     [],
     ["Medio de pago", "Cobros", "Total"],
     ...report.byPaymentMethod.map((row) => [methodLabel(row.method), row.payments, pesos(row.totalCents)]),

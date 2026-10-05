@@ -11,7 +11,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const principal = await requireStaff(request, roles);
   if (principal instanceof NextResponse) return principal;
   try {
-    const [pendingPayments, activeCommands, settings, windows, lowStock, paymentsToReturn] = await Promise.all([
+    const [pendingPayments, activeCommands, settings, windows, lowStock, paymentsToReturn, tabPayments] = await Promise.all([
       prisma.order.count({ where: { status: "AWAITING_PAYMENT", payments: { some: { status: "UNPAID", method: { in: ["CASH", "CARD_AT_COUNTER", "BANK_TRANSFER"] } } } } }),
       prisma.order.count({ where: { status: { in: ["CONFIRMED", "PREPARING", "READY"] } } }),
       prisma.businessSettings.findUnique({ where: { id: "default" } }),
@@ -28,10 +28,27 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         take: 20,
         select: { id: true, method: true, amountCents: true, order: { select: { number: true } } },
       }),
+      // Cuentas de mesa sin cobrar: pedidos "pagar al final" que siguen vivos.
+      prisma.paymentAttempt.findMany({
+        where: { method: "ON_TAB", status: "UNPAID", order: { status: { not: "CANCELLED" }, tabId: { not: null } } },
+        select: { amountCents: true, order: { select: { tabId: true, tab: { select: { billRequestedAt: true } } } } },
+      }),
     ]);
+    const openTabTables = new Map<string, { cents: number; billRequested: boolean }>();
+    for (const payment of tabPayments) {
+      const tabId = payment.order.tabId!;
+      const entry = openTabTables.get(tabId) ?? { cents: 0, billRequested: Boolean(payment.order.tab?.billRequestedAt) };
+      entry.cents += payment.amountCents;
+      openTabTables.set(tabId, entry);
+    }
+    const openTabs = {
+      tables: openTabTables.size,
+      totalCents: [...openTabTables.values()].reduce((sum, entry) => sum + entry.cents, 0),
+      billRequested: [...openTabTables.values()].filter((entry) => entry.billRequested).length,
+    };
     const refundsDue = paymentsToReturn.map((payment) => ({ id: payment.id, method: payment.method, amountCents: payment.amountCents, orderNumber: payment.order.number }));
     const qrMode = settings ? resolveServiceMode(new Date(), settings.timezone, windows, settings.manualMode) : "COUNTER_ONLY";
-    return NextResponse.json({ pendingPayments, activeCommands, qrMode, lowStock, refundsDue, role: principal.role }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ pendingPayments, activeCommands, qrMode, lowStock, refundsDue, openTabs, role: principal.role }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return apiErrorResponse(error);
   }

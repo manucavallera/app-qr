@@ -8,9 +8,11 @@ export const customerOrderSteps = [
 
 type OrderProgressProps = Readonly<{
   currentStatus: string;
+  /** Pedido de cuenta de mesa: se confirma sin pagar, así que el paso no habla de pago. */
+  payLater?: boolean;
 }>;
 
-export function OrderProgress({ currentStatus }: OrderProgressProps) {
+export function OrderProgress({ currentStatus, payLater = false }: OrderProgressProps) {
   const currentIndex = customerOrderSteps.findIndex((step) => step.status === currentStatus);
 
   return (
@@ -20,7 +22,7 @@ export function OrderProgress({ currentStatus }: OrderProgressProps) {
         return (
           <li className={`${isDone ? "is-done " : ""}${currentStatus === step.status ? "is-current" : ""}`.trim()} key={step.status}>
             <span>{index + 1}</span>
-            <strong>{step.label}</strong>
+            <strong>{payLater && step.status === "CONFIRMED" ? "Pedido confirmado" : step.label}</strong>
           </li>
         );
       })}

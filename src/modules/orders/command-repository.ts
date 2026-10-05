@@ -5,6 +5,7 @@ import type { CommandRepository } from "./command-service";
 import type { ItemTransitionInput, OrderTransitionInput } from "./command-contracts";
 import { DomainError } from "./errors";
 import { releaseOrderStock } from "./stock";
+import { closeTabIfSettled } from "./table-tab";
 
 const commandInclude = {
   table: { select: { label: true } },
@@ -26,6 +27,12 @@ async function lockOrder(tx: Prisma.TransactionClient, orderId: string): Promise
 
 async function notifyOrderChanged(tx: Prisma.TransactionClient, orderId: string, version: number): Promise<void> {
   await tx.$executeRaw`SELECT pg_notify('appqr_order_events', ${JSON.stringify({ type: "order.changed", orderId, version, occurredAt: new Date().toISOString() })})`;
+}
+
+/** Un pedido cancelado deja de contar en su cuenta de mesa; si no queda nada por cobrar, la cuenta se cierra. */
+async function dropFromTab(tx: Prisma.TransactionClient, order: { tabId: string | null }, orderId: string): Promise<void> {
+  await tx.paymentAttempt.updateMany({ where: { orderId, method: "ON_TAB", status: "UNPAID" }, data: { status: "REJECTED" } });
+  if (order.tabId) await closeTabIfSettled(tx, order.tabId);
 }
 
 export class PrismaCommandRepository implements CommandRepository {
@@ -51,7 +58,10 @@ export class PrismaCommandRepository implements CommandRepository {
       if (current.version !== input.expectedVersion) throw new DomainError("ORDER_VERSION_CONFLICT", "El pedido cambió. Actualizá la pantalla.");
       assertOrderTransition(current.status as OrderStatus, input.targetStatus as OrderStatus, role, input.reason);
       const updated = await tx.order.update({ where: { id: orderId }, data: { status: input.targetStatus, version: { increment: 1 }, cancellationReason: input.targetStatus === "CANCELLED" ? input.reason : undefined }, include: commandInclude });
-      if (input.targetStatus === "CANCELLED") await releaseOrderStock(tx, orderId);
+      if (input.targetStatus === "CANCELLED") {
+        await releaseOrderStock(tx, orderId);
+        await dropFromTab(tx, updated, orderId);
+      }
       await tx.orderStatusEvent.create({ data: { orderId, fromStatus: current.status, toStatus: input.targetStatus, actorStaffId, reason: input.reason } });
       await tx.auditEvent.create({ data: { actorStaffId, action: "ORDER_STATUS_CHANGED", entityType: "Order", entityId: orderId, metadata: { from: current.status, to: input.targetStatus } } });
       await notifyOrderChanged(tx, orderId, updated.version);

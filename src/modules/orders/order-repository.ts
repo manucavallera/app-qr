@@ -6,6 +6,7 @@ import { DomainError } from "./errors";
 import { calculateQuote, type OrderQuote, type QuoteProduct, type QuoteRequest } from "./quote";
 import type { CreateCounterOrderInput, CreateQrOrderInput, ConfirmTraditionalPaymentInput } from "./order-contracts";
 import { hasStock, releaseOrderStock, reserveStock } from "./stock";
+import { openTabForTable } from "./table-tab";
 import { createCheckoutIdempotencyKey } from "../payments/payment-service";
 import { availablePaymentMethods, type PaymentSettingsView } from "../payments/payment-methods";
 
@@ -194,6 +195,7 @@ export class PrismaOrderRepository {
           clientRequestId: input.clientRequestId,
           tableId: session.tableId,
           customerSessionId: session.id,
+          tabId: onTab ? await openTabForTable(tx, session.tableId) : undefined,
           origin: "QR",
           status: onTab ? "CONFIRMED" : "AWAITING_PAYMENT",
           totalCents: quote.totalCents,
@@ -241,11 +243,15 @@ export class PrismaOrderRepository {
       const quote = quoteOrReportFresh(input, products);
       await reserveStock(tx, quote.items);
       const awaitsPaymentConfirmation = ["BANK_TRANSFER", "MERCADO_PAGO"].includes(input.paymentMethod);
+      // El mozo suma el pedido a la cuenta de la mesa: sale a cocina y se cobra al final.
+      const onTab = input.paymentMethod === "ON_TAB";
+      const paidNow = !awaitsPaymentConfirmation && !onTab;
       const initialStatus = awaitsPaymentConfirmation ? "AWAITING_PAYMENT" : "CONFIRMED";
       const order = await tx.order.create({
         data: {
           clientRequestId: input.clientRequestId,
           tableId: input.tableId,
+          tabId: onTab ? await openTabForTable(tx, input.tableId!) : undefined,
           customerName: input.nickname,
           createdByStaffId: staffId,
           origin: "COUNTER",
@@ -255,10 +261,10 @@ export class PrismaOrderRepository {
           payments: {
             create: {
               method: input.paymentMethod,
-              status: awaitsPaymentConfirmation ? "UNPAID" : "APPROVED",
+              status: paidNow ? "APPROVED" : "UNPAID",
               amountCents: quote.totalCents,
               idempotencyKey: `${input.clientRequestId}:initial`,
-              ...(awaitsPaymentConfirmation ? {} : { confirmedByStaffId: staffId }),
+              ...(paidNow ? { confirmedByStaffId: staffId } : {}),
             },
           },
           statusEvents: { create: { fromStatus: null, toStatus: initialStatus, actorStaffId: staffId } },

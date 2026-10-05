@@ -19,6 +19,9 @@ export type SalesReport = {
   orders: number;
   cancelledOrders: number;
   awaitingPaymentOrders: number;
+  /** Pedidos de cuentas de mesa vendidos pero todavía sin cobrar. Están incluidos en el total vendido. */
+  onTabOrders: number;
+  onTabCents: number;
   byPaymentMethod: { method: string; totalCents: number; payments: number }[];
   /** Cost of the units sold whose cost was known when they were ordered. */
   costCents: number;
@@ -48,11 +51,12 @@ export async function buildSalesReport(input: unknown): Promise<SalesReport> {
 
   const createdAt = { gte: start.toJSDate(), lt: end.toJSDate() };
   const sold = { createdAt, status: { in: [...SOLD_STATUSES] } };
-  const [totals, cancelledOrders, awaitingPaymentOrders, payments, items] = await Promise.all([
+  const [totals, cancelledOrders, awaitingPaymentOrders, payments, onTab, items] = await Promise.all([
     prisma.order.aggregate({ where: sold, _sum: { totalCents: true }, _count: true }),
     prisma.order.count({ where: { createdAt, status: "CANCELLED" } }),
     prisma.order.count({ where: { createdAt, status: "AWAITING_PAYMENT" } }),
     prisma.paymentAttempt.groupBy({ by: ["method"], where: { status: "APPROVED", order: sold }, _sum: { amountCents: true }, _count: true }),
+    prisma.paymentAttempt.aggregate({ where: { method: "ON_TAB", status: "UNPAID", order: sold }, _sum: { amountCents: true }, _count: true }),
     // Raw SQL because the cost of a line is quantity times unit cost, which groupBy cannot sum.
     prisma.$queryRaw<ProductRow[]>`
       SELECT i."productName",
@@ -76,6 +80,8 @@ export async function buildSalesReport(input: unknown): Promise<SalesReport> {
     orders: totals._count,
     cancelledOrders,
     awaitingPaymentOrders,
+    onTabOrders: onTab._count,
+    onTabCents: onTab._sum.amountCents ?? 0,
     byPaymentMethod: payments
       .map((row) => ({ method: row.method, totalCents: row._sum.amountCents ?? 0, payments: row._count }))
       .sort((a, b) => b.totalCents - a.totalCents),
