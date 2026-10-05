@@ -90,8 +90,11 @@ export default function ReportsPage() {
               <div><dt>Ganancia</dt><dd>{report.costCents === 0 && report.profitCents === 0 ? "Sin datos" : formatArs(report.profitCents)}</dd></div>
               <div><dt>Cancelados</dt><dd>{report.cancelledOrders}</dd></div>
               <div><dt>Esperando pago</dt><dd>{report.awaitingPaymentOrders}</dd></div>
+              <div><dt>Por cobrar en mesas</dt><dd>{formatArs(report.onTabCents)}</dd></div>
             </dl>
             {report.uncostedCents > 0 ? <p className="muted report-note">La ganancia no incluye {formatArs(report.uncostedCents)} de ventas de productos sin costo cargado. Cargá el costo en Carta para sumarlos.</p> : null}
+
+            {report.onTabCents > 0 ? <p className="muted report-note">El total vendido incluye {formatArs(report.onTabCents)} de cuentas de mesa que todavía no se cobraron ({report.onTabOrders} {report.onTabOrders === 1 ? "pedido" : "pedidos"}). No figuran abajo hasta que se cobran.</p> : null}
 
             <h3>Por medio de pago</h3>
             {report.byPaymentMethod.length === 0 ? <p className="empty-state">No hay cobros en este período.</p> : (

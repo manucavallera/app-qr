@@ -3,7 +3,7 @@ import { salesReportCsv } from "@/modules/reports/sales-csv";
 
 const report = {
   from: "2026-10-05", to: "2026-10-05", timezone: "America/Argentina/Buenos_Aires",
-  totalCents: 1234550, orders: 3, cancelledOrders: 1, awaitingPaymentOrders: 0,
+  totalCents: 1234550, orders: 3, cancelledOrders: 1, awaitingPaymentOrders: 0, onTabOrders: 0, onTabCents: 0,
   costCents: 400000, profitCents: 600000, uncostedCents: 234550,
   byPaymentMethod: [{ method: "CASH", totalCents: 1234550, payments: 3 }],
   byProduct: [

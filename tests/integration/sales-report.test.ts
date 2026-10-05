@@ -48,6 +48,25 @@ describe("sales report", () => {
     expect(report.byProduct).toEqual([{ productName, quantity: 3, totalCents: 3000, costCents: null, profitCents: null }]);
   });
 
+  it("shows unpaid table tabs as sold but still to collect, and drops them once settled", async () => {
+    const tabDay = "2001-05-10";
+    const order = await prisma.order.create({
+      data: {
+        clientRequestId: randomUUID(), origin: "QR", status: "CONFIRMED", totalCents: 2500, createdAt: new Date(`${tabDay}T15:00:00.000Z`),
+        items: { create: { productName: `Cuenta ${randomUUID()}`, quantity: 1, unitBaseCents: 2500, optionsTotalCents: 0, lineTotalCents: 2500, station: "GENERAL", fulfillment: "TABLE" } },
+        payments: { create: { method: "ON_TAB", status: "UNPAID", amountCents: 2500, idempotencyKey: randomUUID() } },
+      },
+      include: { payments: true },
+    });
+    orderIds.push(order.id);
+    const open = await buildSalesReport({ from: tabDay, to: tabDay });
+    expect(open).toMatchObject({ totalCents: 2500, onTabOrders: 1, onTabCents: 2500, byPaymentMethod: [] });
+
+    await prisma.paymentAttempt.update({ where: { id: order.payments[0]!.id }, data: { method: "CASH", status: "APPROVED" } });
+    const settled = await buildSalesReport({ from: tabDay, to: tabDay });
+    expect(settled).toMatchObject({ totalCents: 2500, onTabOrders: 0, onTabCents: 0, byPaymentMethod: [{ method: "CASH", totalCents: 2500, payments: 1 }] });
+  });
+
   it("reports profit only for units with a known cost", async () => {
     const day2 = "2001-04-20";
     const costed = `Con costo ${randomUUID()}`;
