@@ -42,6 +42,9 @@ export const auditActionLabel: Record<string, string> = {
   PRODUCT_AVAILABILITY_CHANGED: "Disponibilidad de producto actualizada",
   CATEGORY_CREATED: "Categoría creada",
   CATEGORY_REORDERED: "Categorías reordenadas",
+  SUPPLY_CREATED: "Insumo creado",
+  SUPPLY_UPDATED: "Insumo actualizado",
+  SUPPLY_STOCK_CHANGED: "Stock de insumo modificado",
 };
 
 export const auditEntityLabel: Record<string, string> = {
@@ -52,6 +55,7 @@ export const auditEntityLabel: Record<string, string> = {
   CustomerSession: "Sesión de cliente",
   Product: "Producto",
   Category: "Categoría",
+  Supply: "Insumo",
 };
 
 export function humanizeStaffCode(value: string | null | undefined): string {

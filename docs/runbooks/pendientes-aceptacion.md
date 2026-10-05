@@ -28,19 +28,17 @@ Verificación del 2 de octubre: typecheck, lint, 91 tests unitarios, 30 de integ
 
 ## Próxima sesión
 
-1. Volver a correr los cinco e2e que se cortaron el 3 de octubre porque el build cerró el servidor de desarrollo: `mercado-pago`, `cart-multi-item` (mobile), la carta a 320 px y los dos de `staff-ux` (mobile). Correrlos con el servidor levantado y sin un build en paralelo.
-2. Correr `npm run build` con el servidor de desarrollo cerrado y confirmar que desapareció el aviso de rastreo de `storage.ts`.
-3. Reemplazar la foto de prueba de "Hamburguesa clásica" (es una carta astral) por una real.
-4. En `/mnt/c`, `next dev` no detecta archivos ni carpetas nuevas. Después de crear rutas: cortar el servidor, borrar `.next/dev` y volver a levantarlo. Trabajar desde `~/projects/App-qr` evita el problema.
+1. Reemplazar la foto de prueba de "Hamburguesa clásica" (es una carta astral) por una real. Se cambia desde Staff > Carta.
+2. Hacer la noche de prueba supervisada (ver más abajo) una vez desplegado y migrado.
 
 ## Bloqueantes para producción
 
 1. **Build de producción.** (Verificado el 4 de octubre: `npm run build` termina bien tras el rediseño del cliente.) Las dependencias ya están actualizadas (Next 16.3.8, sin el paquete `mercadopago`). Falta confirmar que `npm run build` termina bien. No ejecutar `npm audit fix --force`: baja Prisma a la versión 6. Los avisos restantes son de `vitest` y del CLI de Prisma, que no corren en la app. Usar Node 24 (`nvm use`).
 2. **Imágenes.** Con `IMAGE_STORAGE_DRIVER=local` la subida falla en el contenedor (`/app` es de root y el proceso corre como `appuser`) y las fotos se pierden en cada redeploy. Crear una cuenta en Cloudflare R2 o Cloudinary, pasar las credenciales y adaptar el driver. Luego cargar las fotos reales: hoy todos los productos muestran el placeholder.
 3. **Mercado Pago.** Verificado el 4 de octubre contra la API real de sandbox: se crea la preferencia de pago (`POST /checkout/preferences`), un pago rechazado llega como `rejected` (`cc_rejected_other_reason`) y deja el pedido esperando, un pago aprobado llega como `approved`/`accredited` y confirma el pedido, y la referencia externa (id del intento de pago) vincula el pago con el pedido. El aviso del webhook se simuló firmado con la clave local; la firma real de Mercado Pago solo se puede probar ya desplegado con una URL pública. Los tokens de prueba y de producción empiezan los dos con `APP_USR-`: se distinguen consultando `GET /users/me` (la cuenta de prueba se llama `TESTUSER...` y trae la etiqueta `test_user`). Para producción: crear la aplicación Checkout Pro con la cuenta del cliente, activar sus credenciales de producción, suscribir el webhook al evento **Pagos** con el dominio definitivo, cargar token y clave secreta solo en EasyPanel y hacer un pago real chico con devolución.
-4. **Migraciones.** Stock y destacados agregan `20261002_product_stock` y `20261003_product_featured`. Ejecutar `npm run db:deploy` en producción antes de iniciar la nueva versión.
+4. **Migraciones.** Stock y destacados agregan `20261002_product_stock` y `20261003_product_featured`; solo agregan columnas, no tocan datos. La migración viaja dentro de la imagen nueva, así que el orden es: backup de la base, redeploy de `main`, y enseguida `npm run db:deploy` desde la consola de la app. Entre el redeploy y el `db:deploy` la carta y el staff pueden dar error.
 5. **Cron y secreto interno.** Definir `INTERNAL_SECRET` en producción y programar el cron de `docs/runbooks/deployment.md`. Sin eso no corren el corte nocturno ni el vencimiento de pedidos sin pagar.
-6. **Merge.** Llevar la rama `work/pedidos-qr` a `main`. `next-env.d.ts` no se commitea: lo modifica `next dev`.
+6. **Merge.** Hecho el 4 de octubre: la rama `work/pedidos-qr` está en `main` (pull request #1, CI en verde). `next-env.d.ts` no se commitea: lo modifica `next dev`.
 
 ## Seguridad y operación
 
@@ -58,9 +56,8 @@ Resuelto el 4 de octubre: CSRF (el proxy bloquea escrituras de otro sitio), cier
 
 ## Diseño
 
-- Variables de color: la paleta central ya está en `:root` (35 variables). Quedan unos 190 colores sueltos de uso único en `globals.css`.
+- Variables de color: la paleta central está en `:root` de `globals.css` (staff) y el menú del cliente usa sus propios tokens en `src/app/m/customer-menu.css`. Quedan colores sueltos de uso único en `globals.css`.
 - Pedidos (Staff) en celular: el nombre del producto y el precio quedan apretados en la misma fila.
-- El seguimiento muestra cuatro etapas en una grilla de cuatro columnas aunque el componente define cinco (falta ver dónde queda "Entregado").
 - Reportes, Usuarios y Auditoría solo aparecen en el menú desde Inicio y desde sus propias pantallas; las demás pantallas de Staff no reciben el rol.
 - Caja marca los productos sin stock como "Agotado" (botón deshabilitado), avisa "Quedan N" con stock bajo y limita la cantidad al stock disponible.
 - Tailwind está importado y casi no se usa.
@@ -87,9 +84,32 @@ Resuelto el 4 de octubre: CSRF (el proxy bloquea escrituras de otro sitio), cier
 
 ## Entorno de desarrollo
 
-- Trabajar desde el filesystem de WSL (`~/projects/App-qr`) y no desde `/mnt/c`: en `/mnt/c` los tests tardan varias veces más y `next dev` no detecta los cambios de archivos, así que hay que reiniciarlo a mano.
-- Medir la velocidad de la app una vez ubicada ahí.
+- Trabajar desde el filesystem de WSL (`~/projects/App-qr-wsl`) y no desde `/mnt/c`: en `/mnt/c` la primera carga tardó 107 segundos contra 1,2 en WSL, y `next dev` no detecta los cambios de archivos. La copia de `/mnt/c` quedó atrasada; actualizarla con `git pull` si se vuelve a usar. `~/projects/App-qr` es una copia vieja y no debe usarse.
 
 ## Próxima prueba
 
 Completar un segundo pedido desde la misma mesa después de entregar el primero y verificar que el QR siga operativo mientras la sesión o mesa continúe abierta.
+
+## Noche de prueba supervisada
+
+Antes de abrir al público, una noche con el equipo avisado y alguien mirando:
+
+1. Migraciones aplicadas, `/api/health` y `/api/ready` en verde.
+2. Cron de `session-cleanup` funcionando (revisar que un pedido sin pagar venza).
+3. Subir una foto de producto en producción y verla en la carta (R2).
+4. Pago real chico con Mercado Pago, con devolución desde su panel y marcado en "Dinero para devolver".
+5. Un pedido completo desde un iPhone (Safari) y un Android reales, en modo claro y oscuro.
+6. Dos o tres celulares pidiendo a la vez, de la misma mesa y de mesas distintas.
+7. Confirmar que el proxy de EasyPanel pisa `x-forwarded-for` (seis logins fallidos con encabezados falsos distintos: el sexto debe dar 429).
+8. Backup de la base y restauración probada en una base temporal.
+
+Sin resolver todavía: monitoreo de errores (hoy un fallo en producción se conoce por un cliente) y pruebas de carga.
+
+## Ideas para después del lanzamiento (cotizar aparte)
+
+- Entrega por horario: que la app decida sola entre "Entrega en mesa" y "Retiro" según la franja con moza.
+- Alérgenos y etiquetas (sin TACC, vegetariano, picante), propina opcional y reportes por hora con exportación a Excel.
+- Dashboard con ventas del día, stock bajo, pedidos y comprobantes.
+- Impresión de comandas en cocina, promos y happy hour, aviso por WhatsApp.
+- Cuenta abierta por mesa y dividir la cuenta (solo si hay atención con moza), stock por insumos, facturación con ARCA.
+- QR dinámico de Mercado Pago en Caja, para cobrar desde cualquier billetera con confirmación automática. Falta confirmar con Mercado Pago que su QR de Argentina sea interoperable y las comisiones.

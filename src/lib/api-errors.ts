@@ -28,6 +28,10 @@ const domainStatus: Record<string, number> = {
   CANCELLATION_REASON_REQUIRED: 400,
   INVALID_ORDER_TRANSITION: 409,
   INVALID_REPORT_RANGE: 400,
+  SUPPLY_NOT_FOUND: 404,
+  SUPPLY_NAME_TAKEN: 409,
+  SUPPLY_CONFLICT: 409,
+  INSUFFICIENT_SUPPLY: 409,
 };
 
 export function apiErrorResponse(error: unknown): NextResponse {

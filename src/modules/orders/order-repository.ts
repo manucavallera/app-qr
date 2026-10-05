@@ -90,7 +90,13 @@ function quoteOrReportFresh(request: QuoteRequest, products: readonly QuoteProdu
   }
 }
 
-function quoteItemCreates(quote: OrderQuote) {
+/** Current cost of each ordered product, snapshotted on the order so later cost changes do not rewrite past profit. */
+async function findProductCosts(tx: Tx, quote: OrderQuote): Promise<Map<string, number | null>> {
+  const products = await tx.product.findMany({ where: { id: { in: [...new Set(quote.items.map((item) => item.productId))] } }, select: { id: true, costCents: true } });
+  return new Map(products.map((product) => [product.id, product.costCents]));
+}
+
+function quoteItemCreates(quote: OrderQuote, costs: Map<string, number | null>) {
   return quote.items.map((item) => ({
     productId: item.productId,
     productName: item.productName,
@@ -98,6 +104,7 @@ function quoteItemCreates(quote: OrderQuote) {
     unitBaseCents: item.unitBaseCents,
     optionsTotalCents: item.optionsTotalCents,
     lineTotalCents: item.lineTotalCents,
+    unitCostCents: costs.get(item.productId) ?? null,
     station: item.station,
     fulfillment: item.fulfillment,
     notes: item.notes,
@@ -187,7 +194,7 @@ export class PrismaOrderRepository {
           origin: "QR",
           status: "AWAITING_PAYMENT",
           totalCents: quote.totalCents,
-          items: { create: quoteItemCreates(quote) },
+          items: { create: quoteItemCreates(quote, await findProductCosts(tx, quote)) },
           payments: {
             create: {
               method: input.paymentMethod,
@@ -241,7 +248,7 @@ export class PrismaOrderRepository {
           origin: "COUNTER",
           status: initialStatus,
           totalCents: quote.totalCents,
-          items: { create: quoteItemCreates(quote) },
+          items: { create: quoteItemCreates(quote, await findProductCosts(tx, quote)) },
           payments: {
             create: {
               method: input.paymentMethod,

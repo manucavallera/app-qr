@@ -1,5 +1,6 @@
 import { DateTime } from "luxon";
 import { z } from "zod";
+import { Prisma } from "../../generated/prisma/client";
 import { prisma } from "../../lib/db";
 import { DomainError } from "../orders/errors";
 
@@ -19,8 +20,17 @@ export type SalesReport = {
   cancelledOrders: number;
   awaitingPaymentOrders: number;
   byPaymentMethod: { method: string; totalCents: number; payments: number }[];
-  byProduct: { productName: string; quantity: number; totalCents: number }[];
+  /** Cost of the units sold whose cost was known when they were ordered. */
+  costCents: number;
+  /** Sales minus cost, counting only units with a known cost. */
+  profitCents: number;
+  /** Sales of units with no cost loaded; they are left out of the profit. */
+  uncostedCents: number;
+  /** costCents and profitCents are null when none of the units sold had a cost. */
+  byProduct: { productName: string; quantity: number; totalCents: number; costCents: number | null; profitCents: number | null }[];
 };
+
+type ProductRow = { productName: string; quantity: number; totalCents: number; costCents: number | null; costedCents: number };
 
 /**
  * Sales between two calendar days (inclusive) in the business timezone.
@@ -43,8 +53,20 @@ export async function buildSalesReport(input: unknown): Promise<SalesReport> {
     prisma.order.count({ where: { createdAt, status: "CANCELLED" } }),
     prisma.order.count({ where: { createdAt, status: "AWAITING_PAYMENT" } }),
     prisma.paymentAttempt.groupBy({ by: ["method"], where: { status: "APPROVED", order: sold }, _sum: { amountCents: true }, _count: true }),
-    prisma.orderItem.groupBy({ by: ["productName"], where: { order: sold }, _sum: { quantity: true, lineTotalCents: true } }),
+    // Raw SQL because the cost of a line is quantity times unit cost, which groupBy cannot sum.
+    prisma.$queryRaw<ProductRow[]>`
+      SELECT i."productName",
+        SUM(i.quantity)::float8 AS quantity,
+        SUM(i."lineTotalCents")::float8 AS "totalCents",
+        SUM(i.quantity * i."unitCostCents")::float8 AS "costCents",
+        COALESCE(SUM(i."lineTotalCents") FILTER (WHERE i."unitCostCents" IS NOT NULL), 0)::float8 AS "costedCents"
+      FROM "OrderItem" i JOIN "Order" o ON o.id = i."orderId"
+      WHERE o."createdAt" >= ${start.toJSDate()} AND o."createdAt" < ${end.toJSDate()}
+        AND o.status::text IN (${Prisma.join([...SOLD_STATUSES])})
+      GROUP BY i."productName"`,
   ]);
+  const costCents = items.reduce((sum, row) => sum + (row.costCents ?? 0), 0);
+  const costedCents = items.reduce((sum, row) => sum + row.costedCents, 0);
 
   return {
     from,
@@ -57,8 +79,11 @@ export async function buildSalesReport(input: unknown): Promise<SalesReport> {
     byPaymentMethod: payments
       .map((row) => ({ method: row.method, totalCents: row._sum.amountCents ?? 0, payments: row._count }))
       .sort((a, b) => b.totalCents - a.totalCents),
+    costCents,
+    profitCents: costedCents - costCents,
+    uncostedCents: items.reduce((sum, row) => sum + row.totalCents, 0) - costedCents,
     byProduct: items
-      .map((row) => ({ productName: row.productName, quantity: row._sum.quantity ?? 0, totalCents: row._sum.lineTotalCents ?? 0 }))
+      .map((row) => ({ productName: row.productName, quantity: row.quantity, totalCents: row.totalCents, costCents: row.costCents, profitCents: row.costCents === null ? null : row.costedCents - row.costCents }))
       .sort((a, b) => b.totalCents - a.totalCents || b.quantity - a.quantity),
   };
 }
