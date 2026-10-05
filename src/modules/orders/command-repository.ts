@@ -28,6 +28,16 @@ async function notifyOrderChanged(tx: Prisma.TransactionClient, orderId: string,
   await tx.$executeRaw`SELECT pg_notify('appqr_order_events', ${JSON.stringify({ type: "order.changed", orderId, version, occurredAt: new Date().toISOString() })})`;
 }
 
+/** Un pedido cancelado deja de contar en la cuenta de su mesa; sin nada abierto se limpia el pedido de cuenta. */
+async function dropFromTable(tx: Prisma.TransactionClient, order: { tableId: string | null }, orderId: string): Promise<void> {
+  await tx.paymentAttempt.updateMany({ where: { orderId, method: "ON_TAB", status: "UNPAID" }, data: { status: "REJECTED" } });
+  if (!order.tableId) return;
+  const open = await tx.order.count({
+    where: { tableId: order.tableId, status: { not: "CANCELLED" }, payments: { some: { method: "ON_TAB", status: "UNPAID" } } },
+  });
+  if (open === 0) await tx.diningTable.update({ where: { id: order.tableId }, data: { billRequestedAt: null } });
+}
+
 export class PrismaCommandRepository implements CommandRepository {
   constructor(private readonly db: PrismaClient) {}
 
@@ -51,7 +61,10 @@ export class PrismaCommandRepository implements CommandRepository {
       if (current.version !== input.expectedVersion) throw new DomainError("ORDER_VERSION_CONFLICT", "El pedido cambió. Actualizá la pantalla.");
       assertOrderTransition(current.status as OrderStatus, input.targetStatus as OrderStatus, role, input.reason);
       const updated = await tx.order.update({ where: { id: orderId }, data: { status: input.targetStatus, version: { increment: 1 }, cancellationReason: input.targetStatus === "CANCELLED" ? input.reason : undefined }, include: commandInclude });
-      if (input.targetStatus === "CANCELLED") await releaseOrderStock(tx, orderId);
+      if (input.targetStatus === "CANCELLED") {
+        await releaseOrderStock(tx, orderId);
+        await dropFromTable(tx, updated, orderId);
+      }
       await tx.orderStatusEvent.create({ data: { orderId, fromStatus: current.status, toStatus: input.targetStatus, actorStaffId, reason: input.reason } });
       await tx.auditEvent.create({ data: { actorStaffId, action: "ORDER_STATUS_CHANGED", entityType: "Order", entityId: orderId, metadata: { from: current.status, to: input.targetStatus } } });
       await notifyOrderChanged(tx, orderId, updated.version);

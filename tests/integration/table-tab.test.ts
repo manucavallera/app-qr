@@ -10,6 +10,7 @@ import { prisma } from "@/lib/db";
 import { hashToken } from "@/lib/security/token";
 import { hashPassword } from "@/modules/auth/password";
 import { STAFF_SESSION_COOKIE } from "@/modules/auth/auth-service";
+import { commandRepository } from "@/modules/orders/command-repository";
 import { customerSessionService } from "@/modules/tables/customer-session-service";
 
 const suffix = randomUUID();
@@ -112,6 +113,19 @@ describe("table tab: order now, pay at the end", () => {
 
     const again = await settle({ tableId, method: "CASH" });
     expect(again.status).toBe(409);
+  });
+
+  it("drops a cancelled order from the tab and clears the bill request when nothing is left", async () => {
+    const created = await (await orderOnTab(anaToken)).json() as { id: string; version: number };
+    await requestBillRoute(call("http://localhost/api/public/tab/bill", { method: "POST", headers: customerHeaders(anaToken) }));
+    expect((await prisma.diningTable.findUnique({ where: { id: tableId } }))?.billRequestedAt).not.toBeNull();
+
+    await commandRepository.transitionOrder(created.id, { targetStatus: "CANCELLED", reason: "Se equivocaron", expectedVersion: created.version }, staffId, "ADMIN");
+
+    const tab = await (await customerTabRoute(call("http://localhost/api/public/tab", { headers: customerHeaders(anaToken) }))).json();
+    expect(tab.mine.totalCents).toBe(0);
+    expect(tab.billRequestedAt).toBeNull();
+    expect((await prisma.paymentAttempt.findFirst({ where: { orderId: created.id } }))?.status).toBe("REJECTED");
   });
 
   it("refuses pay-at-the-end when the owner has it switched off", async () => {
