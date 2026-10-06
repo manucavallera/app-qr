@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { Prisma, PrismaClient } from "../../generated/prisma/client";
 import { prisma } from "../../lib/db";
 import { DomainError } from "./errors";
@@ -58,6 +59,61 @@ export async function closeTabIfSettled(tx: Tx, tabId: string): Promise<boolean>
   return true;
 }
 
+
+/** Un link de pago de Mercado Pago dura 2 horas; se reutiliza solo mientras siga vigente. */
+const ONLINE_PAYMENT_REUSE_MS = 90 * 60 * 1000;
+
+export type GatewayUpdate = { providerOrderId: string; externalReference: string; status: string; statusDetail: string; totalPaidCents: number; raw: unknown };
+
+/**
+ * Aplica el aviso de Mercado Pago a un pago online de cuenta. Devuelve false si el aviso no
+ * corresponde a ninguno (es de un pedido común). Un pago acreditado cobra los pedidos que
+ * cubría; si cambió algo en el medio queda en auditoría para que el personal lo revise.
+ */
+export async function applyTabPaymentUpdate(tx: Tx, update: GatewayUpdate): Promise<boolean> {
+  const payment = await tx.tabPayment.findFirst({ where: { OR: [{ id: update.externalReference }, { providerOrderId: update.providerOrderId }] } });
+  if (!payment) return false;
+  const accredited = update.status === "processed" && update.statusDetail === "accredited";
+  const failed = update.status === "processed" && ["rejected", "cancelled"].includes(update.statusDetail);
+  const raw = update.raw as Prisma.InputJsonValue;
+
+  if (failed) {
+    if (payment.status === "PENDING") await tx.tabPayment.update({ where: { id: payment.id }, data: { status: "REJECTED", providerPayload: raw } });
+    return true;
+  }
+  if (!accredited) {
+    if (payment.status === "PENDING") await tx.tabPayment.update({ where: { id: payment.id }, data: { providerPayload: raw } });
+    return true;
+  }
+  if (payment.status === "APPROVED") return true;
+
+  await tx.$queryRaw`SELECT id FROM "TableTab" WHERE id = ${payment.tabId} FOR UPDATE`;
+  const audit = (action: string, metadata: Prisma.InputJsonObject) =>
+    tx.auditEvent.create({ data: { action, entityType: "TabPayment", entityId: payment.id, metadata: { tabId: payment.tabId, providerOrderId: update.providerOrderId, ...metadata } } });
+
+  if (update.totalPaidCents !== payment.amountCents) {
+    await audit("TAB_PAYMENT_AMOUNT_MISMATCH", { expected: payment.amountCents, received: update.totalPaidCents });
+    return true;
+  }
+  const attempts = await tx.paymentAttempt.findMany({
+    where: { method: "ON_TAB", status: "UNPAID", orderId: { in: payment.orderIds }, order: { tabId: payment.tabId, status: { not: "CANCELLED" } } },
+  });
+  await tx.tabPayment.update({ where: { id: payment.id }, data: { status: "APPROVED", providerPayload: raw } });
+  if (attempts.length > 0) {
+    await tx.paymentAttempt.updateMany({ where: { id: { in: attempts.map((attempt) => attempt.id) } }, data: { method: "MERCADO_PAGO", status: "APPROVED" } });
+  }
+  const settledCents = attempts.reduce((sum, attempt) => sum + attempt.amountCents, 0);
+  const closed = attempts.length > 0 && await closeTabIfSettled(tx, payment.tabId);
+  if (settledCents !== payment.amountCents) {
+    // Se cobró algo que ya no estaba pendiente (pagó el personal o se canceló un pedido): hay que devolver la diferencia.
+    await audit("TAB_PAYMENT_NEEDS_REFUND", { paidCents: payment.amountCents, settledCents, refundCents: payment.amountCents - settledCents });
+  } else {
+    await audit("TAB_PAID_ONLINE", { amountCents: settledCents, orders: attempts.length, closed });
+  }
+  await tx.$executeRaw`SELECT pg_notify('appqr_order_events', ${JSON.stringify({ type: "tab.changed", tabId: payment.tabId, occurredAt: new Date().toISOString() })})`;
+  return true;
+}
+
 export class PrismaTableTabRepository {
   constructor(private readonly db: PrismaClient) {}
 
@@ -97,6 +153,45 @@ export class PrismaTableTabRepository {
   async requestBillForOpenTabs(): Promise<number> {
     const result = await this.db.tableTab.updateMany({ where: { closedAt: null, billRequestedAt: null, orders: { some: unpaidTabOrders } }, data: { billRequestedAt: new Date() } });
     return result.count;
+  }
+
+  /**
+   * Prepara el pago online de la parte del cliente o de toda la mesa: junta lo que falta cobrar y
+   * reutiliza el pago pendiente igual si todavía sirve, para no abrir un link nuevo por cada toque.
+   */
+  async prepareOnlinePayment(input: { tableId: string; customerSessionId: string; scope: "mine" | "table" }) {
+    return this.db.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "DiningTable" WHERE id = ${input.tableId} FOR UPDATE`;
+      const tab = await tx.tableTab.findFirst({
+        where: { tableId: input.tableId, closedAt: null },
+        select: { id: true, table: { select: { label: true, qrToken: true } } },
+      });
+      if (!tab) throw new DomainError("TAB_EMPTY", "La mesa no tiene nada para pagar.");
+      const orders = await tx.order.findMany({
+        where: { tabId: tab.id, ...unpaidTabOrders, ...(input.scope === "mine" ? { customerSessionId: input.customerSessionId } : {}) },
+        select: { id: true, number: true, payments: { where: { method: "ON_TAB", status: "UNPAID" }, select: { amountCents: true } } },
+        orderBy: { createdAt: "asc" },
+      });
+      const lines = orders.map((order) => ({ orderId: order.id, number: order.number, amountCents: order.payments.reduce((sum, payment) => sum + payment.amountCents, 0) })).filter((line) => line.amountCents > 0);
+      if (lines.length === 0) throw new DomainError("TAB_EMPTY", "No tenés nada para pagar.");
+      const amountCents = lines.reduce((sum, line) => sum + line.amountCents, 0);
+      const orderIds = lines.map((line) => line.orderId).sort();
+      const customerSessionId = input.scope === "mine" ? input.customerSessionId : null;
+      const pending = await tx.tabPayment.findMany({
+        where: { tabId: tab.id, status: "PENDING", customerSessionId, amountCents, checkoutUrl: { not: null }, createdAt: { gt: new Date(Date.now() - ONLINE_PAYMENT_REUSE_MS) } },
+        orderBy: { createdAt: "desc" },
+      });
+      const reusable = pending.find((payment) => [...payment.orderIds].sort().join() === orderIds.join());
+      const payment = reusable ?? await tx.tabPayment.create({ data: { tabId: tab.id, customerSessionId, orderIds, amountCents, idempotencyKey: randomUUID() } });
+      return { payment, lines, tableLabel: tab.table.label, qrToken: tab.table.qrToken };
+    });
+  }
+
+  async saveOnlineCheckout(input: { paymentId: string; providerOrderId: string; checkoutUrl: string; raw: unknown }): Promise<void> {
+    await this.db.tabPayment.update({
+      where: { id: input.paymentId },
+      data: { providerOrderId: input.providerOrderId, checkoutUrl: input.checkoutUrl, providerPayload: input.raw as Prisma.InputJsonValue },
+    });
   }
 
   /** Cuentas abiertas; las que pidieron la cuenta van primero. */

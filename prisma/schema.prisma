@@ -168,8 +168,30 @@ model TableTab {
   closedAt        DateTime?
   table           DiningTable @relation(fields: [tableId], references: [id])
   orders          Order[]
+  onlinePayments  TabPayment[]
 
   @@index([tableId, closedAt])
+}
+
+/// Pago online (Mercado Pago) de una parte o de toda una cuenta de mesa.
+/// Guarda qué pedidos cubre; al acreditarse, esos pedidos pasan a cobrados.
+model TabPayment {
+  id                String        @id @default(uuid())
+  tabId             String
+  /// Persona que paga su parte; nulo cuando se paga la mesa entera.
+  customerSessionId String?
+  orderIds          String[]
+  amountCents       Int
+  status            PaymentStatus @default(PENDING)
+  idempotencyKey    String        @unique
+  providerOrderId   String?       @unique
+  checkoutUrl       String?
+  providerPayload   Json?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  tab               TableTab      @relation(fields: [tabId], references: [id], onDelete: Cascade)
+
+  @@index([tabId, status])
 }
 
 model CustomerSession {

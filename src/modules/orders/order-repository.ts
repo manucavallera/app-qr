@@ -6,7 +6,7 @@ import { DomainError } from "./errors";
 import { calculateQuote, type OrderQuote, type QuoteProduct, type QuoteRequest } from "./quote";
 import type { CreateCounterOrderInput, CreateQrOrderInput, ConfirmTraditionalPaymentInput } from "./order-contracts";
 import { hasStock, releaseOrderStock, reserveStock } from "./stock";
-import { openTabForTable } from "./table-tab";
+import { applyTabPaymentUpdate, openTabForTable } from "./table-tab";
 import { createCheckoutIdempotencyKey } from "../payments/payment-service";
 import { availablePaymentMethods, type PaymentSettingsView } from "../payments/payment-methods";
 
@@ -424,6 +424,8 @@ export class PrismaOrderRepository {
 
   async processGatewayUpdate(input: { providerOrderId: string; externalReference: string; status: string; statusDetail: string; totalPaidCents: number; raw: unknown }) {
     return this.db.$transaction(async (tx) => {
+      // Un pago online de cuenta de mesa cubre varios pedidos y tiene su propio registro.
+      if (await applyTabPaymentUpdate(tx, input)) return null;
       // Mercado Pago reports its own payment id, so fall back to the attempt id we sent as external reference.
       const attempt = await tx.paymentAttempt.findUnique({ where: { providerOrderId: input.providerOrderId }, include: { order: true } })
         ?? await tx.paymentAttempt.findFirst({ where: { id: input.externalReference, method: "MERCADO_PAGO" }, include: { order: true } });

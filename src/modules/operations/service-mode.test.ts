@@ -41,4 +41,27 @@ describe("resolveServiceMode", () => {
     expect(resolveServiceMode(new Date("2026-09-19T04:00:00.000Z"), timezone, windows, "SCHEDULED"))
       .toBe("QR_OPEN");
   });
+
+  describe("a day without a schedule", () => {
+    // Lunes a sábado con horario; el martes no se carga.
+    const windows = [1, 3, 4, 5, 6].map((weekday) => ({ weekday, opensAtMinute: 1140, closesAtMinute: 60, enabled: true }));
+    const at = (iso: string) => resolveServiceMode(new Date(iso), timezone, windows, "SCHEDULED");
+
+    it("is closed on Tuesday afternoon", () => {
+      expect(at("2026-09-22T18:00:00.000Z")).toBe("CLOSED");
+    });
+
+    it("is closed on Tuesday evening, when other days would be open", () => {
+      expect(at("2026-09-23T00:00:00.000Z")).toBe("CLOSED");
+    });
+
+    it("stays counter-only early on the morning after an open night", () => {
+      // Martes 02:00: la noche del lunes ya cerró el QR pero el local sigue en barra y caja.
+      expect(at("2026-09-22T05:00:00.000Z")).toBe("COUNTER_ONLY");
+    });
+
+    it("still reports a normal open day as open", () => {
+      expect(at("2026-09-24T23:00:00.000Z")).toBe("QR_OPEN");
+    });
+  });
 });

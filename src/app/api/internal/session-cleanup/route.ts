@@ -33,7 +33,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   // Fuera del horario del QR (por ejemplo a la 1 am) las cuentas abiertas pasan solas a "pidió la cuenta".
   const [settings, windows] = await Promise.all([prisma.businessSettings.findUnique({ where: { id: "default" } }), prisma.serviceWindow.findMany()]);
   // Solo al cierre del horario: una pausa momentánea del QR no debe pedir la cuenta de todas las mesas.
-  const hoursEnded = settings ? resolveServiceMode(new Date(), settings.timezone, windows, settings.manualMode) === "COUNTER_ONLY" : false;
+  const mode = settings ? resolveServiceMode(new Date(), settings.timezone, windows, settings.manualMode) : null;
+  const hoursEnded = mode === "COUNTER_ONLY" || mode === "CLOSED";
   const billsRequested = hoursEnded ? await tableTabRepository.requestBillForOpenTabs() : 0;
   return NextResponse.json({ ok: true, closed: sessions.closed, cancelledOrders: orders.cancelled, billsRequested });
 }

@@ -5,9 +5,9 @@ import { formatArs } from "@/lib/format";
 import { StaffShell } from "@/components/staff/staff-shell";
 import { TaskCard } from "@/components/staff/task-card";
 
-type Summary = { pendingPayments: number; activeCommands: number; lowStock?: { id: string; name: string; stockQuantity: number }[]; refundsDue?: { id: string; method: string; amountCents: number; orderNumber: number }[]; openTabs?: { tables: number; totalCents: number; billRequested: number }; qrMode: "QR_OPEN" | "COUNTER_ONLY" | "PAUSED"; role?: "ADMIN" | "OPERATOR" };
+type Summary = { pendingPayments: number; activeCommands: number; lowStock?: { id: string; name: string; stockQuantity: number }[]; refundsDue?: { id: string; method: string; amountCents: number; orderNumber: number }[]; openTabs?: { tables: number; totalCents: number; billRequested: number }; qrMode: "QR_OPEN" | "COUNTER_ONLY" | "PAUSED" | "CLOSED"; role?: "ADMIN" | "OPERATOR" };
 const methodNames: Record<string, string> = { MERCADO_PAGO: "Mercado Pago", CASH: "efectivo", CARD_AT_COUNTER: "tarjeta", BANK_TRANSFER: "transferencia" };
-const modeLabels: Record<Summary["qrMode"], string> = { QR_OPEN: "Pedidos QR abiertos", COUNTER_ONLY: "Solo pedidos en caja", PAUSED: "Pedidos QR pausados" };
+const modeLabels: Record<Summary["qrMode"], string> = { QR_OPEN: "Pedidos QR abiertos", COUNTER_ONLY: "Solo pedidos en caja", PAUSED: "Pedidos QR pausados", CLOSED: "Local cerrado hoy" };
 
 export default function StaffHomePage() {
   const [summary, setSummary] = useState<Summary | null>(null);
