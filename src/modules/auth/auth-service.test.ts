@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AuthService,
   loginRateLimitKey,
@@ -6,6 +6,7 @@ import {
   type AuthSession,
   type AuthUser,
 } from "./auth-service";
+import * as passwordModule from "./password";
 import { hashPassword } from "./password";
 
 const rawToken = "AbCdEf0123456789AbCdEf0123456789AbCdEf01234";
@@ -93,6 +94,14 @@ describe("AuthService", () => {
 
     await expect(service.authenticate(result.token)).resolves.toBeNull();
   });
+
+  it("checks the password against a real hash even when the email does not exist, so the response time does not reveal accounts", async () => {
+    const verify = vi.spyOn(passwordModule, "verifyPassword");
+    await expect(service.login("nadie@local.test", "whatever")).rejects.toMatchObject({ code: "INVALID_CREDENTIALS" });
+    expect(verify).toHaveBeenCalledTimes(1);
+    expect(verify.mock.calls[0][0]).toMatch(/^\$argon2id\$/);
+    verify.mockRestore();
+  });
 });
 
 describe("loginRateLimitKey", () => {
@@ -102,4 +111,5 @@ describe("loginRateLimitKey", () => {
     expect(key).toMatch(/^staff-login:admin@local\.test:[a-f0-9]{64}$/);
     expect(key).not.toContain("203.0.113.8");
   });
+
 });
