@@ -110,3 +110,19 @@ test("la carta entra en una pantalla de 320px sin desborde horizontal", async ({
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   expect(browserErrors).toEqual([]);
 });
+
+test("si los pedidos por QR se cierran mientras el cliente arma el pedido, el checkout lo explica", async ({ page, qrToken }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "El aviso de cierre se prueba una vez en escritorio.");
+  await page.context().setExtraHTTPHeaders({ "x-forwarded-for": `e2e-closed-${testInfo.project.name}-${Date.now()}` });
+  await page.goto(`/m/${encodeURIComponent(qrToken)}`);
+  await page.getByLabel("Tu nombre o apodo").fill("Prueba cierre");
+  await page.getByRole("button", { name: "Ver la carta" }).click();
+  await page.getByRole("button", { name: /Agregar Hamburguesa clásica/ }).click();
+  await page.getByRole("button", { name: /Agregar al carrito/ }).click();
+  await page.getByRole("button", { name: /^Ver pedido, / }).click();
+  await page.getByRole("link", { name: "Continuar con el pedido" }).click();
+  await expect(page.getByRole("heading", { name: "Forma de pago" })).toBeVisible();
+  await page.route("**/api/public/orders", (route) => route.fulfill({ status: 409, json: { error: "QR_ORDERING_CLOSED" } }));
+  await page.locator("form button[type=submit], main button").last().click();
+  await expect(page.getByText("Los pedidos por QR están cerrados en este momento. Podés pedir en la barra o en la caja.")).toBeVisible();
+});

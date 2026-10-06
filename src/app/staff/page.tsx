@@ -75,7 +75,7 @@ export default function StaffHomePage() {
         {summary?.openTabs && summary.openTabs.tables > 0 && (
           <aside className={`stock-alert${summary.qrMode !== "QR_OPEN" || summary.openTabs.billRequested > 0 ? " refund-alert" : ""}`} role={summary.qrMode !== "QR_OPEN" ? "alert" : "status"}>
             <strong>Cuentas sin cobrar</strong>
-            <p>{summary.openTabs.tables} {summary.openTabs.tables === 1 ? "mesa debe" : "mesas deben"} {formatArs(summary.openTabs.totalCents)}{summary.openTabs.billRequested > 0 ? `; ${summary.openTabs.billRequested} ya pidió la cuenta` : ""}.{summary.qrMode !== "QR_OPEN" ? " El horario de pedidos por QR ya cerró: cobrá estas cuentas antes de cerrar la caja." : ""}</p>
+            <p>{summary.openTabs.tables} {summary.openTabs.tables === 1 ? "mesa debe" : "mesas deben"} {formatArs(summary.openTabs.totalCents)}{summary.openTabs.billRequested > 0 ? `; ${summary.openTabs.billRequested} ya pidió la cuenta` : ""}.{summary.qrMode !== "QR_OPEN" ? " Los pedidos por QR están cerrados: cobrá estas cuentas antes de cerrar la caja." : ""}</p>
             <a href="/staff/tabs">Ir a cobrar</a>
           </aside>
         )}

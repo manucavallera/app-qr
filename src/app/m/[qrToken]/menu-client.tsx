@@ -246,7 +246,7 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
       <header className="cm-hero">
         <div className="cm-hero-meta"><span className="cm-table">{menu.table.label}</span><span className="cm-greeting">Hola, {nickname}</span></div>
         <h1>Elegí algo rico.</h1>
-        <p>Todo lo que sale de la cocina, directo a tu mesa.</p>
+        <p>Pedí desde tu lugar. Te avisamos cuando esté listo.</p>
       </header>
       {!canOrder && <aside className="cm-notice" role="status">{modeMessage}</aside>}
       {featured.length > 0 && (
