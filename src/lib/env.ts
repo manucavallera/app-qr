@@ -3,7 +3,7 @@ import { z } from "zod";
 const serverEnvSchema = z
   .object({
     DATABASE_URL: z.string().url(),
-    APP_URL: z.string().url(),
+    APP_URL: z.string().url().transform((value) => value.replace(/\/+$/, "")),
     SESSION_SECRET: z.string().min(32),
     INTERNAL_SECRET: z.string().min(16).optional(),
     PAYMENT_PROVIDER: z.enum(["fake", "mercadopago"]).default("fake"),
