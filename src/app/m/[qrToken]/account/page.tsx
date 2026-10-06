@@ -1,19 +1,22 @@
 "use client";
 
 import { CircleNotch } from "@phosphor-icons/react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { CustomerShell } from "@/components/customer/customer-shell";
 import { formatArs as ars } from "@/lib/format";
 
 type TabOrder = { number: number; totalCents: number; items: { productName: string; quantity: number; lineTotalCents: number }[] };
-type Tab = { tableLabel: string; billRequestedAt: string | null; mine: { totalCents: number; orders: TabOrder[] }; tableTotalCents: number };
+type Tab = { tableLabel: string; billRequestedAt: string | null; mine: { totalCents: number; orders: TabOrder[] }; tableTotalCents: number; canPayOnline: boolean };
 
 export default function CustomerAccountPage() {
   const { qrToken } = useParams<{ qrToken: string }>();
   const [tab, setTab] = useState<Tab | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [requesting, setRequesting] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
+  const [paying, setPaying] = useState<"mine" | "table" | null>(null);
+  const returned = useSearchParams().get("pago");
 
   const refresh = useCallback(async () => {
     try {
@@ -40,12 +43,30 @@ export default function CustomerAccountPage() {
     setRequesting(false);
   }
 
+  async function payOnline(scope: "mine" | "table") {
+    setPaying(scope);
+    try {
+      const response = await fetch("/api/public/tab/pay", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ scope }) });
+      const body = await response.json().catch(() => null) as { checkoutUrl?: string } | null;
+      if (response.ok && body?.checkoutUrl) { window.location.assign(body.checkoutUrl); return; }
+      setError(null);
+      setPayError("No pudimos abrir el pago online. Probá de nuevo o pagá en caja o con el mozo.");
+    } catch {
+      setPayError("No pudimos abrir el pago online. Probá de nuevo o pagá en caja o con el mozo.");
+    }
+    setPaying(null);
+  }
+
   const back = `/m/${encodeURIComponent(qrToken)}`;
   if (error) return <CustomerShell eyebrow="Mi cuenta" title="No pudimos cargar tu cuenta" backHref={back}><p className="cm-error" role="alert">{error}</p><button className="cm-btn cm-btn-quiet" type="button" onClick={() => void refresh()}>Reintentar</button></CustomerShell>;
   if (!tab) return <main className="cm-page"><div className="cm-state" role="status" aria-live="polite"><CircleNotch className="cm-spin" size={20} weight="bold" aria-hidden="true" />Cargando tu cuenta…</div></main>;
 
   const empty = tab.mine.orders.length === 0;
   return <CustomerShell eyebrow={tab.tableLabel} title="Mi cuenta" backHref={back}>
+    {returned === "ok" && <aside className="cm-notice" role="status">Recibimos tu pago. En unos segundos tu cuenta se actualiza.</aside>}
+    {returned === "pendiente" && <aside className="cm-notice" role="status">Tu pago está pendiente. Cuando se acredite, la cuenta se actualiza sola.</aside>}
+    {returned === "error" && <p className="cm-error" role="alert">El pago no se completó. Podés intentar de nuevo o pagar en caja.</p>}
+    {payError && <p className="cm-error" role="alert">{payError}</p>}
     {tab.billRequestedAt && <aside className="cm-notice" role="status">Pediste la cuenta. En un momento se acerca el mozo, o podés pasar por la caja.</aside>}
     {empty ? <p className="cm-lead">Todavía no tenés nada sin pagar en esta mesa.</p> : <>
       <p className="cm-lead">Esto es lo que pediste vos y todavía no se pagó.</p>
@@ -53,6 +74,8 @@ export default function CustomerAccountPage() {
       <div className="cm-total"><span>Tu parte</span><strong>{ars(tab.mine.totalCents)}</strong></div>
     </>}
     {tab.tableTotalCents > tab.mine.totalCents && <p className="cm-lead">Total de la mesa: {ars(tab.tableTotalCents)}</p>}
+    {tab.canPayOnline && !empty && <button className="cm-btn" type="button" disabled={paying !== null} onClick={() => void payOnline("mine")}>{paying === "mine" ? "Abriendo Mercado Pago…" : `Pagar mi parte (${ars(tab.mine.totalCents)})`}</button>}
+    {tab.canPayOnline && tab.tableTotalCents > tab.mine.totalCents && <button className="cm-btn cm-btn-quiet" type="button" disabled={paying !== null} onClick={() => void payOnline("table")}>{paying === "table" ? "Abriendo Mercado Pago…" : `Pagar toda la mesa (${ars(tab.tableTotalCents)})`}</button>}
     {!tab.billRequestedAt && tab.tableTotalCents > 0 && <button className="cm-btn" type="button" disabled={requesting} onClick={() => void requestBill()}>{requesting ? "Pidiendo…" : "Pedir la cuenta"}</button>}
     <a className="cm-btn cm-btn-quiet" href={back}>Pedir algo más</a>
   </CustomerShell>;
