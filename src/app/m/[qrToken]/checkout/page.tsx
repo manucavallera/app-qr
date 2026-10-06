@@ -79,7 +79,7 @@ export default function CheckoutPage() {
       });
       const body = await response.json() as { id?: string; error?: string; quote?: { totalCents: number }; productName?: string; available?: number };
       if (!response.ok) {
-        setMessage(body.error === "INSUFFICIENT_STOCK" ? `${body.available ? `Solo quedan ${body.available} de ${body.productName ?? "un producto"}` : `Se agotó ${body.productName ?? "un producto"}`}. Volvé a la carta y ajustá tu pedido.` : body.error === "PRICE_CHANGED" && body.quote ? `El total actualizado es ${ars(body.quote.totalCents)}. Volvé a la carta y revisá tu selección.` : "No pudimos enviar el pedido. Revisá la carta e intentá de nuevo.");
+        setMessage(body.error === "INSUFFICIENT_STOCK" ? `${body.available ? `Solo quedan ${body.available} de ${body.productName ?? "un producto"}` : `Se agotó ${body.productName ?? "un producto"}`}. Volvé a la carta y ajustá tu pedido.` : body.error === "PRICE_CHANGED" && body.quote ? `El total actualizado es ${ars(body.quote.totalCents)}. Volvé a la carta y revisá tu selección.` : body.error === "QR_ORDERING_CLOSED" ? "Los pedidos por QR están cerrados en este momento. Podés pedir en la barra o en la caja." : "No pudimos enviar el pedido. Revisá la carta e intentá de nuevo.");
         return;
       }
       if (!body.id) return;
