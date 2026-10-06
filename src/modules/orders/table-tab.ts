@@ -92,7 +92,10 @@ export async function applyTabPaymentUpdate(tx: Tx, update: GatewayUpdate): Prom
     tx.auditEvent.create({ data: { action, entityType: "TabPayment", entityId: payment.id, metadata: { tabId: payment.tabId, providerOrderId: update.providerOrderId, ...metadata } } });
 
   if (update.totalPaidCents !== payment.amountCents) {
-    await audit("TAB_PAYMENT_AMOUNT_MISMATCH", { expected: payment.amountCents, received: update.totalPaidCents });
+    // Se cobró un monto que no es el de la cuenta: no se toca ningún pedido y hay que devolver todo lo cobrado.
+    await tx.tabPayment.update({ where: { id: payment.id }, data: { status: "APPROVED", providerPayload: raw, refundDueCents: update.totalPaidCents } });
+    await audit("TAB_PAYMENT_AMOUNT_MISMATCH", { expected: payment.amountCents, received: update.totalPaidCents, refundCents: update.totalPaidCents });
+    await tx.$executeRaw`SELECT pg_notify('appqr_order_events', ${JSON.stringify({ type: "tab.changed", tabId: payment.tabId, occurredAt: new Date().toISOString() })})`;
     return true;
   }
   const attempts = await tx.paymentAttempt.findMany({
@@ -106,6 +109,7 @@ export async function applyTabPaymentUpdate(tx: Tx, update: GatewayUpdate): Prom
   const closed = attempts.length > 0 && await closeTabIfSettled(tx, payment.tabId);
   if (settledCents !== payment.amountCents) {
     // Se cobró algo que ya no estaba pendiente (pagó el personal o se canceló un pedido): hay que devolver la diferencia.
+    await tx.tabPayment.update({ where: { id: payment.id }, data: { refundDueCents: payment.amountCents - settledCents } });
     await audit("TAB_PAYMENT_NEEDS_REFUND", { paidCents: payment.amountCents, settledCents, refundCents: payment.amountCents - settledCents });
   } else {
     await audit("TAB_PAID_ONLINE", { amountCents: settledCents, orders: attempts.length, closed });
@@ -178,12 +182,33 @@ export class PrismaTableTabRepository {
       const orderIds = lines.map((line) => line.orderId).sort();
       const customerSessionId = input.scope === "mine" ? input.customerSessionId : null;
       const pending = await tx.tabPayment.findMany({
-        where: { tabId: tab.id, status: "PENDING", customerSessionId, amountCents, checkoutUrl: { not: null }, createdAt: { gt: new Date(Date.now() - ONLINE_PAYMENT_REUSE_MS) } },
+        where: { tabId: tab.id, status: "PENDING", customerSessionId, amountCents, createdAt: { gt: new Date(Date.now() - ONLINE_PAYMENT_REUSE_MS) } },
         orderBy: { createdAt: "desc" },
       });
       const reusable = pending.find((payment) => [...payment.orderIds].sort().join() === orderIds.join());
       const payment = reusable ?? await tx.tabPayment.create({ data: { tabId: tab.id, customerSessionId, orderIds, amountCents, idempotencyKey: randomUUID() } });
       return { payment, lines, tableLabel: tab.table.label, qrToken: tab.table.qrToken };
+    });
+  }
+
+  /** Pagos online que cobraron de más y todavía no se devolvieron. */
+  async listTabRefundsDue() {
+    const payments = await this.db.tabPayment.findMany({
+      where: { refundDueCents: { gt: 0 }, refundedAt: null },
+      orderBy: { updatedAt: "desc" },
+      take: 20,
+      select: { id: true, refundDueCents: true, tab: { select: { table: { select: { label: true } } } } },
+    });
+    return payments.map((payment) => ({ id: payment.id, amountCents: payment.refundDueCents, tableLabel: payment.tab.table.label }));
+  }
+
+  /** Marca la devolución como hecha. Devuelve false si no existe o ya estaba devuelta. */
+  async markTabRefundReturned(paymentId: string, staffId: string): Promise<boolean> {
+    return this.db.$transaction(async (tx) => {
+      const claimed = await tx.tabPayment.updateMany({ where: { id: paymentId, refundDueCents: { gt: 0 }, refundedAt: null }, data: { refundedAt: new Date() } });
+      if (claimed.count === 0) return false;
+      await tx.auditEvent.create({ data: { actorStaffId: staffId, action: "TAB_PAYMENT_REFUNDED", entityType: "TabPayment", entityId: paymentId, metadata: {} } });
+      return true;
     });
   }
 

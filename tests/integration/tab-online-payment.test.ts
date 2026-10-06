@@ -94,6 +94,18 @@ describe("tab online payment", () => {
     expect(await prisma.auditEvent.count({ where: { entityId: payment.id, action: "TAB_PAYMENT_AMOUNT_MISMATCH" } })).toBe(1);
   });
 
+  it("asks staff to return the whole amount when it differs, and does not offer that payment again", async () => {
+    const { table, session } = await openTab([{ amountCents: 700 }]);
+    const { payment } = await tableTabRepository.prepareOnlinePayment({ tableId: table.id, customerSessionId: session.id, scope: "mine" });
+    await update(payment.id, { totalPaidCents: 100 });
+    await update(payment.id, { totalPaidCents: 100 });
+    expect(await prisma.auditEvent.count({ where: { entityId: payment.id, action: "TAB_PAYMENT_AMOUNT_MISMATCH" } })).toBe(1);
+    expect((await tableTabRepository.listTabRefundsDue()).find((item) => item.id === payment.id)).toMatchObject({ amountCents: 100 });
+    const next = await tableTabRepository.prepareOnlinePayment({ tableId: table.id, customerSessionId: session.id, scope: "mine" });
+    expect(next.payment.id).not.toBe(payment.id);
+    expect(next.payment.amountCents).toBe(700);
+  });
+
   it("flags money to refund when staff already collected the orders", async () => {
     const { table, tab, session, orders } = await openTab([{ amountCents: 700 }]);
     const { payment } = await tableTabRepository.prepareOnlinePayment({ tableId: table.id, customerSessionId: session.id, scope: "mine" });
@@ -103,6 +115,32 @@ describe("tab online payment", () => {
     await update(payment.id, { totalPaidCents: 700 });
     expect(await prisma.auditEvent.count({ where: { entityId: payment.id, action: "TAB_PAYMENT_NEEDS_REFUND" } })).toBe(1);
     expect((await prisma.paymentAttempt.findFirstOrThrow({ where: { orderId: orders[0].id } })).method).toBe("CASH");
+    expect((await prisma.tabPayment.findUniqueOrThrow({ where: { id: payment.id } })).refundDueCents).toBe(700);
+  });
+
+  it("lists the refund due and stops listing it once staff mark it as returned", async () => {
+    const { table, tab, session } = await openTab([{ amountCents: 700 }]);
+    const { payment } = await tableTabRepository.prepareOnlinePayment({ tableId: table.id, customerSessionId: session.id, scope: "mine" });
+    const staff = await prisma.staffUser.create({ data: { email: `tab-pay-${randomUUID()}@test.local`, displayName: "Caja", passwordHash: "x", role: "ADMIN" } });
+    created.staffIds.push(staff.id);
+    await tableTabRepository.settleTab({ tabId: tab.id, method: "CASH" }, staff.id);
+    await update(payment.id, { totalPaidCents: 700 });
+    const due = await tableTabRepository.listTabRefundsDue();
+    expect(due.find((item) => item.id === payment.id)).toMatchObject({ amountCents: 700, tableLabel: table.label });
+    expect(await tableTabRepository.markTabRefundReturned(payment.id, staff.id)).toBe(true);
+    expect((await tableTabRepository.listTabRefundsDue()).some((item) => item.id === payment.id)).toBe(false);
+    expect(await tableTabRepository.markTabRefundReturned(payment.id, staff.id)).toBe(false);
+    expect(await prisma.auditEvent.count({ where: { entityId: payment.id, action: "TAB_PAYMENT_REFUNDED" } })).toBe(1);
+  });
+
+  it("reuses a pending payment that has no checkout yet so two taps do not open two payments", async () => {
+    const { table, session } = await openTab([{ amountCents: 900 }]);
+    const [first, second] = await Promise.all([
+      tableTabRepository.prepareOnlinePayment({ tableId: table.id, customerSessionId: session.id, scope: "mine" }),
+      tableTabRepository.prepareOnlinePayment({ tableId: table.id, customerSessionId: session.id, scope: "mine" }),
+    ]);
+    expect(second.payment.id).toBe(first.payment.id);
+    expect(await prisma.tabPayment.count({ where: { tabId: first.payment.tabId } })).toBe(1);
   });
 
   it("marks the payment rejected without touching the orders", async () => {
