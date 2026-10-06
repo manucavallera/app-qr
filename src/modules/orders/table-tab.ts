@@ -92,7 +92,10 @@ export async function applyTabPaymentUpdate(tx: Tx, update: GatewayUpdate): Prom
     tx.auditEvent.create({ data: { action, entityType: "TabPayment", entityId: payment.id, metadata: { tabId: payment.tabId, providerOrderId: update.providerOrderId, ...metadata } } });
 
   if (update.totalPaidCents !== payment.amountCents) {
-    await audit("TAB_PAYMENT_AMOUNT_MISMATCH", { expected: payment.amountCents, received: update.totalPaidCents });
+    // Se cobró un monto que no es el de la cuenta: no se toca ningún pedido y hay que devolver todo lo cobrado.
+    await tx.tabPayment.update({ where: { id: payment.id }, data: { status: "APPROVED", providerPayload: raw, refundDueCents: update.totalPaidCents } });
+    await audit("TAB_PAYMENT_AMOUNT_MISMATCH", { expected: payment.amountCents, received: update.totalPaidCents, refundCents: update.totalPaidCents });
+    await tx.$executeRaw`SELECT pg_notify('appqr_order_events', ${JSON.stringify({ type: "tab.changed", tabId: payment.tabId, occurredAt: new Date().toISOString() })})`;
     return true;
   }
   const attempts = await tx.paymentAttempt.findMany({

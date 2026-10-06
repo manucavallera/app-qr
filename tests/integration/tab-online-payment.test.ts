@@ -94,6 +94,18 @@ describe("tab online payment", () => {
     expect(await prisma.auditEvent.count({ where: { entityId: payment.id, action: "TAB_PAYMENT_AMOUNT_MISMATCH" } })).toBe(1);
   });
 
+  it("asks staff to return the whole amount when it differs, and does not offer that payment again", async () => {
+    const { table, session } = await openTab([{ amountCents: 700 }]);
+    const { payment } = await tableTabRepository.prepareOnlinePayment({ tableId: table.id, customerSessionId: session.id, scope: "mine" });
+    await update(payment.id, { totalPaidCents: 100 });
+    await update(payment.id, { totalPaidCents: 100 });
+    expect(await prisma.auditEvent.count({ where: { entityId: payment.id, action: "TAB_PAYMENT_AMOUNT_MISMATCH" } })).toBe(1);
+    expect((await tableTabRepository.listTabRefundsDue()).find((item) => item.id === payment.id)).toMatchObject({ amountCents: 100 });
+    const next = await tableTabRepository.prepareOnlinePayment({ tableId: table.id, customerSessionId: session.id, scope: "mine" });
+    expect(next.payment.id).not.toBe(payment.id);
+    expect(next.payment.amountCents).toBe(700);
+  });
+
   it("flags money to refund when staff already collected the orders", async () => {
     const { table, tab, session, orders } = await openTab([{ amountCents: 700 }]);
     const { payment } = await tableTabRepository.prepareOnlinePayment({ tableId: table.id, customerSessionId: session.id, scope: "mine" });
