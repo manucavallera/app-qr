@@ -1,7 +1,11 @@
 import { DateTime } from "luxon";
 import { DomainError } from "../orders/errors";
 
-export type ServiceMode = "QR_OPEN" | "COUNTER_ONLY" | "PAUSED";
+/** CLOSED: un día sin horario cargado (por ejemplo el martes). COUNTER_ONLY: el QR cerró pero se atiende en barra y caja. */
+export type ServiceMode = "QR_OPEN" | "COUNTER_ONLY" | "PAUSED" | "CLOSED";
+
+/** La noche que empezó en un día con horario sigue contando como "barra y caja" hasta esta hora. */
+const NIGHT_ENDS_AT_MINUTE = 6 * 60;
 export type ManualMode = "SCHEDULED" | "FORCE_QR_OPEN" | "FORCE_COUNTER_ONLY" | "FORCE_PAUSED";
 
 export type ServiceWindowInput = Readonly<{
@@ -77,5 +81,9 @@ export function resolveServiceMode(
     return "QR_OPEN";
   }
 
+  if (!todayWindow) {
+    const previousDayOpen = enabledWindows.some((window) => window.weekday === previousWeekday(weekday));
+    if (!(previousDayOpen && minuteOfDay < NIGHT_ENDS_AT_MINUTE)) return "CLOSED";
+  }
   return "COUNTER_ONLY";
 }

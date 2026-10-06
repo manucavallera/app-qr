@@ -13,9 +13,9 @@ import { MenuHeader, type PublicBusiness } from "./menu-header";
 
 type PublicMenu = Readonly<{
   table: { label: string };
-  mode: "QR_OPEN" | "COUNTER_ONLY" | "PAUSED";
+  mode: "QR_OPEN" | "COUNTER_ONLY" | "PAUSED" | "CLOSED";
   business: PublicBusiness;
-  service: { mode: "QR_OPEN" | "COUNTER_ONLY" | "PAUSED"; hoursLabel: string | null };
+  service: { mode: "QR_OPEN" | "COUNTER_ONLY" | "PAUSED" | "CLOSED"; hoursLabel: string | null };
   categories: ReadonlyArray<{ id: string; name: string; products: ReadonlyArray<MenuProduct> }>;
   serverTime: string;
 }>;
@@ -213,6 +213,8 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
   const canOrder = menu.service.mode === "QR_OPEN";
   const modeMessage = menu.service.mode === "PAUSED"
     ? "Los pedidos están pausados por el local. Podés seguir viendo la carta."
+    : menu.service.mode === "CLOSED"
+    ? "Hoy el local está cerrado. Podés ver la carta, pero no se toman pedidos."
     : "La autogestión por QR está cerrada por ahora. Podés pedir en la barra o caja.";
 
   function closeProductDialog() {
