@@ -1,6 +1,30 @@
 # Pendientes de aceptación
 
-Última actualización: 3 de octubre de 2026
+Última actualización: 5 de octubre de 2026
+
+## Estado al 5 de octubre
+
+Desplegado en producción (`manu-appqr.gygo4l.easypanel.host`), con las migraciones `supplies`, `product_cost`, `table_tab` y `table_tab_entity` aplicadas:
+
+- Dashboard del dueño, stock de insumos, costo y ganancia por producto, exportación CSV del cierre de caja.
+- `INTERNAL_SECRET` cargado y cron de `session-cleanup` cada minuto desde cron-job.org (EasyPanel no tiene cron propio; el contenedor no trae `curl`, se usa `node -e fetch`).
+- Límite de intentos de login: la IP se lee del último valor de `x-forwarded-for`. Verificado en producción: el sexto intento con IP falsa da 429.
+- Cuenta por mesa (modo restaurante, hasta el cierre del QR): medio "Pagar al final", pantalla "Mi cuenta" del cliente con "Pedir la cuenta", pantalla Cuentas de staff con cobro por persona o de la mesa entera, pedidos del mozo a la cuenta desde Caja, aviso "Cuentas sin cobrar" en Inicio, "Por cobrar en mesas" en reportes. Al cerrar el horario del QR las cuentas abiertas pasan solas a "pidió la cuenta". Apagado por defecto: se prende con la casilla "Pagar al final" en Configuración.
+
+Modelo confirmado por el dueño: hasta la 1 am cada QR es una mesa y se paga al final (efectivo al mozo o caja, o billetera); después, modo boliche: se paga en caja y se retira en barra. La comida la retira el cliente con un llamador.
+
+Pendiente, en orden:
+
+1. Probar la cuenta por mesa en producción con dos celulares: cierre del QR a la 1:00, prender "Pagar al final", pasar las hamburguesas a "Retiro".
+2. Comprobante de la cuenta entera.
+3. Pago de la cuenta con Mercado Pago desde el celular.
+4. Imágenes con R2 desde el contenedor.
+5. Mercado Pago real con la cuenta del cliente.
+6. Backup diario automático con restauración probada (`scripts/backup-db.sh` sigue sin probarse; hoy los backups son `pg_dump` manuales antes de cada migración).
+7. Días y horario de apertura: falta la respuesta del dueño.
+8. Noche de prueba supervisada.
+
+Lo que sigue más abajo es el historial anterior; los puntos de "Bloqueantes para producción" sobre migraciones, cron, merge y `x-forwarded-for` ya están resueltos.
 
 ## Base verificada
 
