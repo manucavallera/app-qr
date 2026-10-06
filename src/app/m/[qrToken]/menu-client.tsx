@@ -319,7 +319,7 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
               </ul>
               <div className="cm-total"><span>Total estimado</span><strong>{formatPrice(total)}</strong></div>
               <div className="cm-stack">
-                {canOrder ? <a className="cm-btn" href={`/m/${encodeURIComponent(qrToken)}/checkout`}>Continuar con el pedido</a> : <p className="cm-note">Cuando quieras pedir, acercate a la barra o caja.</p>}
+                {canOrder ? <a className="cm-btn" href={`/m/${encodeURIComponent(qrToken)}/checkout`}>Continuar con el pedido</a> : <p className="cm-note">{menu.service.mode === "CLOSED" ? "Hoy el local está cerrado, así que no se toman pedidos." : "Cuando quieras pedir, acercate a la barra o caja."}</p>}
                 <button className="cm-btn cm-btn-quiet" type="button" onClick={() => setCartOpen(false)}>Seguir agregando</button>
                 <button className="cm-btn-text" type="button" onClick={clearCurrentCart}>Vaciar pedido</button>
               </div>
