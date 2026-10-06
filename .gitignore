@@ -10,3 +10,5 @@ test-results/
 var/uploads/
 src/generated/prisma/
 .superpowers/
+
+graphify-out/
