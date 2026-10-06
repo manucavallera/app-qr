@@ -187,6 +187,9 @@ model TabPayment {
   providerOrderId   String?       @unique
   checkoutUrl       String?
   providerPayload   Json?
+  /// Plata cobrada de más (el personal ya cobró esos pedidos o se cancelaron) que hay que devolver.
+  refundDueCents    Int           @default(0)
+  refundedAt        DateTime?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
   tab               TableTab      @relation(fields: [tabId], references: [id], onDelete: Cascade)

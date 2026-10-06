@@ -5,7 +5,7 @@ import { formatArs } from "@/lib/format";
 import { StaffShell } from "@/components/staff/staff-shell";
 import { TaskCard } from "@/components/staff/task-card";
 
-type Summary = { pendingPayments: number; activeCommands: number; lowStock?: { id: string; name: string; stockQuantity: number }[]; refundsDue?: { id: string; method: string; amountCents: number; orderNumber: number }[]; openTabs?: { tables: number; totalCents: number; billRequested: number }; qrMode: "QR_OPEN" | "COUNTER_ONLY" | "PAUSED" | "CLOSED"; role?: "ADMIN" | "OPERATOR" };
+type Summary = { pendingPayments: number; activeCommands: number; lowStock?: { id: string; name: string; stockQuantity: number }[]; refundsDue?: { id: string; method: string; amountCents: number; orderNumber: number }[]; tabRefundsDue?: { id: string; amountCents: number; tableLabel: string }[]; openTabs?: { tables: number; totalCents: number; billRequested: number }; qrMode: "QR_OPEN" | "COUNTER_ONLY" | "PAUSED" | "CLOSED"; role?: "ADMIN" | "OPERATOR" };
 const methodNames: Record<string, string> = { MERCADO_PAGO: "Mercado Pago", CASH: "efectivo", CARD_AT_COUNTER: "tarjeta", BANK_TRANSFER: "transferencia" };
 const modeLabels: Record<Summary["qrMode"], string> = { QR_OPEN: "Pedidos QR abiertos", COUNTER_ONLY: "Solo pedidos en caja", PAUSED: "Pedidos QR pausados", CLOSED: "Local cerrado hoy" };
 
@@ -33,6 +33,14 @@ export default function StaffHomePage() {
     if (value) setSummary(value);
   }
 
+  async function markTabRefundReturned(id: string) {
+    setReturnError(null);
+    const response = await fetch(`/api/staff/tab-payments/${encodeURIComponent(id)}/refunded`, { method: "POST" });
+    if (!response.ok) { setReturnError("No pudimos registrar la devolución. Probá de nuevo."); return; }
+    const value = await refresh();
+    if (value) setSummary(value);
+  }
+
   return (
     <StaffShell title="Inicio" section="home" role={summary?.role ?? "OPERATOR"}>
       <section className="staff-panel staff-dashboard" aria-labelledby="dashboard-title">
@@ -49,6 +57,19 @@ export default function StaffHomePage() {
             ))}</ul>
             {summary.role !== "ADMIN" && <small>Avisá a un administrador para registrarlo.</small>}
             {returnError && <small role="alert">{returnError}</small>}
+          </aside>
+        )}
+        {summary?.tabRefundsDue && summary.tabRefundsDue.length > 0 && (
+          <aside className="stock-alert refund-alert" role="alert">
+            <strong>Devolver pagos de cuenta</strong>
+            <p>Estos clientes pagaron online algo que el personal ya había cobrado. Devolvé el dinero desde Mercado Pago y marcalo acá.</p>
+            <ul>{summary.tabRefundsDue.map((payment) => (
+              <li key={payment.id}>
+                {payment.tableLabel}: {formatArs(payment.amountCents)} (Mercado Pago)
+                {summary.role === "ADMIN" && <> <button className="button-secondary" type="button" onClick={() => void markTabRefundReturned(payment.id)}>Ya lo devolví</button></>}
+              </li>
+            ))}</ul>
+            {summary.role !== "ADMIN" && <small>Avisá a un administrador para registrarlo.</small>}
           </aside>
         )}
         {summary?.openTabs && summary.openTabs.tables > 0 && (

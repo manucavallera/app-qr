@@ -4,6 +4,7 @@ import { apiErrorResponse } from "@/lib/api-errors";
 import { requireStaff } from "@/modules/auth/require-staff";
 import { resolveServiceMode } from "@/modules/operations/service-mode";
 import { LOW_STOCK_THRESHOLD } from "@/modules/orders/stock";
+import { tableTabRepository } from "@/modules/orders/table-tab";
 
 const roles = ["ADMIN", "OPERATOR"] as const;
 
@@ -11,7 +12,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const principal = await requireStaff(request, roles);
   if (principal instanceof NextResponse) return principal;
   try {
-    const [pendingPayments, activeCommands, settings, windows, lowStock, paymentsToReturn, tabPayments] = await Promise.all([
+    const [pendingPayments, activeCommands, settings, windows, lowStock, paymentsToReturn, tabPayments, tabRefundsDue] = await Promise.all([
       prisma.order.count({ where: { status: "AWAITING_PAYMENT", payments: { some: { status: "UNPAID", method: { in: ["CASH", "CARD_AT_COUNTER", "BANK_TRANSFER"] } } } } }),
       prisma.order.count({ where: { status: { in: ["CONFIRMED", "PREPARING", "READY"] } } }),
       prisma.businessSettings.findUnique({ where: { id: "default" } }),
@@ -33,6 +34,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         where: { method: "ON_TAB", status: "UNPAID", order: { status: { not: "CANCELLED" }, tabId: { not: null } } },
         select: { amountCents: true, order: { select: { tabId: true, tab: { select: { billRequestedAt: true } } } } },
       }),
+      tableTabRepository.listTabRefundsDue(),
     ]);
     const openTabTables = new Map<string, { cents: number; billRequested: boolean }>();
     for (const payment of tabPayments) {
@@ -48,7 +50,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     };
     const refundsDue = paymentsToReturn.map((payment) => ({ id: payment.id, method: payment.method, amountCents: payment.amountCents, orderNumber: payment.order.number }));
     const qrMode = settings ? resolveServiceMode(new Date(), settings.timezone, windows, settings.manualMode) : "COUNTER_ONLY";
-    return NextResponse.json({ pendingPayments, activeCommands, qrMode, lowStock, refundsDue, openTabs, role: principal.role }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ pendingPayments, activeCommands, qrMode, lowStock, refundsDue, tabRefundsDue, openTabs, role: principal.role }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return apiErrorResponse(error);
   }
