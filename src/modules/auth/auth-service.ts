@@ -1,6 +1,6 @@
 import { DomainError } from "../orders/errors";
 import { createSessionToken, hashToken, tokenMatchesHash } from "../../lib/security/token";
-import { verifyPassword } from "./password";
+import { dummyPasswordHash, verifyPassword } from "./password";
 
 export const STAFF_SESSION_COOKIE = "staff_session";
 export const STAFF_SESSION_MAX_AGE_SECONDS = 60 * 60 * 12;
@@ -74,7 +74,7 @@ export class AuthService {
   async login(email: string, password: string): Promise<LoginResult> {
     const normalizedEmail = normalizeEmail(email);
     const user = await this.repository.findUserByEmail(normalizedEmail);
-    const validPassword = await verifyPassword(user?.passwordHash ?? "", password);
+    const validPassword = await verifyPassword(user?.passwordHash ?? await dummyPasswordHash(), password);
 
     if (!user || !user.active || !validPassword) {
       throw new DomainError("INVALID_CREDENTIALS", "El correo o la contraseña no son correctos.");
