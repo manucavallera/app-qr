@@ -29,3 +29,40 @@ jobs:
           APP_URL: http://localhost:3000
           SESSION_SECRET: ci-session-secret-please-change-32chars
           PAYMENT_PROVIDER: fake
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env: { POSTGRES_USER: appqr, POSTGRES_PASSWORD: appqr, POSTGRES_DB: appqr_e2e }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U appqr -d appqr_e2e"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      DATABASE_URL: postgresql://appqr:appqr@localhost:5432/appqr_e2e
+      APP_URL: http://127.0.0.1:3000
+      E2E_BASE_URL: http://127.0.0.1:3000
+      SESSION_SECRET: ci-session-secret-please-change-32chars
+      INTERNAL_SECRET: ci-internal-secret-please-change-32chars
+      PAYMENT_PROVIDER: fake
+      SEED_ADMIN_EMAIL: admin@e2e.test
+      SEED_ADMIN_PASSWORD: e2e-password-123
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run db:deploy
+      - run: npm run db:seed
+      # El seed deja los siete días sin horario; los tests del cliente necesitan el QR abierto.
+      - run: PGPASSWORD=appqr psql -h localhost -U appqr appqr_e2e -c "UPDATE \"BusinessSettings\" SET \"manualMode\" = 'FORCE_QR_OPEN'"
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-results
+          path: test-results
+          retention-days: 7
