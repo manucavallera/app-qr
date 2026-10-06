@@ -74,9 +74,9 @@ export default function CustomerAccountPage() {
       <div className="cm-total"><span>Tu parte</span><strong>{ars(tab.mine.totalCents)}</strong></div>
     </>}
     {tab.tableTotalCents > tab.mine.totalCents && <p className="cm-lead">Total de la mesa: {ars(tab.tableTotalCents)}</p>}
-    {tab.canPayOnline && !empty && <button className="cm-btn" type="button" disabled={paying !== null} onClick={() => void payOnline("mine")}>{paying === "mine" ? "Abriendo Mercado Pago…" : `Pagar mi parte (${ars(tab.mine.totalCents)})`}</button>}
-    {tab.canPayOnline && tab.tableTotalCents > tab.mine.totalCents && <button className="cm-btn cm-btn-quiet" type="button" disabled={paying !== null} onClick={() => void payOnline("table")}>{paying === "table" ? "Abriendo Mercado Pago…" : `Pagar toda la mesa (${ars(tab.tableTotalCents)})`}</button>}
-    {!tab.billRequestedAt && tab.tableTotalCents > 0 && <button className="cm-btn" type="button" disabled={requesting} onClick={() => void requestBill()}>{requesting ? "Pidiendo…" : "Pedir la cuenta"}</button>}
+    {tab.canPayOnline && !empty && <button className="cm-btn" type="button" disabled={paying !== null} onClick={() => void payOnline("mine")}>{paying === "mine" ? "Abriendo Mercado Pago…" : `Pagar mi parte con Mercado Pago (${ars(tab.mine.totalCents)})`}</button>}
+    {tab.canPayOnline && tab.tableTotalCents > tab.mine.totalCents && <button className="cm-btn cm-btn-quiet" type="button" disabled={paying !== null} onClick={() => void payOnline("table")}>{paying === "table" ? "Abriendo Mercado Pago…" : `Pagar toda la mesa con Mercado Pago (${ars(tab.tableTotalCents)})`}</button>}
+    {!tab.billRequestedAt && tab.tableTotalCents > 0 && <button className={tab.canPayOnline && !empty ? "cm-btn cm-btn-quiet" : "cm-btn"} type="button" disabled={requesting} onClick={() => void requestBill()}>{requesting ? "Pidiendo…" : "Pedir la cuenta"}</button>}
     <a className="cm-btn cm-btn-quiet" href={back}>Pedir algo más</a>
   </CustomerShell>;
 }

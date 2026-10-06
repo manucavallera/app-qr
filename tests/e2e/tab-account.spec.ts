@@ -26,7 +26,9 @@ test("el cliente paga su parte de la cuenta con Mercado Pago", async ({ page }) 
 
   await page.goto("/m/test-token/account");
   await expect(page.getByRole("heading", { name: "Mi cuenta" })).toBeVisible();
-  await page.getByRole("button", { name: /Pagar mi parte/ }).click();
+  // El pago online es la acción principal; pedir la cuenta al mozo queda como alternativa.
+  await expect(page.getByRole("button", { name: "Pedir la cuenta" })).toHaveClass(/cm-btn-quiet/);
+  await page.getByRole("button", { name: /Pagar mi parte con Mercado Pago/ }).click();
   await expect(page).toHaveURL("http://fake-payments.local/tab/mine");
   expect(payBody).toEqual({ scope: "mine" });
   expect(browserErrors).toEqual([]);
@@ -52,6 +54,7 @@ test("sin pago online la cuenta solo ofrece pedir la cuenta al mozo", async ({ p
 
   await page.goto("/m/test-token/account");
   await expect(page.getByRole("button", { name: "Pedir la cuenta" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Pedir la cuenta" })).not.toHaveClass(/cm-btn-quiet/);
   await expect(page.getByRole("button", { name: /Pagar mi parte/ })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Pagar toda la mesa/ })).toHaveCount(0);
 });
