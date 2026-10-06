@@ -126,3 +126,21 @@ test("si los pedidos por QR se cierran mientras el cliente arma el pedido, el ch
   await page.locator("form button[type=submit], main button").last().click();
   await expect(page.getByText("Los pedidos por QR están cerrados en este momento. Podés pedir en la barra o en la caja.")).toBeVisible();
 });
+
+test("si un producto se agota mientras el cliente arma el pedido, el checkout se lo dice", async ({ page, qrToken }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "El aviso de producto agotado se prueba una vez en escritorio.");
+  await page.context().setExtraHTTPHeaders({ "x-forwarded-for": `e2e-unavailable-${testInfo.project.name}-${Date.now()}` });
+  await page.goto(`/m/${encodeURIComponent(qrToken)}`);
+  await page.getByLabel("Tu nombre o apodo").fill("Prueba agotado");
+  await page.getByRole("button", { name: "Ver la carta" }).click();
+  await page.getByRole("button", { name: /Agregar Hamburguesa clásica/ }).click();
+  await page.getByRole("button", { name: /Agregar al carrito/ }).click();
+  await page.getByRole("button", { name: /^Ver pedido, / }).click();
+  await page.getByRole("link", { name: "Continuar con el pedido" }).click();
+  await expect(page.getByRole("heading", { name: "Forma de pago" })).toBeVisible();
+  for (const code of ["PRODUCT_UNAVAILABLE", "OPTION_UNAVAILABLE"]) {
+    await page.route("**/api/public/orders", (route) => route.fulfill({ status: 409, json: { error: code } }), { times: 1 });
+    await page.getByRole("button", { name: /Enviar pedido|Ir a Mercado Pago/ }).click();
+    await expect(page.getByText(/se agotó o ya no está disponible/)).toBeVisible();
+  }
+});
