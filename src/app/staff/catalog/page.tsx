@@ -464,9 +464,10 @@ export default function StaffCatalogPage() {
                   accept="image/jpeg,image/png,image/webp"
                   multiple
                   onChange={(event) => {
-                    const room = MAX_IMAGES - keptImages.length - newFiles.length;
-                    setNewFiles((current) => [...current, ...Array.from(event.target.files ?? []).slice(0, room)]);
+                    // Copy the files before clearing the input: the state updater runs later, when the list is already empty.
+                    const picked = Array.from(event.target.files ?? []).slice(0, MAX_IMAGES - keptImages.length - newFiles.length);
                     event.target.value = "";
+                    setNewFiles((current) => [...current, ...picked]);
                   }}
                   type="file"
                 />
