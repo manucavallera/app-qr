@@ -144,3 +144,31 @@ test("si un producto se agota mientras el cliente arma el pedido, el checkout se
     await expect(page.getByText(/se agotó o ya no está disponible/)).toBeVisible();
   }
 });
+
+test("quien vuelve a la mesa sigue como sí mismo y un nombre repetido se pregunta", async ({ page }) => {
+  const posts: unknown[] = [];
+  await page.route("**/api/public/qr/test-token/session", async (route) => {
+    if (route.request().method() === "GET") return route.fulfill({ json: { nickname: null, people: ["Beto", "Caro"] } });
+    const body = route.request().postDataJSON() as { nickname: string; rejoin?: boolean };
+    posts.push(body);
+    if (!body.rejoin && body.nickname.trim().toLowerCase() === "beto") return route.fulfill({ status: 409, json: { error: "NICKNAME_IN_USE" } });
+    return route.fulfill({ status: 201, json: { nickname: body.rejoin ? "Beto" : body.nickname } });
+  });
+  await page.route("**/api/public/menu/test-token", (route) => route.fulfill({ json: { business: { name: "Bar", locationUrl: null, instagramUrl: null, whatsappUrl: null }, table: { label: "Mesa 4" }, service: { mode: "QR_OPEN", hoursLabel: null }, paymentMethods: [], categories: [] } }));
+  await page.goto("/m/test-token");
+
+  const rejoin = page.getByRole("group", { name: /Ya estabas en esta mesa/ });
+  await expect(rejoin.getByRole("button", { name: "Caro" })).toBeVisible();
+
+  // Typing a name someone at the table already uses asks first instead of mixing two people.
+  await page.getByLabel("Si sos nuevo, tu nombre o apodo").fill("beto");
+  await page.getByRole("button", { name: "Ver la carta" }).click();
+  await expect(page.getByRole("heading", { name: "Ya hay un beto en esta mesa" })).toBeVisible();
+  await page.getByRole("button", { name: "No, soy otra persona" }).click();
+  await expect(page.locator(".cm-error")).toContainText("Elegí otro nombre");
+  await expect(page.getByLabel("Si sos nuevo, tu nombre o apodo")).toHaveValue("");
+
+  await rejoin.getByRole("button", { name: "Beto" }).click();
+  await expect(page.getByText("Hola, Beto")).toBeVisible();
+  expect(posts).toEqual([{ nickname: "beto" }, { nickname: "Beto", rejoin: true }]);
+});

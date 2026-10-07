@@ -14,7 +14,8 @@ import type { OrderStatus } from "../../generated/prisma/client";
  *   2. Resolve the current ServiceMode.
  *   3. If NOT QR_OPEN: close every session that has been open for at least
  *      15 minutes and has no in-progress orders.
- *      Sessions tied to active orders stay open so the customer can track them.
+ *      Sessions tied to active orders stay open so the customer can track them,
+ *      and so do the ones that still owe on a table tab, so they can pay it.
  */
 export async function closeExpiredSessions(now = new Date()): Promise<{ closed: number }> {
   const [settings, windows] = await Promise.all([
@@ -42,7 +43,8 @@ export async function closeExpiredSessions(now = new Date()): Promise<{ closed: 
       closedAt: null,
       expiresAt: { gt: now },
       createdAt: { lt: new Date(now.getTime() - 15 * 60 * 1000) },
-      orders: { none: { status: { in: activeStatuses } } },
+      // Whoever still owes on the table's tab keeps the session: after the QR closes they have to open "Mi cuenta" to pay.
+      orders: { none: { OR: [{ status: { in: activeStatuses } }, { status: { not: "CANCELLED" }, payments: { some: { method: "ON_TAB", status: "UNPAID" } } }] } },
     },
     data: { closedAt: now },
   });

@@ -81,7 +81,7 @@ describe("public QR customer sessions", () => {
     );
 
     expect(current.status).toBe(200);
-    await expect(current.json()).resolves.toEqual({ nickname: null });
+    await expect(current.json()).resolves.toEqual({ nickname: null, people: [] });
   });
 
   it("keeps two people on one table private, stores only token hashes and expires after four hours", async () => {
