@@ -1221,28 +1221,34 @@ html:has(.receipt-page), body:has(.receipt-page) { background: var(--paper-bg); 
 .photo-list { display: grid; gap: 8px; margin: 8px 0; padding: 0; list-style: none; }
 .photo-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 
-/* Staff shell: grouped menu. A fixed sidebar on wide screens; on small ones a top bar with the menu folded behind a button. */
-.staff-layout { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100svh; }
+/* Staff shell: grouped menu. A dark sidebar on wide screens, set apart from the light work area; on small ones a top bar with the menu folded behind a button. */
+.staff-layout { display: grid; grid-template-columns: 244px minmax(0, 1fr); min-height: 100svh; }
 .staff-layout .staff-page { width: min(1320px, 100%); margin: 0; }
-.staff-sidebar { position: sticky; top: 0; align-self: start; display: flex; flex-direction: column; height: 100svh; overflow-y: auto; padding: 24px 14px; border-right: 1px solid var(--paper-border); background: var(--paper-surface); }
-.staff-sidebar-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; padding: 0 10px; }
-.staff-brand { color: var(--paper-text); font-size: 0.8rem; font-weight: 800; letter-spacing: 0.12em; text-decoration: none; text-transform: uppercase; }
-.staff-menu-toggle { display: none; min-height: 44px; padding: 0 16px; border: 1px solid var(--paper-border-strong); border-radius: 999px; background: var(--paper-surface); color: var(--paper-text); cursor: pointer; font: inherit; font-size: 0.9rem; font-weight: 700; }
+.staff-sidebar { position: sticky; top: 0; align-self: start; display: flex; flex-direction: column; height: 100svh; overflow-y: auto; padding: 22px 14px 16px; background: var(--green-dark); color: var(--paper-surface); }
+.staff-sidebar-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 22px; padding: 0 12px; }
+.staff-brand { color: var(--paper-surface); font-size: 1.2rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; text-decoration: none; }
+.staff-menu-toggle { display: none; min-height: 44px; align-items: center; gap: 8px; padding: 0 16px; border: 1px solid rgb(255 255 255 / 24%); border-radius: 999px; background: rgb(255 255 255 / 8%); color: var(--paper-surface); cursor: pointer; font: inherit; font-size: 0.9rem; font-weight: 700; }
 .staff-side-nav { display: flex; flex: 1; flex-direction: column; gap: 2px; }
-.staff-side-nav a { display: flex; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 10px; color: #4f544c; font-size: 0.925rem; font-weight: 600; text-decoration: none; }
-.staff-side-nav a:hover { background: var(--paper-green-tint); }
-.staff-side-nav a[aria-current="page"] { background: var(--green-dark); color: var(--paper-surface); }
-.staff-nav-group { display: grid; gap: 2px; margin-top: 18px; }
-.staff-nav-group p { margin: 0 0 4px; padding: 0 12px; color: var(--paper-text-muted); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
-.staff-side-nav form { margin-top: auto; padding-top: 20px; }
-.staff-side-nav form button { width: 100%; }
+.staff-side-nav a { display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 0 12px; border-radius: 10px; color: rgb(255 255 255 / 80%); font-size: 0.95rem; font-weight: 500; text-decoration: none; transition: background 0.15s, color 0.15s; }
+.staff-side-nav a svg { flex: none; color: var(--green-soft); }
+.staff-side-nav a:hover { background: rgb(255 255 255 / 9%); color: var(--white); }
+.staff-side-nav a[aria-current="page"] { background: var(--paper-surface); color: var(--green-dark); font-weight: 700; }
+.staff-side-nav a[aria-current="page"] svg { color: var(--green); }
+.staff-side-nav a:focus-visible, .staff-menu-toggle:focus-visible, .staff-logout:focus-visible, .staff-brand:focus-visible { outline: 2px solid var(--green-soft); outline-offset: 2px; }
+/* A rule and a small caps label mark where each group starts. */
+.staff-nav-group { display: grid; gap: 2px; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgb(255 255 255 / 12%); }
+.staff-nav-group p { margin: 0 0 6px; padding: 0 12px; color: var(--green-soft); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
+.staff-side-nav form { margin-top: auto; padding-top: 14px; }
+.staff-logout { display: flex; width: 100%; min-height: 44px; align-items: center; justify-content: center; gap: 8px; border: 1px solid rgb(255 255 255 / 22%); border-radius: 12px; background: transparent; color: rgb(255 255 255 / 86%); cursor: pointer; font: inherit; font-size: 0.9rem; font-weight: 600; }
+.staff-logout:hover { background: rgb(255 255 255 / 9%); color: var(--white); }
 
 @media (max-width: 900px) {
   .staff-layout { grid-template-columns: minmax(0, 1fr); }
-  .staff-sidebar { position: sticky; z-index: 20; height: auto; max-height: 100svh; padding: 10px 16px; border-right: 0; border-bottom: 1px solid var(--paper-border); }
+  .staff-sidebar { position: sticky; z-index: 20; height: auto; max-height: 100svh; padding: 10px 16px; }
   .staff-sidebar-top { margin-bottom: 0; padding: 0; }
-  .staff-menu-toggle { display: inline-flex; align-items: center; }
-  .staff-side-nav { display: none; padding: 12px 0 8px; }
+  .staff-brand { font-size: 1.05rem; }
+  .staff-menu-toggle { display: inline-flex; }
+  .staff-side-nav { display: none; padding: 14px 0 8px; }
   .staff-side-nav.is-open { display: flex; }
   .staff-side-nav a { min-height: 44px; }
   /* Two columns of links keep the open menu short on a phone. */
