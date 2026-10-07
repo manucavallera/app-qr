@@ -6,18 +6,28 @@ import type { PaymentGateway } from "./payment-gateway";
 export type WebhookInput = Readonly<{ xSignature: string | null; xRequestId: string | null; dataId: string | null }>;
 export type SignatureValidator = (input: WebhookInput & { secret: string }) => boolean;
 
-export function validateMercadoPagoSignature(input: WebhookInput & { secret: string }): boolean {
-  if (!input.xSignature || !input.xRequestId || !input.dataId || !input.secret) return false;
+export type SignatureFailure = "MISSING_SIGNATURE" | "MISSING_REQUEST_ID" | "MISSING_DATA_ID" | "MISSING_KEY" | "MALFORMED_SIGNATURE" | "SIGNATURE_MISMATCH";
+
+/** Why a notification fails validation; null when it is valid. Never exposes the key. */
+export function diagnoseMercadoPagoSignature(input: WebhookInput & { secret: string }): SignatureFailure | null {
+  if (!input.xSignature) return "MISSING_SIGNATURE";
+  if (!input.xRequestId) return "MISSING_REQUEST_ID";
+  if (!input.dataId) return "MISSING_DATA_ID";
+  if (!input.secret) return "MISSING_KEY";
   const parts = Object.fromEntries(input.xSignature.split(",").map((part) => part.trim().split("=", 2) as [string, string]));
   const timestamp = parts.ts;
   const signature = parts.v1;
-  if (!timestamp || !signature || !/^\d+$/.test(timestamp)) return false;
+  if (!timestamp || !signature || !/^\d+$/.test(timestamp)) return "MALFORMED_SIGNATURE";
   // Mercado Pago signs alphanumeric ids in lowercase; the original id is still the one used to fetch the order.
   const manifest = `id:${input.dataId.toLowerCase()};request-id:${input.xRequestId};ts:${timestamp};`;
   const expected = createHmac("sha256", input.secret).update(manifest).digest("hex");
   const actual = Buffer.from(signature, "hex");
   const expectedBuffer = Buffer.from(expected, "hex");
-  return actual.length === expectedBuffer.length && timingSafeEqual(actual, expectedBuffer);
+  return actual.length === expectedBuffer.length && timingSafeEqual(actual, expectedBuffer) ? null : "SIGNATURE_MISMATCH";
+}
+
+export function validateMercadoPagoSignature(input: WebhookInput & { secret: string }): boolean {
+  return diagnoseMercadoPagoSignature(input) === null;
 }
 
 export class WebhookService {

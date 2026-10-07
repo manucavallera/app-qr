@@ -4,13 +4,13 @@ import { getServerEnv } from "@/lib/env";
 import { logRequest } from "@/lib/logger";
 import { orderRepository } from "@/modules/orders/order-repository";
 import { createPaymentGateway } from "@/modules/payments/gateway-factory";
-import { validateMercadoPagoSignature, WebhookService } from "@/modules/payments/webhook-service";
+import { diagnoseMercadoPagoSignature, validateMercadoPagoSignature, WebhookService } from "@/modules/payments/webhook-service";
 
 const route = "mercado-pago-webhook";
 
 /** One line per notification, so a rejected or ignored one can be found in the server logs. */
-function logOutcome(request: NextRequest, startedAt: number, status: number, code: string): void {
-  logRequest({ requestId: request.headers.get("x-request-id") ?? "-", route, status, durationMs: Date.now() - startedAt, code });
+function logOutcome(request: NextRequest, startedAt: number, status: number, code: string, detail?: Record<string, unknown>): void {
+  logRequest({ requestId: request.headers.get("x-request-id") ?? "-", route, status, durationMs: Date.now() - startedAt, code, detail });
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -30,7 +30,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ received: true });
   } catch (error) {
     if (error instanceof Error && "code" in error && (error as { code?: string }).code === "INVALID_WEBHOOK_SIGNATURE") {
-      logOutcome(request, startedAt, 401, "INVALID_WEBHOOK_SIGNATURE");
+      // The reason and the shape of the request, never the key itself: lets a rejected real notification be diagnosed from the logs.
+      const keyValue = getServerEnv().MERCADOPAGO_WEBHOOK_SECRET ?? "";
+      const dataId = request.nextUrl.searchParams.get("data.id") ?? request.nextUrl.searchParams.get("id");
+      logOutcome(request, startedAt, 401, "INVALID_WEBHOOK_SIGNATURE", {
+        reason: diagnoseMercadoPagoSignature({ xSignature: request.headers.get("x-signature"), xRequestId: request.headers.get("x-request-id"), dataId, secret: keyValue }),
+        dataId,
+        queryNames: [...request.nextUrl.searchParams.keys()],
+        keyLength: keyValue.length,
+        keyHasWhitespace: keyValue !== keyValue.trim(),
+      });
       return NextResponse.json({ error: "INVALID_WEBHOOK_SIGNATURE" }, { status: 401 });
     }
     const response = apiErrorResponse(error);
