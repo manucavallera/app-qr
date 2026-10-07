@@ -95,6 +95,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext): Prom
             name: product.name,
             description: product.description,
             imageUrl: product.imageKey ? storage.publicUrl(product.imageKey) : null,
+            imageUrls: [product.imageKey, ...product.extraImageKeys].flatMap((key) => (key ? [storage.publicUrl(key)] : [])),
             priceCents: product.priceCents,
             available: product.available && hasStock(product.stockQuantity) && optionGroups.every((group) => group.minSelections <= group.values.length),
             // Only shared when it is running out, so the menu can say "últimas N".

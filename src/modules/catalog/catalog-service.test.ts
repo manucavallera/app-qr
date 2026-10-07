@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { catalogProductInputSchema } from "./catalog-schemas";
+import { describe, expect, it, vi } from "vitest";
+import { CatalogService } from "./catalog-service";
+import { catalogProductInputSchema, MAX_PRODUCT_IMAGES, productImagesInputSchema } from "./catalog-schemas";
 
 const validProduct = {
   categoryId: "123e4567-e89b-12d3-a456-426614174000",
@@ -60,5 +61,32 @@ describe("catalogProductInputSchema", () => {
     if (!result.success) {
       expect(result.error.issues.some((issue) => issue.path.includes("minSelections"))).toBe(true);
     }
+  });
+});
+
+describe("productImagesInputSchema", () => {
+  it("accepts up to the maximum number of photos and an empty list", () => {
+    expect(productImagesInputSchema.safeParse({ imageKeys: [] }).success).toBe(true);
+    expect(productImagesInputSchema.safeParse({ imageKeys: ["a.jpg", "b.jpg", "c.jpg"] }).success).toBe(true);
+    expect(MAX_PRODUCT_IMAGES).toBe(3);
+  });
+
+  it("rejects more photos than the maximum, empty keys and unknown fields", () => {
+    expect(productImagesInputSchema.safeParse({ imageKeys: ["a", "b", "c", "d"] }).success).toBe(false);
+    expect(productImagesInputSchema.safeParse({ imageKeys: [""] }).success).toBe(false);
+    expect(productImagesInputSchema.safeParse({ imageKeys: [], other: 1 }).success).toBe(false);
+  });
+});
+
+describe("CatalogService.setProductImages", () => {
+  it("validates the list before touching the repository", () => {
+    const setProductImages = vi.fn();
+    const service = new CatalogService({ setProductImages } as unknown as ConstructorParameters<typeof CatalogService>[0]);
+
+    expect(() => service.setProductImages("p1", { imageKeys: ["a", "b", "c", "d"] }, "staff-1")).toThrow();
+    expect(setProductImages).not.toHaveBeenCalled();
+
+    service.setProductImages("p1", { imageKeys: ["a", "b"] }, "staff-1");
+    expect(setProductImages).toHaveBeenCalledWith("p1", ["a", "b"], "staff-1");
   });
 });

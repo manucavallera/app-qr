@@ -3,7 +3,7 @@ import { apiErrorResponse } from "@/lib/api-errors";
 import { requireStaff } from "@/modules/auth/require-staff";
 import { CatalogService } from "@/modules/catalog/catalog-service";
 import { catalogRepository } from "@/modules/catalog/catalog-repository";
-import { availabilityInputSchema, productImageInputSchema } from "@/modules/catalog/catalog-schemas";
+import { availabilityInputSchema, productImageInputSchema, productImagesInputSchema } from "@/modules/catalog/catalog-schemas";
 import { DomainError } from "@/modules/orders/errors";
 
 const catalog = new CatalogService(catalogRepository);
@@ -33,6 +33,9 @@ export async function PATCH(request: NextRequest, context: RouteContext): Promis
     const { id } = await context.params;
     if (availabilityInputSchema.safeParse(body).success) {
       return NextResponse.json(await catalog.setAvailability(id, body, principal.userId));
+    }
+    if (productImagesInputSchema.safeParse(body).success) {
+      return NextResponse.json(await catalog.setProductImages(id, body, principal.userId));
     }
     if (productImageInputSchema.safeParse(body).success) {
       return NextResponse.json(await catalog.setProductImage(id, body, principal.userId));

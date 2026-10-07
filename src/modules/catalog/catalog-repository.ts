@@ -170,6 +170,23 @@ export class PrismaCatalogRepository implements CatalogRepository {
     });
   }
 
+  setProductImages(id: string, imageKeys: string[], actorStaffId: string) {
+    return this.db.$transaction(async (tx) => {
+      const [imageKey = null, ...extraImageKeys] = imageKeys;
+      const product = await tx.product.update({ where: { id }, data: { imageKey, extraImageKeys } });
+      await tx.auditEvent.create({
+        data: {
+          actorStaffId,
+          action: "PRODUCT_IMAGE_CHANGED",
+          entityType: "Product",
+          entityId: id,
+          metadata: { imageCount: imageKeys.length },
+        },
+      });
+      return product;
+    });
+  }
+
   async archiveProduct(id: string, actorStaffId: string): Promise<void> {
     await this.db.$transaction(async (tx) => {
       const product = await tx.product.findUnique({ where: { id }, select: { id: true, visible: true } });

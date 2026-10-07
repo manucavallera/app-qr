@@ -227,6 +227,8 @@ model Product {
   name          String
   description   String
   imageKey      String?
+  /// Up to two more photos after imageKey, in display order (the product dialog shows them as a carousel).
+  extraImageKeys String[]         @default([])
   priceCents    Int
   /// What one unit costs the business. Null means the cost is unknown.
   costCents     Int?

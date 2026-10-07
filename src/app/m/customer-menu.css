@@ -449,14 +449,14 @@ body:has(.cm-shell, .cm-welcome-shell, .cm-page) {
 
 .cm-product-media {
   position: relative;
-  width: 112px;
-  height: 112px;
+  width: clamp(92px, 27vw, 124px);
+  aspect-ratio: 1;
 }
 
 .cm-product-image,
 .cm-product-image-placeholder {
-  width: 112px;
-  height: 112px;
+  width: 100%;
+  height: 100%;
   border-radius: 16px;
   object-fit: cover;
   background: var(--cm-surface-2);
@@ -774,13 +774,70 @@ body:has(.cm-shell, .cm-welcome-shell, .cm-page) {
   outline: none;
 }
 
-.cm-sheet-image {
-  display: block;
+.cm-gallery {
+  position: relative;
   width: calc(100% + 32px);
-  height: clamp(96px, 28dvh, 200px);
   margin: 0 -16px;
-  object-fit: cover;
   background: var(--cm-surface-2);
+}
+
+.cm-gallery-track {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.cm-gallery-track::-webkit-scrollbar {
+  display: none;
+}
+
+/* The photo keeps its shape on any screen: a 4:3 box that never takes more than ~45% of the height. */
+.cm-gallery-slide {
+  position: relative;
+  flex: 0 0 100%;
+  aspect-ratio: 4 / 3;
+  max-height: min(46dvh, 380px);
+  scroll-snap-align: center;
+}
+
+.cm-gallery-slide img {
+  object-fit: cover;
+}
+
+.cm-gallery-dots {
+  position: absolute;
+  inset: auto 0 10px;
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+}
+
+/* 24px tap target around an 8px dot. */
+.cm-gallery-dots button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.cm-gallery-dots button::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.55);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.25);
+  transition: width 0.2s var(--cm-ease), background 0.2s var(--cm-ease);
+}
+
+.cm-gallery-dots button.is-active::before {
+  width: 20px;
+  border-radius: 4px;
+  background: #fff;
 }
 
 .cm-sheet-desc {

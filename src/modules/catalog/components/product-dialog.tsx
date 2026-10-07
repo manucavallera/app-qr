@@ -1,18 +1,20 @@
 "use client";
 
 import { Minus, Plus, X } from "@phosphor-icons/react";
-import Image from "next/image";
 import { useState } from "react";
 import { Sheet } from "@/components/customer/sheet";
 import { useEscapeKey } from "@/lib/client/use-escape-key";
 import type { CartItem } from "@/modules/orders/cart-store";
 import { formatArs } from "./product-card";
+import { ProductGallery } from "./product-gallery";
 
 export type MenuProduct = Readonly<{
   id: string;
   name: string;
   description: string;
   imageUrl?: string | null;
+  /** Every photo, main one first. Older responses only carry imageUrl. */
+  imageUrls?: readonly string[];
   featured?: boolean;
   priceCents: number;
   available: boolean;
@@ -75,7 +77,7 @@ export function ProductDialog({
     <div className="cm-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <Sheet labelledBy="product-dialog-title">
         <button className="cm-close" type="button" onClick={onClose} aria-label="Cerrar"><X size={20} weight="bold" aria-hidden="true" /></button>
-        {product.imageUrl && <Image className="cm-sheet-image" src={product.imageUrl} alt="" width={560} height={320} unoptimized />}
+        <ProductGallery urls={product.imageUrls?.length ? product.imageUrls : product.imageUrl ? [product.imageUrl] : []} name={product.name} />
         <div className="cm-sheet-body">
           <h2 id="product-dialog-title">{product.name}</h2>
           {product.description && <p className="cm-sheet-desc">{product.description}</p>}

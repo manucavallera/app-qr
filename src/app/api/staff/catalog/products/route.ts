@@ -14,13 +14,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (principal instanceof NextResponse) return principal;
 
   try {
-    const products = await catalog.listProducts() as Array<{ imageKey: string | null; stockQuantity: number | null; [key: string]: unknown }>;
+    const products = await catalog.listProducts() as Array<{ imageKey: string | null; extraImageKeys: string[]; stockQuantity: number | null; [key: string]: unknown }>;
     const storage = createImageStorage();
     return NextResponse.json(products.map((product) => ({
       ...product,
       // Costs are the owner's business: operators get the catalog without them.
       costCents: principal.role === "ADMIN" ? product.costCents ?? null : null,
       imageUrl: product.imageKey ? storage.publicUrl(product.imageKey) : null,
+      images: [product.imageKey, ...product.extraImageKeys].flatMap((key) => (key ? [{ key, url: storage.publicUrl(key) }] : [])),
       stockLeft: product.stockQuantity !== null && product.stockQuantity <= LOW_STOCK_THRESHOLD ? product.stockQuantity : null,
     })));
   } catch (error) {
