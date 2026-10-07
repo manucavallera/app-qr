@@ -68,3 +68,20 @@ test("Carta deja elegir varias fotos y las guarda en orden", async ({ page }) =>
   expect(uploads).toBe(2);
   expect(imageUpdates).toEqual([{ imageKeys: ["foto-1.png", "foto-2.png"] }]);
 });
+
+test("Cuentas ofrece imprimir la cuenta de la mesa con lo de cada persona", async ({ page }) => {
+  const person = (key: string, name: string, productName: string, cents: number) => ({ key, customerSessionId: key, name, totalCents: cents, orders: [{ number: 7, items: [{ productName, quantity: 1, lineTotalCents: cents }] }] });
+  const tab = { id: "tab-1", number: 2, label: "Mesa 4", openedAt: "2026-10-07T01:00:00.000Z", billRequestedAt: null, totalCents: 660000, people: [person("s1", "Beto", "Cerveza tirada", 380000), person("s2", "Caro", "Gaseosa", 280000)] };
+  await page.route("**/api/staff/tabs", (route) => route.fulfill({ json: [tab] }));
+  await page.route("**/api/staff/tabs/tab-1/receipt", (route) => route.fulfill({ json: { tab, businessName: "Bar de prueba" } }));
+  await page.goto("/staff/tabs");
+  await page.getByRole("link", { name: "Imprimir cuenta" }).click();
+
+  const receipt = page.getByRole("article", { name: "Cuenta de Mesa 4" });
+  await expect(receipt).toBeVisible();
+  await expect(receipt.getByRole("region", { name: "Beto" }).getByText("Subtotal Beto")).toBeVisible();
+  await expect(receipt.getByRole("region", { name: "Caro" }).getByText("1 × Gaseosa")).toBeVisible();
+  await expect(receipt.getByText("Documento no válido como factura.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Imprimir" })).toBeEnabled();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+});

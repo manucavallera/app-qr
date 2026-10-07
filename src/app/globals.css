@@ -1202,6 +1202,12 @@ html:has(.receipt-page), body:has(.receipt-page) { background: var(--paper-bg); 
 .receipt-meta dd { margin: 0; text-align: right; }
 .receipt-items { display: grid; gap: 8px; margin: 0; padding: 12px 0; border-top: 1px dashed #9a9a92; border-bottom: 1px dashed #9a9a92; list-style: none; }
 .receipt-items small { display: block; padding-left: 14px; color: #55574f; }
+/* Table bill: one block per person, with their name and subtotal when the table is split. */
+.receipt-person h2 { margin: 12px 0 0; font-size: 0.86rem; font-weight: 800; text-transform: uppercase; }
+.receipt-person h2 + .receipt-items { margin-top: 6px; }
+.receipt-person .receipt-items { border-bottom: 0; }
+.receipt-subtotal { padding-bottom: 10px; font-weight: 700; }
+.receipt-person:last-of-type { border-bottom: 1px dashed #9a9a92; }
 .receipt-total { padding-top: 10px; font-size: 1.05rem; font-weight: 800; }
 .receipt-payment { margin: 6px 0 0; }
 .receipt-footer { margin-top: 14px; padding-top: 10px; border-top: 1px dashed #9a9a92; font-size: 0.78rem; text-align: center; }
