@@ -1262,3 +1262,20 @@ html:has(.receipt-page), body:has(.receipt-page) { background: var(--paper-bg); 
   .staff-nav-group p { grid-column: 1 / -1; }
   .staff-layout .staff-page { padding-top: 20px; }
 }
+
+/* Cuentas: who owes what, and a dialog that asks how each charge was paid. */
+.tab-people { display: grid; grid-column: 1 / -1; gap: 0; margin: 0; padding: 0; list-style: none; }
+.tab-people li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px 14px; padding: 10px 0; border-top: 1px solid var(--paper-divider); }
+.tab-people li > div { display: grid; gap: 2px; }
+.tab-people li > span { color: var(--paper-text); font-size: 0.95rem; font-weight: 700; }
+.payment-card .button-row { grid-column: 1 / -1; }
+.charge-dialog { width: min(420px, calc(100% - 32px)); margin: auto; }
+.charge-dialog::backdrop { background: rgb(20 24 20 / 55%); }
+.charge-dialog h2 { margin: 4px 0 18px; }
+.charge-methods { display: grid; gap: 10px; margin-bottom: 14px; }
+.charge-methods .primary-link, .charge-dialog > .button-secondary { width: 100%; min-height: 52px; border: 0; cursor: pointer; font: inherit; font-weight: 700; }
+.charge-dialog > .button-secondary { border: 1px solid var(--paper-border-strong); }
+@media (max-width: 520px) {
+  .tab-people li { grid-template-columns: minmax(0, 1fr) auto; }
+  .tab-people li > button { grid-column: 1 / -1; }
+}

@@ -85,3 +85,28 @@ test("Cuentas ofrece imprimir la cuenta de la mesa con lo de cada persona", asyn
   await expect(page.getByRole("button", { name: "Imprimir" })).toBeEnabled();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });
+
+test("Cuentas pregunta el medio de pago en cada cobro y no asume ninguno", async ({ page }) => {
+  const person = (key: string, name: string, cents: number) => ({ key, customerSessionId: key, name, totalCents: cents, orders: [{ number: 7, items: [{ productName: "Cerveza tirada", quantity: 1, lineTotalCents: cents }] }] });
+  const tab = { id: "tab-1", number: 2, label: "Mesa 4", openedAt: "2026-10-07T01:00:00.000Z", billRequestedAt: null, totalCents: 660000, people: [person("s1", "Beto", 380000), person("s2", "Caro", 280000)] };
+  const charges: unknown[] = [];
+  await page.route("**/api/staff/tabs", (route) => route.fulfill({ json: [tab] }));
+  await page.route("**/api/staff/tabs/settle", (route) => { charges.push(route.request().postDataJSON()); return route.fulfill({ json: { settledOrders: 1, settledCents: 380000, closed: false } }); });
+  await page.goto("/staff/tabs");
+
+  await page.getByRole("button", { name: "Cobrar a Beto" }).click();
+  const dialog = page.getByRole("dialog", { name: /Cómo pagó \$\s?3\.800/ });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText("Beto · Mesa 4")).toBeVisible();
+  await dialog.getByRole("button", { name: "Volver sin cobrar" }).click();
+  await expect(dialog).toBeHidden();
+  expect(charges).toEqual([]);
+
+  await page.getByRole("button", { name: "Cobrar a Beto" }).click();
+  await dialog.getByRole("button", { name: "Tarjeta" }).click();
+  await expect(page.getByRole("status")).toContainText("Cobrado con tarjeta: Beto (Mesa 4)");
+  expect(charges).toEqual([{ tabId: "tab-1", method: "CARD_AT_COUNTER", personKey: "s1" }]);
+
+  await page.getByRole("button", { name: "Cobrar toda la mesa" }).click();
+  await expect(page.getByRole("dialog", { name: /Cómo pagó \$\s?6\.600/ })).toBeVisible();
+});
