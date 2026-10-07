@@ -68,6 +68,9 @@ export const categoryOrderInputSchema = z.object({
 
 export const availabilityInputSchema = z.object({ available: z.boolean() }).strict();
 export const productImageInputSchema = z.object({ imageKey: z.string().nullable() }).strict();
+/** Every photo of a product in display order: the first one is the main photo. */
+export const MAX_PRODUCT_IMAGES = 3;
+export const productImagesInputSchema = z.object({ imageKeys: z.array(z.string().min(1)).max(MAX_PRODUCT_IMAGES) }).strict();
 export const tableInputSchema = z.object({ label: z.string().trim().min(1).max(60) });
 
 export type CatalogProductInput = z.infer<typeof catalogProductInputSchema>;

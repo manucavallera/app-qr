@@ -5,6 +5,7 @@ import {
   categoryOrderInputSchema,
   categoryInputSchema,
   productImageInputSchema,
+  productImagesInputSchema,
   type CatalogProductInput,
   type CategoryInput,
 } from "./catalog-schemas";
@@ -19,6 +20,7 @@ export type CatalogRepository = {
   updateProduct(id: string, input: CatalogProductInput): Promise<unknown>;
   setAvailability(id: string, available: boolean, actorStaffId: string): Promise<unknown>;
   setProductImage(id: string, imageKey: string | null, actorStaffId: string): Promise<unknown>;
+  setProductImages(id: string, imageKeys: string[], actorStaffId: string): Promise<unknown>;
   archiveProduct(id: string, actorStaffId: string): Promise<void>;
 };
 
@@ -61,6 +63,11 @@ export class CatalogService {
   setProductImage(id: string, input: unknown, actorStaffId: string) {
     const parsed = productImageInputSchema.parse(input);
     return this.repository.setProductImage(id, parsed.imageKey, actorStaffId);
+  }
+
+  setProductImages(id: string, input: unknown, actorStaffId: string) {
+    const parsed = productImagesInputSchema.parse(input);
+    return this.repository.setProductImages(id, parsed.imageKeys, actorStaffId);
   }
 
   async archiveProduct(id: string, actorStaffId: string): Promise<void> {

@@ -31,7 +31,11 @@ test("la navegación del staff sigue siendo usable a 320px", async ({ page }) =>
   await page.route("**/api/staff/summary", (route) => route.fulfill({ json: { pendingPayments: 0, activeCommands: 0, qrMode: "QR_OPEN", role: "ADMIN" } }));
   await page.goto("/staff");
   const navigation = page.getByRole("navigation", { name: "Navegación del equipo" });
+  // Folded on a phone so the page content starts at the top.
+  await expect(navigation).toBeHidden();
+  await page.getByRole("button", { name: "Menú" }).click();
   await expect(navigation).toBeVisible();
   await expect(navigation.getByRole("link", { name: "Pedidos" })).toHaveAttribute("href", "/staff/orders");
-  await expect(navigation).toHaveCSS("overflow-x", "auto");
+  await expect(navigation.getByRole("group", { name: "Operación" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });

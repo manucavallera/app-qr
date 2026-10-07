@@ -5,6 +5,9 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { StaffShell } from "@/components/staff/staff-shell";
 
 type Category = { id: string; name: string; sortOrder: number; visible: boolean };
+type StoredImage = { key: string; url: string };
+const MAX_IMAGES = 3;
+
 type ProductValue = { id: string; name: string; priceDeltaCents: number; available: boolean; sortOrder: number };
 type ProductGroup = {
   id: string;
@@ -21,6 +24,7 @@ type Product = {
   description: string;
   imageKey: string | null;
   imageUrl: string | null;
+  images?: StoredImage[];
   priceCents: number;
   available: boolean;
   stockQuantity: number | null;
@@ -94,7 +98,9 @@ export default function StaffCatalogPage() {
   const [draft, setDraft] = useState<ProductDraft>(emptyDraft);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [categoryName, setCategoryName] = useState("");
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [keptImages, setKeptImages] = useState<StoredImage[]>([]);
+  const [newFiles, setNewFiles] = useState<File[]>([]);
+  const [imagesDirty, setImagesDirty] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -121,13 +127,21 @@ export default function StaffCatalogPage() {
     void refresh();
   }, [refresh]);
 
+  function resetImages() {
+    setKeptImages([]);
+    setNewFiles([]);
+    setImagesDirty(false);
+  }
+
   function updateDraft<Key extends keyof ProductDraft>(key: Key, value: ProductDraft[Key]) {
     setDraft((current) => ({ ...current, [key]: value }));
   }
 
   function editProduct(product: Product) {
     setEditingId(product.id);
-    setImageFile(null);
+    setNewFiles([]);
+    setImagesDirty(false);
+    setKeptImages(product.images ?? (product.imageKey && product.imageUrl ? [{ key: product.imageKey, url: product.imageUrl }] : []));
     setDraft({
       categoryId: product.categoryId,
       name: product.name,
@@ -213,23 +227,26 @@ export default function StaffCatalogPage() {
       if (!productResponse.ok) throw new Error(await responseError(productResponse));
 
       const savedProduct = (await productResponse.json()) as { id: string };
-      if (imageFile) {
-        const imageData = new FormData();
-        imageData.set("file", imageFile);
-        const uploadResponse = await fetch("/api/staff/catalog/images", { method: "POST", body: imageData });
-        if (!uploadResponse.ok) throw new Error(await responseError(uploadResponse));
-        const uploadedImage = (await uploadResponse.json()) as { key: string };
+      if (newFiles.length > 0 || imagesDirty) {
+        const uploadedKeys: string[] = [];
+        for (const file of newFiles) {
+          const imageData = new FormData();
+          imageData.set("file", file);
+          const uploadResponse = await fetch("/api/staff/catalog/images", { method: "POST", body: imageData });
+          if (!uploadResponse.ok) throw new Error(await responseError(uploadResponse));
+          uploadedKeys.push(((await uploadResponse.json()) as { key: string }).key);
+        }
         const imageUpdate = await fetch(`/api/staff/catalog/products/${savedProduct.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageKey: uploadedImage.key }),
+          body: JSON.stringify({ imageKeys: [...keptImages.map((image) => image.key), ...uploadedKeys] }),
         });
         if (!imageUpdate.ok) throw new Error(await responseError(imageUpdate));
       }
 
       setEditingId(null);
       setDraft(emptyDraft);
-      setImageFile(null);
+      resetImages();
       setMessage("Producto guardado.");
       await refresh();
     } catch (error) {
@@ -424,10 +441,37 @@ export default function StaffCatalogPage() {
                 </select>
               </label>
             </div>
-            <label className="form-field">
-              <span>Foto (JPEG, PNG o WebP; hasta 3 MB)</span>
-              <input accept="image/jpeg,image/png,image/webp" onChange={(event) => setImageFile(event.target.files?.[0] ?? null)} type="file" />
-            </label>
+            <fieldset className="form-field photo-editor">
+              <legend>Fotos (hasta {MAX_IMAGES}; JPEG, PNG o WebP; 3 MB cada una)</legend>
+              <ul className="photo-list">
+                {keptImages.map((image, index) => (
+                  <li key={image.key}>
+                    <Image alt="" className="product-thumb" height={56} src={image.url} unoptimized width={56} />
+                    <span>{index === 0 ? "Principal" : `Foto ${index + 1}`}</span>
+                    {index > 0 ? <button className="button-text" onClick={() => { setKeptImages((current) => [current[index], ...current.filter((_, other) => other !== index)]); setImagesDirty(true); }} type="button">Hacer principal</button> : null}
+                    <button className="button-text danger-text" onClick={() => { setKeptImages((current) => current.filter((_, other) => other !== index)); setImagesDirty(true); }} type="button">Quitar</button>
+                  </li>
+                ))}
+                {newFiles.map((file, index) => (
+                  <li key={`${file.name}-${index}`}>
+                    <span>{file.name} (nueva)</span>
+                    <button className="button-text danger-text" onClick={() => setNewFiles((current) => current.filter((_, other) => other !== index))} type="button">Quitar</button>
+                  </li>
+                ))}
+              </ul>
+              {keptImages.length + newFiles.length < MAX_IMAGES ? (
+                <input
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  onChange={(event) => {
+                    const room = MAX_IMAGES - keptImages.length - newFiles.length;
+                    setNewFiles((current) => [...current, ...Array.from(event.target.files ?? []).slice(0, room)]);
+                    event.target.value = "";
+                  }}
+                  type="file"
+                />
+              ) : <p className="muted">Llegaste al máximo de fotos. Quitá una para subir otra.</p>}
+            </fieldset>
             <div className="option-editor-heading">
               <div><h3>Opciones y extras</h3><p className="muted">Por ejemplo, extras con costo o ingredientes para sacar.</p></div>
               <button className="button-secondary" onClick={addOptionGroup} type="button">Agregar grupo</button>
@@ -477,7 +521,7 @@ export default function StaffCatalogPage() {
             </div>
             <div className="button-row">
               <button className="primary-link" disabled={saving || categories.length === 0} type="submit">{saving ? "Guardando…" : editingId ? "Guardar cambios" : "Crear producto"}</button>
-              {editingId ? <button className="button-text" onClick={() => { setEditingId(null); setDraft(emptyDraft); setImageFile(null); }} type="button">Cancelar edición</button> : null}
+              {editingId ? <button className="button-text" onClick={() => { setEditingId(null); setDraft(emptyDraft); resetImages(); }} type="button">Cancelar edición</button> : null}
             </div>
           </form>
         </section>
