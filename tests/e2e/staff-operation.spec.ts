@@ -22,6 +22,9 @@ test("el personal ve las tareas principales en el inicio", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "¿Qué necesitás hacer?" })).toBeVisible();
   await expect(page.getByRole("link", { name: /pagos pendientes/i })).toBeVisible();
   await expect(page.getByRole("link", { name: /nuevo pedido en caja/i })).toBeVisible();
+  // On a phone the menu, with the logout button, is folded behind "Menú".
+  const menuToggle = page.getByRole("button", { name: "Menú" });
+  if (await menuToggle.isVisible()) await menuToggle.click();
   await expect(page.getByRole("button", { name: "Cerrar sesión" })).toBeVisible();
 });
 
