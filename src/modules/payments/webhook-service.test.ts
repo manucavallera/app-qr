@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
-import { validateMercadoPagoSignature, WebhookService } from "./webhook-service";
+import { diagnoseMercadoPagoSignature, validateMercadoPagoSignature, WebhookService } from "./webhook-service";
 
 const secret = "test-secret";
 const sign = (manifest: string) => createHmac("sha256", secret).update(manifest).digest("hex");
@@ -24,6 +24,21 @@ describe("validateMercadoPagoSignature", () => {
     expect(validateMercadoPagoSignature({ xSignature: header, xRequestId: "req-1", dataId: "123456", secret: "" })).toBe(false);
     expect(validateMercadoPagoSignature({ xSignature: "garbage", xRequestId: "req-1", dataId: "123456", secret })).toBe(false);
     expect(validateMercadoPagoSignature({ xSignature: null, xRequestId: "req-1", dataId: "123456", secret })).toBe(false);
+  });
+});
+
+describe("diagnoseMercadoPagoSignature", () => {
+  const v1 = sign("id:123456;request-id:req-1;ts:1700000000;");
+  const base = { xSignature: `ts=1700000000,v1=${v1}`, xRequestId: "req-1", dataId: "123456", secret };
+
+  it("returns null for a valid notification and names the reason for each failure", () => {
+    expect(diagnoseMercadoPagoSignature(base)).toBeNull();
+    expect(diagnoseMercadoPagoSignature({ ...base, xSignature: null })).toBe("MISSING_SIGNATURE");
+    expect(diagnoseMercadoPagoSignature({ ...base, xRequestId: null })).toBe("MISSING_REQUEST_ID");
+    expect(diagnoseMercadoPagoSignature({ ...base, dataId: null })).toBe("MISSING_DATA_ID");
+    expect(diagnoseMercadoPagoSignature({ ...base, secret: "" })).toBe("MISSING_KEY");
+    expect(diagnoseMercadoPagoSignature({ ...base, xSignature: "garbage" })).toBe("MALFORMED_SIGNATURE");
+    expect(diagnoseMercadoPagoSignature({ ...base, secret: "another-key" })).toBe("SIGNATURE_MISMATCH");
   });
 });
 
