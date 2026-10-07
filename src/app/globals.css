@@ -1279,3 +1279,15 @@ html:has(.receipt-page), body:has(.receipt-page) { background: var(--paper-bg); 
   .tab-people li { grid-template-columns: minmax(0, 1fr) auto; }
   .tab-people li > button { grid-column: 1 / -1; }
 }
+
+/* Pedidos: filter by where the order is, and search. On a phone the product keeps its own line so the name is not squeezed by the price. */
+.orders-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 280px); align-items: center; gap: 12px; margin: 16px 0; }
+.orders-filters { display: flex; flex-wrap: wrap; gap: 8px; }
+.orders-filters button { display: inline-flex; min-height: 40px; align-items: center; gap: 8px; padding: 0 14px; border: 1px solid var(--paper-border-strong); border-radius: 999px; background: var(--paper-surface); color: var(--paper-text); cursor: pointer; font: inherit; font-size: 0.875rem; font-weight: 600; }
+.orders-filters button span { color: var(--paper-text-muted); font-weight: 700; }
+.orders-filters button[aria-pressed="true"] { border-color: var(--green-dark); background: var(--green-dark); color: var(--paper-surface); }
+.orders-filters button[aria-pressed="true"] span { color: var(--green-soft); }
+@media (max-width: 640px) {
+  .orders-toolbar { grid-template-columns: minmax(0, 1fr); }
+  .order-items li { flex-direction: column; align-items: flex-start; gap: 2px; }
+}

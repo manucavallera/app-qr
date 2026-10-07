@@ -110,3 +110,25 @@ test("Cuentas pregunta el medio de pago en cada cobro y no asume ninguno", async
   await page.getByRole("button", { name: "Cobrar toda la mesa" }).click();
   await expect(page.getByRole("dialog", { name: /Cómo pagó \$\s?6\.600/ })).toBeVisible();
 });
+
+test("Pedidos arranca en lo que está en curso y deja filtrar y buscar", async ({ page }) => {
+  const order = (number: number, status: string, customerName: string, label: string) => ({ id: `order-${number}`, number, origin: "QR", status, version: 1, totalCents: 100000, createdAt: new Date().toISOString(), table: { label }, customerName, items: [{ id: `item-${number}`, productName: "Hamburguesa", quantity: 1, lineTotalCents: 100000, fulfillment: "TABLE", notes: null, options: [] }], payments: [{ method: "CASH", status: "APPROVED", amountCents: 100000 }] });
+  await page.route("**/api/staff/orders", (route) => route.fulfill({ json: [order(3, "PREPARING", "Ana", "Mesa 1"), order(2, "DELIVERED", "Beto", "Mesa 2"), order(1, "CANCELLED", "Caro", "Mesa 7")] }));
+  await page.goto("/staff/orders");
+
+  const filtersGroup = page.getByRole("group", { name: "Filtrar pedidos" });
+  await expect(filtersGroup.getByRole("button", { name: "En curso 1" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText("Pedido #3")).toBeVisible();
+  await expect(page.getByText("Pedido #2")).toBeHidden();
+
+  await filtersGroup.getByRole("button", { name: "Entregados 1" }).click();
+  await expect(page.getByText("Pedido #2")).toBeVisible();
+  await expect(page.getByText("Pedido #3")).toBeHidden();
+
+  await filtersGroup.getByRole("button", { name: "Todos 3" }).click();
+  await page.getByRole("searchbox", { name: "Buscar por número, mesa o cliente" }).fill("mesa 7");
+  await expect(page.getByText("Pedido #1")).toBeVisible();
+  await expect(page.getByText("Pedido #3")).toBeHidden();
+  await expect(filtersGroup.getByRole("button", { name: "Todos 1" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+});
