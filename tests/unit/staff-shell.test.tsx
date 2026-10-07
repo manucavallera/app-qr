@@ -15,7 +15,7 @@ describe("staff shell", () => {
     );
 
     expect(screen.getByRole("link", { name: /pagos pendientes/i })).toHaveAttribute("href", "/staff/payments");
-    expect(screen.getByRole("link", { name: "Comandas" })).toHaveAttribute("href", "/staff/commands");
+    expect(screen.getByRole("link", { name: "Cocina y barra" })).toHaveAttribute("href", "/staff/commands");
     expect(screen.getByRole("link", { name: "Usuarios" })).toHaveAttribute("href", "/staff/users");
     expect(screen.getByRole("button", { name: "Cerrar sesión" })).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();

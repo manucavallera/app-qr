@@ -113,11 +113,11 @@ export default function CounterPage() {
     }
   }
 
-  return <StaffShell title="Caja" section="counter">
+  return <StaffShell title="Nuevo pedido" section="counter">
     <section className="staff-panel counter-layout">
       <div>
         <p className="eyebrow">Venta presencial</p>
-        <h2>Nuevo pedido en caja</h2>
+        <h2>Armá el pedido del mostrador</h2>
         <p className="muted">Cargá el pedido, elegí variantes y anotá indicaciones para cocina.</p>
         {loading ? <p className="loading-state" role="status">Cargando productos…</p> : <form className="staff-form" onSubmit={submit}>
           <label className="form-field"><span>Nombre o referencia</span><input className="form-input" value={nickname} onChange={(event) => setNickname(event.target.value)} placeholder="Ej. Juan" required /></label>

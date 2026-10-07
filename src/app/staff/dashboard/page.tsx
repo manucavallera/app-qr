@@ -35,7 +35,7 @@ export default function DashboardPage() {
   }, [load]);
 
   const periods = data ? [
-    { label: "Hoy", value: data.today },
+    { label: "Jornada de hoy", value: data.today },
     { label: "Últimos 7 días", value: data.last7Days },
     { label: "Últimos 30 días", value: data.last30Days },
   ] : [];
@@ -44,7 +44,7 @@ export default function DashboardPage() {
   return (
     <StaffShell title="Dashboard" section="dashboard" role="ADMIN">
       <section className="staff-panel" aria-labelledby="dashboard-sales-title">
-        <div className="panel-heading"><div><p className="eyebrow">Se actualiza solo</p><h2 id="dashboard-sales-title">Ventas</h2></div></div>
+        <div className="panel-heading"><div><p className="eyebrow">Se actualiza solo</p><h2 id="dashboard-sales-title">Ventas</h2><p className="muted">La jornada va de 6:00 a 6:00, así la noche no se parte en dos.</p></div></div>
         {error ? <p className="error-state" role="alert">{error}</p> : !data ? <p className="loading-state" role="status">Cargando dashboard…</p> : (
           <>
             <dl className="report-totals">

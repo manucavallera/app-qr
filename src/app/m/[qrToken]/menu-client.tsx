@@ -33,6 +33,9 @@ async function readError(response: Response): Promise<string> {
 
 export function MenuClient({ qrToken }: { qrToken: string }) {
   const [nickname, setNickname] = useState("");
+  // People who still owe on this table's tab: a returning customer continues as one of them.
+  const [people, setPeople] = useState<string[]>([]);
+  const [nameTaken, setNameTaken] = useState<string | null>(null);
   const [menu, setMenu] = useState<PublicMenu | null>(null);
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>("checking");
   const [message, setMessage] = useState<string | null>(null);
@@ -55,8 +58,9 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
     try {
       const response = await fetch(`/api/public/qr/${encodeURIComponent(qrToken)}/session`, { cache: "no-store" });
       if (!response.ok) throw new Error(await readError(response));
-      const current = await response.json() as { nickname: string | null };
+      const current = await response.json() as { nickname: string | null; people?: string[] };
       if (!current.nickname) {
+        setPeople(current.people ?? []);
         setSessionStatus("needs-name");
         return;
       }
@@ -141,21 +145,27 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
   const products = useMemo(() => new Map(menu?.categories.flatMap((category) => category.products.map((product) => [product.id, product] as const)) ?? []), [menu]);
   const featured = useMemo(() => menu?.categories.flatMap((category) => category.products).filter((product) => product.featured && product.available) ?? [], [menu]);
 
-  async function startSession(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function start(name: string, rejoin: boolean) {
     setMessage(null);
     setSessionStatus("starting");
     try {
       const response = await fetch(`/api/public/qr/${encodeURIComponent(qrToken)}/session`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ nickname }),
+        body: JSON.stringify({ nickname: name, ...(rejoin ? { rejoin: true } : {}) }),
       });
+      if (response.status === 409) {
+        // Someone at the table already uses this name: ask before continuing as them.
+        setNameTaken(name.trim());
+        setSessionStatus("needs-name");
+        return;
+      }
       if (!response.ok) throw new Error(await readError(response));
       const result = await response.json() as { nickname: string };
-      clearCart(qrToken);
-      setCart([]);
+      // A returning customer keeps what was left in the cart on this phone; a new one starts clean.
+      if (!rejoin) { clearCart(qrToken); setCart([]); }
       const loadedMenu = await loadMenu();
+      setNameTaken(null);
       setNickname(result.nickname);
       setMenu(loadedMenu);
       setSessionStatus("ready");
@@ -163,6 +173,11 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
       setMessage(error instanceof Error ? error.message : "No pudimos iniciar tu sesión.");
       setSessionStatus("needs-name");
     }
+  }
+
+  function startSession(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void start(nickname, false);
   }
 
   if (sessionStatus === "checking") {
@@ -193,17 +208,35 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
     const starting = sessionStatus === "starting";
     return (
       <main className="cm-welcome-shell">
-        <section className="cm-welcome">
-          <h1>¿Cómo te llamamos?</h1>
-          <p>Así podemos identificar tus pedidos cuando pidas en el bar.</p>
-          <form onSubmit={startSession}>
-            <label className="cm-field" htmlFor="customer-nickname">Tu nombre o apodo
-              <input id="customer-nickname" className="cm-input" autoComplete="nickname" autoFocus disabled={starting} minLength={1} maxLength={40} value={nickname} onChange={(event) => setNickname(event.target.value)} required />
-            </label>
+        {nameTaken ? (
+          <section className="cm-welcome" aria-labelledby="name-taken-title">
+            <h1 id="name-taken-title">Ya hay un {nameTaken} en esta mesa</h1>
+            <p>¿Sos vos? Si es así, seguís con tu cuenta y tus pedidos.</p>
             {message && <p className="cm-error" role="alert">{message}</p>}
-            <button className="cm-btn" type="submit" disabled={starting}>{starting ? "Abriendo…" : "Ver la carta"}</button>
-          </form>
-        </section>
+            <div className="cm-stack">
+              <button className="cm-btn" type="button" disabled={starting} onClick={() => void start(nameTaken, true)}>{starting ? "Abriendo…" : "Sí, soy yo"}</button>
+              <button className="cm-btn cm-btn-quiet" type="button" disabled={starting} onClick={() => { setNameTaken(null); setNickname(""); setMessage("Elegí otro nombre, por ejemplo con tu apellido."); }}>No, soy otra persona</button>
+            </div>
+          </section>
+        ) : (
+          <section className="cm-welcome">
+            <h1>¿Cómo te llamamos?</h1>
+            <p>Así podemos identificar tus pedidos cuando pidas en el bar.</p>
+            {people.length > 0 && (
+              <div className="cm-rejoin" role="group" aria-labelledby="rejoin-title">
+                <p id="rejoin-title">¿Ya estabas en esta mesa? Tocá tu nombre.</p>
+                <div>{people.map((person) => <button className="cm-chip" key={person} type="button" disabled={starting} onClick={() => void start(person, true)}>{person}</button>)}</div>
+              </div>
+            )}
+            <form onSubmit={startSession}>
+              <label className="cm-field" htmlFor="customer-nickname">{people.length > 0 ? "Si sos nuevo, tu nombre o apodo" : "Tu nombre o apodo"}
+                <input id="customer-nickname" className="cm-input" autoComplete="nickname" autoFocus disabled={starting} minLength={1} maxLength={40} value={nickname} onChange={(event) => setNickname(event.target.value)} required />
+              </label>
+              {message && <p className="cm-error" role="alert">{message}</p>}
+              <button className="cm-btn" type="submit" disabled={starting}>{starting ? "Abriendo…" : "Ver la carta"}</button>
+            </form>
+          </section>
+        )}
       </main>
     );
   }

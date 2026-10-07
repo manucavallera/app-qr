@@ -58,7 +58,7 @@ describe("closeExpiredSessions", () => {
         closedAt: null,
         expiresAt: { gt: now },
         createdAt: { lt: new Date(now.getTime() - 15 * 60 * 1000) },
-        orders: { none: { status: { in: ["AWAITING_PAYMENT", "CONFIRMED", "PREPARING", "READY"] } } },
+        orders: { none: { OR: [{ status: { in: ["AWAITING_PAYMENT", "CONFIRMED", "PREPARING", "READY"] } }, { status: { not: "CANCELLED" }, payments: { some: { method: "ON_TAB", status: "UNPAID" } } }] } },
       },
       data: { closedAt: now },
     });

@@ -8,7 +8,8 @@ type RouteContext = { params: Promise<{ qrToken: string }> };
 export async function GET(request: NextRequest, { params }: RouteContext): Promise<NextResponse> {
   const { qrToken } = await params;
   const principal = await customerSessionService.authenticate(request.cookies.get(CUSTOMER_SESSION_COOKIE)?.value, qrToken);
-  if (!principal) return NextResponse.json({ nickname: null });
+  // Without a session, say who is already at the table so a returning customer can continue as themselves.
+  if (!principal) return NextResponse.json({ nickname: null, people: await customerSessionService.listRejoinable(qrToken) });
   return NextResponse.json({ nickname: principal.nickname });
 }
 
@@ -19,7 +20,8 @@ export async function POST(request: NextRequest, { params }: RouteContext): Prom
     const nickname = typeof body === "object" && body !== null && "nickname" in body
       ? (body as { nickname: unknown }).nickname
       : undefined;
-    const session = await customerSessionService.create(qrToken, nickname, getClientIp(request));
+    const rejoin = typeof body === "object" && body !== null && (body as { rejoin?: unknown }).rejoin === true;
+    const session = await customerSessionService.create(qrToken, nickname, getClientIp(request), new Date(), rejoin);
     const response = NextResponse.json({ nickname: session.principal.nickname }, { status: 201 });
     response.cookies.set(CUSTOMER_SESSION_COOKIE, session.token, {
       httpOnly: true,

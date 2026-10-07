@@ -1410,3 +1410,23 @@ body:has(.cm-shell, .cm-welcome-shell, .cm-page) {
 @keyframes cm-pulse {
   50% { opacity: 0.55; }
 }
+
+/* Welcome: names already at the table, for someone coming back. */
+.cm-rejoin {
+  display: grid;
+  gap: 10px;
+  margin: 4px 0 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--cm-line);
+}
+
+.cm-rejoin p {
+  margin: 0;
+  color: var(--cm-muted);
+}
+
+.cm-rejoin > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

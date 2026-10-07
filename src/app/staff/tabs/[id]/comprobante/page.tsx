@@ -21,7 +21,7 @@ export default function StaffTabReceiptPage() {
   return (
     <main className="receipt-page">
       <div className="receipt-actions">
-        <a className="button-secondary" href="/staff/tabs">Volver a Cuentas</a>
+        <a className="button-secondary" href="/staff/tabs">Volver a Mesas por cobrar</a>
         <button className="primary-link" type="button" disabled={!data} onClick={() => window.print()}>Imprimir</button>
       </div>
       {error ? <p className="error-state" role="alert">{error}</p> : data ? <TabReceipt tab={data.tab} businessName={data.businessName} /> : <p className="loading-state" role="status">Cargando cuenta…</p>}

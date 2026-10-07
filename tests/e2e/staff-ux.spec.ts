@@ -85,3 +85,50 @@ test("Cuentas ofrece imprimir la cuenta de la mesa con lo de cada persona", asyn
   await expect(page.getByRole("button", { name: "Imprimir" })).toBeEnabled();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });
+
+test("Cuentas pregunta el medio de pago en cada cobro y no asume ninguno", async ({ page }) => {
+  const person = (key: string, name: string, cents: number) => ({ key, customerSessionId: key, name, totalCents: cents, orders: [{ number: 7, items: [{ productName: "Cerveza tirada", quantity: 1, lineTotalCents: cents }] }] });
+  const tab = { id: "tab-1", number: 2, label: "Mesa 4", openedAt: "2026-10-07T01:00:00.000Z", billRequestedAt: null, totalCents: 660000, people: [person("s1", "Beto", 380000), person("s2", "Caro", 280000)] };
+  const charges: unknown[] = [];
+  await page.route("**/api/staff/tabs", (route) => route.fulfill({ json: [tab] }));
+  await page.route("**/api/staff/tabs/settle", (route) => { charges.push(route.request().postDataJSON()); return route.fulfill({ json: { settledOrders: 1, settledCents: 380000, closed: false } }); });
+  await page.goto("/staff/tabs");
+
+  await page.getByRole("button", { name: "Cobrar a Beto" }).click();
+  const dialog = page.getByRole("dialog", { name: /Cómo pagó \$\s?3\.800/ });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText("Beto · Mesa 4")).toBeVisible();
+  await dialog.getByRole("button", { name: "Volver sin cobrar" }).click();
+  await expect(dialog).toBeHidden();
+  expect(charges).toEqual([]);
+
+  await page.getByRole("button", { name: "Cobrar a Beto" }).click();
+  await dialog.getByRole("button", { name: "Tarjeta" }).click();
+  await expect(page.getByRole("status")).toContainText("Cobrado con tarjeta: Beto (Mesa 4)");
+  expect(charges).toEqual([{ tabId: "tab-1", method: "CARD_AT_COUNTER", personKey: "s1" }]);
+
+  await page.getByRole("button", { name: "Cobrar toda la mesa" }).click();
+  await expect(page.getByRole("dialog", { name: /Cómo pagó \$\s?6\.600/ })).toBeVisible();
+});
+
+test("Pedidos arranca en lo que está en curso y deja filtrar y buscar", async ({ page }) => {
+  const order = (number: number, status: string, customerName: string, label: string) => ({ id: `order-${number}`, number, origin: "QR", status, version: 1, totalCents: 100000, createdAt: new Date().toISOString(), table: { label }, customerName, items: [{ id: `item-${number}`, productName: "Hamburguesa", quantity: 1, lineTotalCents: 100000, fulfillment: "TABLE", notes: null, options: [] }], payments: [{ method: "CASH", status: "APPROVED", amountCents: 100000 }] });
+  await page.route("**/api/staff/orders", (route) => route.fulfill({ json: [order(3, "PREPARING", "Ana", "Mesa 1"), order(2, "DELIVERED", "Beto", "Mesa 2"), order(1, "CANCELLED", "Caro", "Mesa 7")] }));
+  await page.goto("/staff/orders");
+
+  const filtersGroup = page.getByRole("group", { name: "Filtrar pedidos" });
+  await expect(filtersGroup.getByRole("button", { name: "En curso 1" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText("Pedido #3")).toBeVisible();
+  await expect(page.getByText("Pedido #2")).toBeHidden();
+
+  await filtersGroup.getByRole("button", { name: "Entregados 1" }).click();
+  await expect(page.getByText("Pedido #2")).toBeVisible();
+  await expect(page.getByText("Pedido #3")).toBeHidden();
+
+  await filtersGroup.getByRole("button", { name: "Todos 3" }).click();
+  await page.getByRole("searchbox", { name: "Buscar por número, mesa o cliente" }).fill("mesa 7");
+  await expect(page.getByText("Pedido #1")).toBeVisible();
+  await expect(page.getByText("Pedido #3")).toBeHidden();
+  await expect(filtersGroup.getByRole("button", { name: "Todos 1" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+});
