@@ -20,11 +20,11 @@ const groups: Array<{ label: string; adminOnly?: boolean; links: NavLink[] }> = 
   {
     label: "Operación",
     links: [
-      { section: "commands", label: "Comandas", href: "/staff/commands", icon: CookingPot },
+      { section: "commands", label: "Cocina y barra", href: "/staff/commands", icon: CookingPot },
       { section: "orders", label: "Pedidos", href: "/staff/orders", icon: Receipt },
-      { section: "counter", label: "Caja", href: "/staff/counter", icon: CashRegister },
-      { section: "tabs", label: "Cuentas", href: "/staff/tabs", icon: ForkKnife },
-      { section: "payments", label: "Pagos", href: "/staff/payments", icon: CreditCard },
+      { section: "counter", label: "Nuevo pedido", href: "/staff/counter", icon: CashRegister },
+      { section: "tabs", label: "Mesas por cobrar", href: "/staff/tabs", icon: ForkKnife },
+      { section: "payments", label: "Pagos a confirmar", href: "/staff/payments", icon: CreditCard },
     ],
   },
   {

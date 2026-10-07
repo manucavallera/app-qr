@@ -74,7 +74,7 @@ export default function StaffHomePage() {
         )}
         {summary?.openTabs && summary.openTabs.tables > 0 && (
           <aside className={`stock-alert${summary.qrMode !== "QR_OPEN" || summary.openTabs.billRequested > 0 ? " refund-alert" : ""}`} role={summary.qrMode !== "QR_OPEN" ? "alert" : "status"}>
-            <strong>Cuentas sin cobrar</strong>
+            <strong>Mesas sin cobrar</strong>
             <p>{summary.openTabs.tables} {summary.openTabs.tables === 1 ? "mesa debe" : "mesas deben"} {formatArs(summary.openTabs.totalCents)}{summary.openTabs.billRequested > 0 ? `; ${summary.openTabs.billRequested} ya pidió la cuenta` : ""}.{summary.qrMode !== "QR_OPEN" ? " Los pedidos por QR están cerrados: cobrá estas cuentas antes de cerrar la caja." : ""}</p>
             <a href="/staff/tabs">Ir a cobrar</a>
           </aside>
@@ -87,11 +87,11 @@ export default function StaffHomePage() {
           </aside>
         )}
         <div className="task-grid">
-          <TaskCard title="Pagos pendientes" description="Confirmar cobros antes de preparar" count={summary?.pendingPayments ?? 0} href="/staff/payments" />
-          <TaskCard title="Comandas" description="Preparar y entregar pedidos" count={summary?.activeCommands ?? 0} href="/staff/commands" />
-          <TaskCard title="Nuevo pedido en caja" description="Cargar un pedido del mostrador" href="/staff/counter" />
+          <TaskCard title="Pagos a confirmar" description="Confirmar cobros antes de preparar" count={summary?.pendingPayments ?? 0} href="/staff/payments" />
+          <TaskCard title="Cocina y barra" description="Preparar y entregar pedidos" count={summary?.activeCommands ?? 0} href="/staff/commands" />
+          <TaskCard title="Nuevo pedido" description="Cargar un pedido del mostrador" href="/staff/counter" />
           <TaskCard title="Pantalla de pedidos listos" description="Abrir en el televisor de la barra" href="/pantalla" />
-          <TaskCard title="Carta"description="Productos, precios y disponibilidad" href="/staff/catalog" />
+          <TaskCard title="Carta" description="Productos, precios y disponibilidad" href="/staff/catalog" />
           <TaskCard title="Mesas y QR" description="Probar, imprimir o renovar códigos" href="/staff/tables" />
           <TaskCard title="Configuración" description="Horarios, modos y formas de pago" href="/staff/settings" />
           {summary?.role === "ADMIN" && <TaskCard title="Reportes" description="Cierre de caja y ventas por producto" href="/staff/reports" />}

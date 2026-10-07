@@ -20,8 +20,10 @@ test("el personal ve las tareas principales en el inicio", async ({ page }) => {
   await page.route("**/api/staff/summary", (route) => route.fulfill({ json: { pendingPayments: 2, activeCommands: 3, qrMode: "QR_OPEN", role: "ADMIN" } }));
   await page.goto("/staff");
   await expect(page.getByRole("heading", { name: "¿Qué necesitás hacer?" })).toBeVisible();
-  await expect(page.getByRole("link", { name: /pagos pendientes/i })).toBeVisible();
-  await expect(page.getByRole("link", { name: /nuevo pedido en caja/i })).toBeVisible();
+  // The same names are in the menu, so look at the task cards of the page itself.
+  const tasks = page.getByRole("main");
+  await expect(tasks.getByRole("link", { name: /pagos a confirmar/i })).toBeVisible();
+  await expect(tasks.getByRole("link", { name: /nuevo pedido/i })).toBeVisible();
   // On a phone the menu, with the logout button, is folded behind "Menú".
   const menuToggle = page.getByRole("button", { name: "Menú" });
   if (await menuToggle.isVisible()) await menuToggle.click();
@@ -64,7 +66,7 @@ test("el personal puede crear un pedido en caja", async ({ page }) => {
     return route.fulfill({ json: [] });
   });
   await page.goto("/staff/counter");
-  await expect(page.getByRole("heading", { name: /nuevo pedido en caja/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /armá el pedido del mostrador/i })).toBeVisible();
   await expect(page.getByRole("button", { name: /crear pedido/i })).toBeVisible();
 });
 

@@ -36,7 +36,7 @@ export default function StaffTabsPage() {
     await refresh();
   }
 
-  return <StaffShell title="Cuentas de mesa" section="tabs"><section className="staff-panel">
+  return <StaffShell title="Mesas por cobrar" section="tabs"><section className="staff-panel">
     <div className="panel-heading"><div><p className="eyebrow">Cobro al final</p><h2>Mesas con cuenta abierta</h2></div><button className="button-secondary" type="button" onClick={() => void refresh()}>Actualizar</button></div>
     <fieldset className="dialog-option-group"><legend>Medio de cobro</legend>{methods.map((item) => <label className="dialog-option" key={item.method}><input type="radio" name="tab-method" checked={method === item.method} onChange={() => setMethod(item.method)} /> {item.label}</label>)}</fieldset>
     {message && <p className="staff-message" role="status">{message}</p>}

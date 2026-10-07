@@ -315,7 +315,7 @@ export default function StaffCatalogPage() {
   }
 
   return (
-    <StaffShell title="Menú del bar" section="catalog" role="ADMIN">
+    <StaffShell title="Carta" section="catalog" role="ADMIN">
       {message ? <p className="staff-message" role="status">{message}</p> : null}
 
       <section className="staff-panel" aria-labelledby="categories-title">
