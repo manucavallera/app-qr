@@ -86,15 +86,13 @@ export default function StaffHomePage() {
             <a href="/staff/catalog">Reponer en Carta</a>
           </aside>
         )}
+        {/* Only the work of the shift: everything else is one tap away in the menu. */}
         <div className="task-grid">
           <TaskCard title="Pagos a confirmar" description="Confirmar cobros antes de preparar" count={summary?.pendingPayments ?? 0} href="/staff/payments" />
           <TaskCard title="Cocina y barra" description="Preparar y entregar pedidos" count={summary?.activeCommands ?? 0} href="/staff/commands" />
+          <TaskCard title="Mesas por cobrar" description="Cobrar a una persona o a toda la mesa" count={summary?.openTabs?.tables ?? 0} href="/staff/tabs" />
           <TaskCard title="Nuevo pedido" description="Cargar un pedido del mostrador" href="/staff/counter" />
           <TaskCard title="Pantalla de pedidos listos" description="Abrir en el televisor de la barra" href="/pantalla" />
-          <TaskCard title="Carta" description="Productos, precios y disponibilidad" href="/staff/catalog" />
-          <TaskCard title="Mesas y QR" description="Probar, imprimir o renovar códigos" href="/staff/tables" />
-          <TaskCard title="Configuración" description="Horarios, modos y formas de pago" href="/staff/settings" />
-          {summary?.role === "ADMIN" && <TaskCard title="Reportes" description="Cierre de caja y ventas por producto" href="/staff/reports" />}
         </div>
       </section>
     </StaffShell>
