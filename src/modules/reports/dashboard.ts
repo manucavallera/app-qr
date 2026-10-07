@@ -1,13 +1,13 @@
 import { DateTime } from "luxon";
 import { prisma } from "../../lib/db";
 import { LOW_STOCK_THRESHOLD } from "../orders/stock";
+import { businessDayStart } from "./business-day";
 import { listLowSupplies, type SupplyView } from "../supplies/supply-service";
 
 /** An order counts as a sale once its payment is confirmed. */
 const SOLD_STATUSES = ["CONFIRMED", "PREPARING", "READY", "DELIVERED"] as const;
 const IN_PROGRESS_STATUSES = ["AWAITING_PAYMENT", "CONFIRMED", "PREPARING", "READY"] as const;
 const TOP_PRODUCTS = 5;
-
 /** profitCents counts only units with a known cost; null when none had one. */
 export type DashboardPeriod = { totalCents: number; orders: number; averageCents: number; profitCents: number | null };
 
@@ -39,7 +39,7 @@ function summarize(rows: { totalCents: number }[], lines: SoldLine[]): Dashboard
 export async function buildDashboard(now: Date = new Date()): Promise<Dashboard> {
   const settings = await prisma.businessSettings.findUnique({ where: { id: "default" }, select: { timezone: true } });
   const timezone = settings?.timezone ?? "America/Argentina/Buenos_Aires";
-  const todayStart = DateTime.fromJSDate(now, { zone: timezone }).startOf("day");
+  const todayStart = businessDayStart(now, timezone);
   const since7 = todayStart.minus({ days: 6 }).toJSDate();
   const since30 = todayStart.minus({ days: 29 }).toJSDate();
 

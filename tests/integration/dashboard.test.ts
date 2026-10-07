@@ -44,6 +44,13 @@ describe("dashboard", () => {
     expect(dashboard.last30Days).toEqual({ totalCents: 6000, orders: 3, averageCents: 2000, profitCents: 700 });
   });
 
+  it("keeps the small hours in the shift that started the evening before", async () => {
+    // 2:00 on the 16th in Buenos Aires: the business day is still the 15th.
+    const dashboard = await buildDashboard(new Date("2001-03-16T05:00:00.000Z"));
+
+    expect(dashboard.today).toEqual({ totalCents: 2000, orders: 1, averageCents: 2000, profitCents: null });
+  });
+
   it("ranks best sellers over the last 7 days and buckets sales by local hour", async () => {
     const dashboard = await buildDashboard(now);
 
