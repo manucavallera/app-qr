@@ -44,7 +44,7 @@ export default function StaffTabsPage() {
       <div><strong>{tab.label} · cuenta #{tab.number}{tab.billRequestedAt ? " · pidió la cuenta" : ""}</strong><small>{tab.people.length} {tab.people.length === 1 ? "persona" : "personas"}</small></div>
       <strong>{ars(tab.totalCents)}</strong>
       <ul>{tab.people.map((person) => <li key={person.key}>{person.name}: {ars(person.totalCents)} <small>({person.orders.flatMap((order) => order.items).map((item) => `${item.quantity} ${item.productName}`).join(", ")})</small>{tab.people.length > 1 && <button className="button-text" type="button" onClick={() => void settle(tab, person)}>Cobrar solo a {person.name}</button>}</li>)}</ul>
-      <div className="button-row"><button className="primary-link" type="button" onClick={() => void settle(tab)}>Cobrar toda la mesa</button></div>
+      <div className="button-row"><button className="primary-link" type="button" onClick={() => void settle(tab)}>Cobrar toda la mesa</button><a className="button-secondary" href={`/staff/tabs/${encodeURIComponent(tab.id)}/comprobante`}>Imprimir cuenta</a></div>
     </article>)}</div>}
   </section></StaffShell>;
 }
