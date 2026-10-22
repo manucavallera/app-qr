@@ -343,6 +343,28 @@ body:has(.cm-shell, .cm-welcome-shell, .cm-page) {
   color: var(--cm-on-accent);
 }
 
+.cm-tab-link {
+  display: inline-flex;
+  min-height: 44px;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  border: 1px solid var(--cm-accent);
+  border-radius: 999px;
+  background: var(--cm-surface);
+  color: var(--cm-accent-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.cm-tab-link strong {
+  font-family: var(--cm-font-display);
+  color: var(--cm-text);
+}
+
 .cm-cart-icon {
   position: relative;
   display: grid;
@@ -1429,4 +1451,22 @@ body:has(.cm-shell, .cm-welcome-shell, .cm-page) {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+/* Cuenta de la mesa, por persona */
+.cm-tab-person + .cm-tab-person {
+  margin-top: 16px;
+}
+
+.cm-tab-person-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--cm-line);
+  color: var(--cm-text);
+}
+
+.cm-tab-person-head span {
+  color: var(--cm-muted);
 }
