@@ -4,6 +4,7 @@ test("el cliente ve el corte de pedidos sin perder acceso a la carta", async ({ 
   test.skip(testInfo.project.name !== "chromium", "El corte funcional se ejecuta una vez en escritorio.");
   const browserErrors = collectBrowserErrors(page);
   await page.route("**/api/public/qr/cutoff-token/session", (route) => route.fulfill({ json: { nickname: "Ana" } }));
+  await page.route("**/api/public/tab", (route) => route.fulfill({ json: { tableTotalCents: 0 } }));
   await page.route("**/api/public/menu/cutoff-token", (route) => route.fulfill({ json: {
     table: { label: "Mesa 1" },
     mode: "COUNTER_ONLY",
