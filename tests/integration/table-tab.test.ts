@@ -84,7 +84,7 @@ describe("table tab: order now, pay at the end", () => {
   const openTab = () => prisma.tableTab.findFirst({ where: { tableId, closedAt: null } });
   const settle = (body: object) => settleRoute(call("http://localhost/api/staff/tabs/settle", { method: "POST", headers: staffHeaders(), body: JSON.stringify(body) }));
 
-  it("sends the order to the kitchen unpaid and shows each person only their own part", async () => {
+  it("sends the order to the kitchen unpaid and shows the whole table split by person", async () => {
     const first = await orderOnTab(anaToken, 2);
     expect(first.status).toBe(201);
     expect(await first.json()).toMatchObject({ status: "CONFIRMED", totalCents: 2000 });
@@ -94,7 +94,10 @@ describe("table tab: order now, pay at the end", () => {
     const anaTab = await (await customerTabRoute(call("http://localhost/api/public/tab", { headers: customerHeaders(anaToken) }))).json();
     expect(anaTab.mine.totalCents).toBe(2000);
     expect(anaTab.tableTotalCents).toBe(3000);
-    expect(JSON.stringify(anaTab)).not.toContain("Beto");
+    expect(anaTab.people).toEqual([
+      expect.objectContaining({ isMe: true, totalCents: 2000 }),
+      expect.objectContaining({ name: "Beto", isMe: false, totalCents: 1000, items: [expect.objectContaining({ quantity: 1, lineTotalCents: 1000 })] }),
+    ]);
   });
 
   it("lets the waiter add an order to the tab from the counter, and only with a table", async () => {

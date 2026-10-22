@@ -147,6 +147,7 @@ test("si un producto se agota mientras el cliente arma el pedido, el checkout se
 
 test("quien vuelve a la mesa sigue como sí mismo y un nombre repetido se pregunta", async ({ page }) => {
   const posts: unknown[] = [];
+  await page.route("**/api/public/tab", (route) => route.fulfill({ json: { tableTotalCents: 0 } }));
   await page.route("**/api/public/qr/test-token/session", async (route) => {
     if (route.request().method() === "GET") return route.fulfill({ json: { nickname: null, people: ["Beto", "Caro"] } });
     const body = route.request().postDataJSON() as { nickname: string; rejoin?: boolean };

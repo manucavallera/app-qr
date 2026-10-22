@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Hamburger, Minus, Plus, ShoppingBag, X } from "@phosphor-icons/react";
+import { Check, Hamburger, Minus, Plus, Receipt, ShoppingBag, X } from "@phosphor-icons/react";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Sheet } from "@/components/customer/sheet";
@@ -46,6 +46,8 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
   const [cartOpen, setCartOpen] = useState(false);
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
   const [addedNotice, setAddedNotice] = useState<{ id: number; name: string } | null>(null);
+  // Lo que la mesa ya pidió y todavía no pagó: da acceso a "Mi cuenta" desde la carta.
+  const [tabTotalCents, setTabTotalCents] = useState(0);
   const categoryNav = useRef<HTMLElement>(null);
 
   const loadMenu = useCallback(async (): Promise<PublicMenu> => {
@@ -116,6 +118,25 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
     return () => window.clearTimeout(timer);
   }, [menu, cart, cartLoadedForToken, qrToken]);
 
+  useEffect(() => {
+    if (sessionStatus !== "ready") return;
+    const refreshTab = async () => {
+      try {
+        const response = await fetch("/api/public/tab", { cache: "no-store" });
+        if (!response.ok) return;
+        const tab = await response.json() as { tableTotalCents?: number };
+        setTabTotalCents(tab.tableTotalCents ?? 0);
+      } catch {
+        // Sin red: se mantiene el último total.
+      }
+    };
+    void refreshTab();
+    const timer = window.setInterval(() => void refreshTab(), 20000);
+    const onVisible = () => { if (document.visibilityState === "visible") void refreshTab(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { window.clearInterval(timer); document.removeEventListener("visibilitychange", onVisible); };
+  }, [sessionStatus]);
+
   // Highlight the category on screen and keep its chip visible in the sticky bar.
   useEffect(() => {
     if (!menu || sessionStatus !== "ready") return;
@@ -142,6 +163,7 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
 
   const total = useMemo(() => cartTotal(cart), [cart]);
   const itemCount = useMemo(() => cart.reduce((count, item) => count + item.quantity, 0), [cart]);
+  const accountHref = `/m/${encodeURIComponent(qrToken)}/account`;
   const products = useMemo(() => new Map(menu?.categories.flatMap((category) => category.products.map((product) => [product.id, product] as const)) ?? []), [menu]);
   const featured = useMemo(() => menu?.categories.flatMap((category) => category.products).filter((product) => product.featured && product.available) ?? [], [menu]);
 
@@ -300,6 +322,11 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
         <nav className="cm-chips" aria-label="Categorías" ref={categoryNav}>
           {menu.categories.map((category) => <button className={`cm-chip${activeCategoryId === category.id ? " is-active" : ""}`} id={`category-chip-${category.id}`} key={category.id} type="button" aria-current={activeCategoryId === category.id ? "true" : undefined} onClick={() => document.getElementById(`category-${category.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}>{category.name}</button>)}
         </nav>
+        {tabTotalCents > 0 && (
+          <a className="cm-tab-link" href={accountHref} aria-label={`Ver la cuenta de la mesa, ${formatPrice(tabTotalCents)}`}>
+            <Receipt size={20} weight="bold" aria-hidden="true" />Cuenta<strong>{formatPrice(tabTotalCents)}</strong>
+          </a>
+        )}
         {itemCount === 0 && (
           <button className="cm-cart-icon" type="button" aria-label="Ver pedido, 0 productos" onClick={() => setCartOpen(true)}>
             <ShoppingBag size={22} weight="bold" aria-hidden="true" />
@@ -354,6 +381,7 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
               <div className="cm-stack">
                 {canOrder ? <a className="cm-btn" href={`/m/${encodeURIComponent(qrToken)}/checkout`}>Continuar con el pedido</a> : <p className="cm-note">{menu.service.mode === "CLOSED" ? "Hoy el local está cerrado, así que no se toman pedidos." : "Cuando quieras pedir, acercate a la barra o caja."}</p>}
                 <button className="cm-btn cm-btn-quiet" type="button" onClick={() => setCartOpen(false)}>Seguir agregando</button>
+                {tabTotalCents > 0 && <a className="cm-btn cm-btn-quiet" href={accountHref}>Ver la cuenta de la mesa ({formatPrice(tabTotalCents)})</a>}
                 <button className="cm-btn-text" type="button" onClick={clearCurrentCart}>Vaciar pedido</button>
               </div>
             </div>

@@ -7,7 +7,8 @@ import { CustomerShell } from "@/components/customer/customer-shell";
 import { formatArs as ars } from "@/lib/format";
 
 type TabOrder = { number: number; totalCents: number; items: { productName: string; quantity: number; lineTotalCents: number }[] };
-type Tab = { tableLabel: string; billRequestedAt: string | null; mine: { totalCents: number; orders: TabOrder[] }; tableTotalCents: number; canPayOnline: boolean };
+type TabPerson = { name: string; isMe: boolean; totalCents: number; items: { productName: string; quantity: number; lineTotalCents: number; orderNumber: number }[] };
+type Tab = { tableLabel: string; billRequestedAt: string | null; mine: { totalCents: number; orders: TabOrder[] }; people?: TabPerson[]; tableTotalCents: number; canPayOnline: boolean };
 
 export default function CustomerAccountPage() {
   const { qrToken } = useParams<{ qrToken: string }>();
@@ -62,18 +63,24 @@ export default function CustomerAccountPage() {
   if (!tab) return <main className="cm-page"><div className="cm-state" role="status" aria-live="polite"><CircleNotch className="cm-spin" size={20} weight="bold" aria-hidden="true" />Cargando tu cuenta…</div></main>;
 
   const empty = tab.mine.orders.length === 0;
+  // Primero lo tuyo, después el resto de la mesa en orden de llegada.
+  const people = [...(tab.people ?? [])].sort((a, b) => Number(b.isMe) - Number(a.isMe));
+  const others = people.some((person) => !person.isMe);
   return <CustomerShell eyebrow={tab.tableLabel} title="Mi cuenta" backHref={back}>
     {returned === "ok" && <aside className="cm-notice" role="status">Recibimos tu pago. En unos segundos tu cuenta se actualiza.</aside>}
     {returned === "pendiente" && <aside className="cm-notice" role="status">Tu pago está pendiente. Cuando se acredite, la cuenta se actualiza sola.</aside>}
     {returned === "error" && <p className="cm-error" role="alert">El pago no se completó. Podés intentar de nuevo o pagar en caja.</p>}
     {payError && <p className="cm-error" role="alert">{payError}</p>}
     {tab.billRequestedAt && <aside className="cm-notice" role="status">Pediste la cuenta. En un momento se acerca el mozo, o podés pasar por la caja.</aside>}
-    {empty ? <p className="cm-lead">Todavía no tenés nada sin pagar en esta mesa.</p> : <>
-      <p className="cm-lead">Esto es lo que pediste vos y todavía no se pagó.</p>
-      <ul className="cm-lines">{tab.mine.orders.flatMap((order) => order.items.map((item, index) => <li className="cm-line" key={`${order.number}-${index}`}><div className="cm-line-main"><span>{item.quantity} × {item.productName}</span><strong>{ars(item.lineTotalCents)}</strong></div><span className="cm-line-detail">Pedido #{order.number}</span></li>))}</ul>
-      <div className="cm-total"><span>Tu parte</span><strong>{ars(tab.mine.totalCents)}</strong></div>
+    {tab.tableTotalCents === 0 ? <p className="cm-lead">Todavía no hay nada sin pagar en esta mesa.</p> : <>
+      <p className="cm-lead">{others ? "Todo lo que pidió la mesa y todavía no se pagó." : "Esto es lo que pediste y todavía no se pagó."}</p>
+      {people.map((person, personIndex) => <section className="cm-tab-person" key={personIndex} aria-label={person.isMe ? "Lo tuyo" : `Lo de ${person.name}`}>
+        {others && <div className="cm-tab-person-head"><strong>{person.isMe ? `Vos (${person.name})` : person.name}</strong><span>{ars(person.totalCents)}</span></div>}
+        <ul className="cm-lines">{person.items.map((item, index) => <li className="cm-line" key={`${item.orderNumber}-${index}`}><div className="cm-line-main"><span>{item.quantity} × {item.productName}</span><strong>{ars(item.lineTotalCents)}</strong></div><span className="cm-line-detail">Pedido #{item.orderNumber}</span></li>)}</ul>
+      </section>)}
+      {!empty && others && <div className="cm-total"><span>Tu parte</span><strong>{ars(tab.mine.totalCents)}</strong></div>}
+      <div className="cm-total"><span>Total de la mesa</span><strong>{ars(tab.tableTotalCents)}</strong></div>
     </>}
-    {tab.tableTotalCents > tab.mine.totalCents && <p className="cm-lead">Total de la mesa: {ars(tab.tableTotalCents)}</p>}
     {tab.canPayOnline && !empty && <button className="cm-btn" type="button" disabled={paying !== null} onClick={() => void payOnline("mine")}>{paying === "mine" ? "Abriendo Mercado Pago…" : `Pagar mi parte con Mercado Pago (${ars(tab.mine.totalCents)})`}</button>}
     {tab.canPayOnline && tab.tableTotalCents > tab.mine.totalCents && <button className="cm-btn cm-btn-quiet" type="button" disabled={paying !== null} onClick={() => void payOnline("table")}>{paying === "table" ? "Abriendo Mercado Pago…" : `Pagar toda la mesa con Mercado Pago (${ars(tab.tableTotalCents)})`}</button>}
     {!tab.billRequestedAt && tab.tableTotalCents > 0 && <button className={tab.canPayOnline && !empty ? "cm-btn cm-btn-quiet" : "cm-btn"} type="button" disabled={requesting} onClick={() => void requestBill()}>{requesting ? "Pidiendo…" : "Pedir la cuenta"}</button>}

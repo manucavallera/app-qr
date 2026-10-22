@@ -121,7 +121,7 @@ export async function applyTabPaymentUpdate(tx: Tx, update: GatewayUpdate): Prom
 export class PrismaTableTabRepository {
   constructor(private readonly db: PrismaClient) {}
 
-  /** La cuenta que ve el cliente: solo sus propios pedidos y el total de la mesa. */
+  /** La cuenta que ve el cliente: sus pedidos, lo que pidió cada uno en la mesa y el total. */
   async getCustomerTab(customerSessionId: string, tableId: string) {
     const [table, tab] = await Promise.all([
       this.db.diningTable.findUnique({ where: { id: tableId }, select: { label: true } }),
@@ -138,6 +138,12 @@ export class PrismaTableTabRepository {
       tabNumber: tab?.number ?? null,
       billRequestedAt: tab?.billRequestedAt ?? null,
       mine: mine ? { totalCents: mine.totalCents, orders: mine.orders } : { totalCents: 0, orders: [] },
+      people: summary.people.map((person) => ({
+        name: person.name,
+        isMe: person === mine,
+        totalCents: person.totalCents,
+        items: person.orders.flatMap((order) => order.items.map((item) => ({ ...item, orderNumber: order.number }))),
+      })),
       tableTotalCents: summary.totalCents,
     };
   }
