@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { Sheet } from "@/components/customer/sheet";
 import { PlaceholderIcon } from "@/modules/catalog/components/placeholder-icon";
 import { ProductCard } from "@/modules/catalog/components/product-card";
-import { WakeLogo } from "../wake-logo";
+import { WakeLogo } from "@/components/brand/wake-logo";
 import { ProductDialog, type MenuProduct } from "@/modules/catalog/components/product-dialog";
 import { addToCart, canPersistCart, cartTotal, clearCart, loadCart, removeCartItem, replaceCartItem, saveCart, type CartItem } from "@/modules/orders/cart-store";
 import { formatArs as formatPrice } from "@/lib/format";

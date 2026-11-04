@@ -2,6 +2,7 @@
 
 import { BookOpenText, CashRegister, ChartBar, ChartLineUp, ClipboardText, CookingPot, CreditCard, ForkKnife, GearSix, House, List, Package, QrCode, Receipt, SignOut, UsersThree, X, type Icon } from "@phosphor-icons/react";
 import { useEffect, useState, type ReactNode } from "react";
+import { WakeLogo } from "@/components/brand/wake-logo";
 
 export type StaffSection = "home" | "payments" | "commands" | "counter" | "orders" | "catalog" | "tables" | "settings" | "users" | "audit" | "reports" | "dashboard" | "supplies" | "tabs";
 type StaffRole = "ADMIN" | "OPERATOR";
@@ -68,12 +69,16 @@ export function StaffShell({ title, section, role = "OPERATOR", children }: Staf
     <div className="staff-layout">
       <aside className="staff-sidebar" onKeyDown={(event) => { if (event.key === "Escape") setMenuOpen(false); }}>
         <div className="staff-sidebar-top">
-          <a className="staff-brand" href="/staff">Equipo del bar</a>
+          <a className="staff-brand" href="/staff" aria-label="WAKE, equipo del bar. Ir al inicio">
+            <WakeLogo className="staff-brand-logo" />
+            <span className="staff-brand-label" aria-hidden="true">Equipo del bar</span>
+          </a>
           <button className="staff-menu-toggle" type="button" aria-expanded={menuOpen} aria-controls="staff-navigation" onClick={() => setMenuOpen((open) => !open)}>
             {menuOpen ? <X size={18} weight="bold" aria-hidden="true" /> : <List size={18} weight="bold" aria-hidden="true" />}
             {menuOpen ? "Cerrar" : "Menú"}
           </button>
         </div>
+        <div className="staff-brand-check" aria-hidden="true" />
         <nav id="staff-navigation" className={`staff-side-nav${menuOpen ? " is-open" : ""}`} aria-label="Navegación del equipo">
           <a aria-current={section === "home" ? "page" : undefined} href="/staff"><House size={20} weight={section === "home" ? "fill" : "regular"} aria-hidden="true" />Inicio</a>
           {groups.filter((group) => admin || !group.adminOnly).map((group) => (

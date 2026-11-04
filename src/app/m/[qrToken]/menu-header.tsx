@@ -1,5 +1,5 @@
 import { Clock, InstagramLogo, MapPin, WhatsappLogo } from "@phosphor-icons/react/ssr";
-import { WakeLogo } from "../wake-logo";
+import { WakeLogo } from "@/components/brand/wake-logo";
 
 export type PublicBusiness = Readonly<{
   name: string;

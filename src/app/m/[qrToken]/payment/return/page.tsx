@@ -3,7 +3,7 @@
 import { CircleNotch } from "@phosphor-icons/react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { WakeLogo } from "../../../wake-logo";
+import { WakeLogo } from "@/components/brand/wake-logo";
 
 export default function PaymentReturnPage() {
   const { qrToken } = useParams<{ qrToken: string }>();
