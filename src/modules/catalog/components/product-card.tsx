@@ -1,11 +1,12 @@
-import { Hamburger, Minus, Plus } from "@phosphor-icons/react/ssr";
+import { Minus, Plus } from "@phosphor-icons/react/ssr";
 import Image from "next/image";
 import { formatArs } from "@/lib/format";
+import { PlaceholderIcon } from "./placeholder-icon";
 import type { MenuProduct } from "./product-dialog";
 
 export { formatArs };
 
-export function ProductCard({ product, onSelect }: { product: MenuProduct; onSelect: (product: MenuProduct) => void }) {
+export function ProductCard({ product, categoryName, onSelect }: { product: MenuProduct; categoryName?: string; onSelect: (product: MenuProduct) => void }) {
   return (
     // The whole card opens the product; the button stays as the keyboard and screen-reader target.
     <article className={`cm-product${product.available ? "" : " is-unavailable"}`} onClick={() => { if (product.available) onSelect(product); }}>
@@ -22,7 +23,7 @@ export function ProductCard({ product, onSelect }: { product: MenuProduct; onSel
       <div className="cm-product-media">
         {product.imageUrl ? (
           <Image className="cm-product-image" src={product.imageUrl} alt="" width={112} height={112} unoptimized />
-        ) : <div className="cm-product-image-placeholder" aria-hidden="true"><Hamburger size={36} weight="duotone" /></div>}
+        ) : <div className="cm-product-image-placeholder" aria-hidden="true"><PlaceholderIcon names={[product.name, categoryName]} size={36} /></div>}
         <button
           className="cm-add"
           type="button"

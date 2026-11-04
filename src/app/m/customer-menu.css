@@ -1,43 +1,33 @@
 /*
-  Customer menu. One accent (brand red), tokens from DESIGN.md.
+  Customer menu. WAKE brand: deep violet base, coral accent, checkered motif.
+  Always dark, so the menu matches the brand on every phone.
+  Contrast (WCAG): text on bg 15:1, muted on surface-2 6.9:1, accent-text on surface 5.3:1,
+  on-accent on accent 5:1. Raw brand coral (#ea5255) is only for fills and large text.
   Shape scale: 12px inputs, 16px cards and images, 24px sheets, pill for every interactive control.
   Spacing scale: 4 / 8 / 12 / 16 / 24 / 32 / 48.
 */
 :root {
-  color-scheme: light dark;
+  color-scheme: dark;
   /* Layers: toolbar 20, cart bar 30, sheets 40, toast 50. */
-  --cm-bg: #f8f1e7;
-  --cm-surface: #fffaf3;
-  --cm-surface-2: #f0e6d8;
-  --cm-line: #e2d3c0;
-  --cm-line-strong: #8f7a66;
-  --cm-text: #2b1810;
-  --cm-muted: #6b5547;
-  --cm-accent: #d62300;
-  --cm-on-accent: #fffaf3;
-  --cm-accent-text: #b01c00;
-  --cm-focus: #502314;
-  --cm-scrim: rgb(43 24 16 / 55%);
-  --cm-shadow: 0 -12px 40px rgb(80 35 20 / 18%);
+  --cm-violet: #311c47;
+  --cm-coral: #ea5255;
+  --cm-bg: var(--cm-violet);
+  --cm-surface: #3a2459;
+  --cm-surface-2: #452b68;
+  --cm-line: #553a7a;
+  --cm-line-strong: #8c78ab;
+  --cm-text: #fff6f2;
+  --cm-muted: #cfc2e0;
+  --cm-accent: var(--cm-coral);
+  --cm-on-accent: #1a0d2e;
+  --cm-accent-text: #ff7a77;
+  --cm-focus: #fff6f2;
+  --cm-scrim: rgb(15 8 26 / 72%);
+  --cm-shadow: 0 -12px 40px rgb(10 4 20 / 55%);
+  --cm-checker: repeating-conic-gradient(var(--cm-coral) 0 25%, var(--cm-violet) 0 50%) 0 0 / 16px 16px;
   --cm-font-display: "Outfit", system-ui, sans-serif;
   --cm-font-body: "Geist", system-ui, sans-serif;
   --cm-ease: cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --cm-bg: #15100d;
-    --cm-surface: #1f1713;
-    --cm-surface-2: #2a1f19;
-    --cm-line: #3d2d24;
-    --cm-line-strong: #7a665a;
-    --cm-text: #f8f1e7;
-    --cm-muted: #c4b3a3;
-    --cm-accent-text: #ff7a5c;
-    --cm-focus: #f8f1e7;
-    --cm-scrim: rgb(8 5 3 / 70%);
-    --cm-shadow: 0 -12px 40px rgb(0 0 0 / 50%);
-  }
 }
 
 body:has(.cm-shell, .cm-welcome-shell, .cm-page) {
@@ -111,6 +101,13 @@ body:has(.cm-shell, .cm-welcome-shell, .cm-page) {
   letter-spacing: -0.02em;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.cm-brand-logo {
+  display: block;
+  width: auto;
+  height: 34px;
+  color: var(--cm-coral);
 }
 
 .cm-social {
@@ -195,9 +192,31 @@ body:has(.cm-shell, .cm-welcome-shell, .cm-page) {
 }
 
 .cm-hero h1 {
+  color: var(--cm-accent-text);
   font-size: clamp(2.5rem, 12vw, 3.25rem);
+  font-style: italic;
   font-weight: 800;
   line-height: 1;
+}
+
+/* WAKE logo on welcome, error and payment screens. */
+.cm-welcome-logo {
+  order: -1;
+  width: min(60%, 220px);
+  height: auto;
+  margin-bottom: 16px;
+  color: var(--cm-coral);
+}
+
+/* Checkered band from the WAKE brand, purely decorative. */
+.cm-hero::before,
+.cm-welcome::before {
+  display: block;
+  height: 16px;
+  margin-bottom: 8px;
+  border-radius: 4px;
+  background: var(--cm-checker);
+  content: "";
 }
 
 .cm-hero p {
@@ -367,11 +386,16 @@ body:has(.cm-shell, .cm-welcome-shell, .cm-page) {
 
 .cm-cart-icon {
   position: relative;
-  display: grid;
-  width: 44px;
-  height: 44px;
+  display: inline-flex;
+  min-height: 44px;
   flex-shrink: 0;
-  place-items: center;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
   border: 1px solid var(--cm-line-strong);
   border-radius: 999px;
   background: var(--cm-surface);
@@ -666,7 +690,7 @@ body:has(.cm-shell, .cm-welcome-shell, .cm-page) {
   color: var(--cm-on-accent);
   font-size: 1rem;
   font-weight: 700;
-  box-shadow: 0 12px 32px rgb(214 35 0 / 35%);
+  box-shadow: 0 12px 32px rgb(234 82 85 / 35%);
   cursor: pointer;
   transition: transform 0.2s var(--cm-ease);
 }
@@ -788,7 +812,7 @@ body:has(.cm-shell, .cm-welcome-shell, .cm-page) {
   border-radius: 999px;
   background: var(--cm-surface);
   color: var(--cm-text);
-  box-shadow: 0 2px 12px rgb(43 24 16 / 25%);
+  box-shadow: 0 2px 12px rgb(10 4 20 / 40%);
   cursor: pointer;
 }
 

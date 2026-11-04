@@ -7,10 +7,7 @@ const display = Outfit({ subsets: ["latin"], variable: "--cm-font-display", disp
 const body = Geist({ subsets: ["latin"], variable: "--cm-font-body", display: "swap" });
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f8f1e7" },
-    { media: "(prefers-color-scheme: dark)", color: "#15100d" },
-  ],
+  themeColor: "#311c47",
 };
 
 export default function CustomerLayout({ children }: Readonly<{ children: ReactNode }>) {
