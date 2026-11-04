@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { WakeLogo } from "@/components/brand/wake-logo";
 
 export default function StaffLoginPage() {
   const router = useRouter();
@@ -45,6 +46,7 @@ export default function StaffLoginPage() {
   return (
     <main className="login-shell">
       <section className="login-card" aria-labelledby="login-title">
+        <WakeLogo className="login-logo" label="WAKE" />
         <p className="eyebrow">Equipo del bar</p>
         <h1 id="login-title">Ingresar</h1>
         <p className="login-description">Accedé a los pedidos y a la gestión del local.</p>

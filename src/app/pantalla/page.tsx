@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { WakeLogo } from "@/components/brand/wake-logo";
 
 type Board = { preparing: number[]; ready: number[] };
 
@@ -28,7 +29,7 @@ export default function ReadyBoardPage() {
 
   return (
     <main className="ready-board">
-      <header className="ready-board-header"><h1>Pedidos</h1>{offline && <span role="status">Reconectando…</span>}</header>
+      <header className="ready-board-header"><h1><WakeLogo className="ready-board-logo" label="WAKE" /><span>Pedidos</span></h1>{offline && <span role="status">Reconectando…</span>}</header>
       <div className="ready-board-columns">
         <section className="ready-board-column" aria-labelledby="board-preparing">
           <h2 id="board-preparing">En preparación</h2>
