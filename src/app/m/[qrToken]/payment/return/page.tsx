@@ -3,6 +3,7 @@
 import { CircleNotch } from "@phosphor-icons/react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { WakeLogo } from "../../../wake-logo";
 
 export default function PaymentReturnPage() {
   const { qrToken } = useParams<{ qrToken: string }>();
@@ -28,6 +29,7 @@ export default function PaymentReturnPage() {
   return (
     <main className="cm-welcome-shell">
       <section className="cm-welcome">
+        <WakeLogo className="cm-welcome-logo" />
         <h1>{status === "failure" ? "El pago no se completó" : status === "success" ? "Pago recibido" : "Verificando tu pago"}</h1>
         <p>{status === "failure" ? "Podés volver al seguimiento y elegir otro medio de pago." : "El bar va a confirmar el estado automáticamente cuando reciba la actualización."}</p>
         <div className="cm-state" role="status" aria-live="polite">

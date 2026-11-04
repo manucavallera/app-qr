@@ -1,10 +1,12 @@
 "use client";
 
-import { Check, Hamburger, Minus, Plus, Receipt, ShoppingBag, X } from "@phosphor-icons/react";
+import { Check, Minus, Plus, Receipt, ShoppingBag, X } from "@phosphor-icons/react";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Sheet } from "@/components/customer/sheet";
+import { PlaceholderIcon } from "@/modules/catalog/components/placeholder-icon";
 import { ProductCard } from "@/modules/catalog/components/product-card";
+import { WakeLogo } from "../wake-logo";
 import { ProductDialog, type MenuProduct } from "@/modules/catalog/components/product-dialog";
 import { addToCart, canPersistCart, cartTotal, clearCart, loadCart, removeCartItem, replaceCartItem, saveCart, type CartItem } from "@/modules/orders/cart-store";
 import { formatArs as formatPrice } from "@/lib/format";
@@ -142,12 +144,25 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
     if (!menu || sessionStatus !== "ready") return;
     const sections = menu.categories.flatMap((category) => document.getElementById(`category-${category.id}`) ?? []);
     if (sections.length === 0) return;
-    const observer = new IntersectionObserver((entries) => {
-      const current = entries.filter((entry) => entry.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
-      if (current) setActiveCategoryId(current.target.id.replace("category-", ""));
-    }, { rootMargin: "-90px 0px -60% 0px" });
-    for (const section of sections) observer.observe(section);
-    return () => observer.disconnect();
+    // The active category is the last one whose heading passed the sticky bar.
+    // At the bottom of the page the last category wins, because a short last section never reaches the top.
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const atBottom = window.scrollY > 0 && window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4;
+      const passed = sections.filter((section) => section.getBoundingClientRect().top <= 120);
+      const current = atBottom ? sections[sections.length - 1] : passed[passed.length - 1];
+      setActiveCategoryId(current ? current.id.replace("category-", "") : null);
+    };
+    const onScroll = () => { if (!frame) frame = window.requestAnimationFrame(update); };
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
   }, [menu, sessionStatus]);
 
   // Scroll only the chip bar sideways. scrollIntoView would also move the page and cut a fast scroll short.
@@ -218,6 +233,7 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
     return (
       <main className="cm-welcome-shell">
         <section className="cm-welcome">
+          <WakeLogo className="cm-welcome-logo" />
           <h1>La carta no cargó</h1>
           <p>{message}</p>
           <button className="cm-btn" type="button" onClick={() => { setMessage(null); setSessionStatus("checking"); void checkSession(); }}>Reintentar</button>
@@ -232,6 +248,7 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
       <main className="cm-welcome-shell">
         {nameTaken ? (
           <section className="cm-welcome" aria-labelledby="name-taken-title">
+          <WakeLogo className="cm-welcome-logo" />
             <h1 id="name-taken-title">Ya hay un {nameTaken} en esta mesa</h1>
             <p>¿Sos vos? Si es así, seguís con tu cuenta y tus pedidos.</p>
             {message && <p className="cm-error" role="alert">{message}</p>}
@@ -242,6 +259,7 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
           </section>
         ) : (
           <section className="cm-welcome">
+          <WakeLogo className="cm-welcome-logo" />
             <h1>¿Cómo te llamamos?</h1>
             <p>Así podemos identificar tus pedidos cuando pidas en el bar.</p>
             {people.length > 0 && (
@@ -310,7 +328,7 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
           <div className="cm-featured-row">
             {featured.map((product) => (
               <button className="cm-featured-card" key={product.id} type="button" onClick={() => setSelectedProduct(product)} aria-label={`Ver ${product.name}`}>
-                {product.imageUrl ? <Image src={product.imageUrl} alt="" width={156} height={156} loading="eager" unoptimized /> : <span className="cm-featured-placeholder" aria-hidden="true"><Hamburger size={40} weight="duotone" /></span>}
+                {product.imageUrl ? <Image src={product.imageUrl} alt="" width={156} height={156} loading="eager" unoptimized /> : <span className="cm-featured-placeholder" aria-hidden="true"><PlaceholderIcon names={[product.name]} size={40} /></span>}
                 <strong>{product.name}</strong>
                 <span>{formatPrice(product.priceCents)}</span>
               </button>
@@ -328,8 +346,8 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
           </a>
         )}
         {itemCount === 0 && (
-          <button className="cm-cart-icon" type="button" aria-label="Ver pedido, 0 productos" onClick={() => setCartOpen(true)}>
-            <ShoppingBag size={22} weight="bold" aria-hidden="true" />
+          <button className="cm-cart-icon" type="button" onClick={() => setCartOpen(true)}>
+            <ShoppingBag size={20} weight="bold" aria-hidden="true" />Mi pedido
           </button>
         )}
       </div>
@@ -337,7 +355,7 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
         <section id={`category-${category.id}`} className="cm-category" key={category.id}>
           <div className="cm-category-head"><h2>{category.name}</h2><span>{category.products.length} opciones</span></div>
           <div className="cm-product-list">
-            {category.products.map((product) => <ProductCard key={product.id} product={product} onSelect={setSelectedProduct} />)}
+            {category.products.map((product) => <ProductCard key={product.id} product={product} categoryName={category.name} onSelect={setSelectedProduct} />)}
           </div>
         </section>
       ))}

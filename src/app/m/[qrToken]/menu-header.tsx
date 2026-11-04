@@ -1,4 +1,5 @@
 import { Clock, InstagramLogo, MapPin, WhatsappLogo } from "@phosphor-icons/react/ssr";
+import { WakeLogo } from "../wake-logo";
 
 export type PublicBusiness = Readonly<{
   name: string;
@@ -24,7 +25,7 @@ export function MenuHeader({ business, hoursLabel }: MenuHeaderProps) {
   return (
     <>
       <div className="cm-topbar">
-        <p className="cm-brand">{business.name}</p>
+        <p className="cm-brand"><WakeLogo className="cm-brand-logo" /><span className="cm-sr-only">{business.name}</span></p>
         {actions.length > 0 && (
           <nav className="cm-social" aria-label="Contacto del local">
             {actions.map((action) => {
