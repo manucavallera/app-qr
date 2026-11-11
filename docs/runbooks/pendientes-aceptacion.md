@@ -1,6 +1,33 @@
 # Pendientes de aceptación
 
-Última actualización: 5 de octubre de 2026
+Última actualización: 7 de octubre de 2026
+
+## Estado al 7 de octubre
+
+Todo lo de abajo está mergeado en `main` (PR #6 y #10 a #16) y desplegado. La última migración es `20261006180000_tab_payment_refund`.
+
+**Probado de punta a punta en producción** (con la mesa de prueba y credenciales de prueba de Mercado Pago):
+
+- Cuenta compartida por mesa: dos clientes piden a la cuenta, "Pedir la cuenta", cobro por persona y de la mesa entera, efectivo con confirmación en Caja, Comandas, seguimiento en vivo y pantalla del televisor, rechazo de pago, permisos (401 sin sesión, 404 al leer pedidos de otra mesa).
+- Pago de la cuenta con Mercado Pago: la app crea el pago con el monto correcto, el comprador de prueba paga y Mercado Pago lo acredita. Con un aviso (webhook) válido, la app cobra el pedido, cierra la parte del cliente y deja la mesa abierta para el resto.
+- También probado en local: pedido del mozo en Caja a la cuenta de una mesa, extras y notas, stock agotado, devoluciones, accesibilidad (0 problemas en cuatro pantallas) y carga en celular (primer contenido a los 2,9 s con 4G lento).
+
+**Arreglado en esta tanda:** el login revelaba qué emails existen por el tiempo de respuesta; el cliente veía un error genérico cuando un producto se agotaba antes de enviar el pedido; los avisos de devolución de pagos de cuenta (nuevo bloque "Devolver pagos de cuenta" en Inicio); doble pago al tocar dos veces "Pagar con Mercado Pago"; textos de la cuenta y de la carta; `scripts/backup-db.sh` dejaba un archivo vacío si `pg_dump` fallaba; `APP_URL` con barra final armaba la URL del webhook con `//`.
+
+**Abierto: el aviso real de Mercado Pago no se aplica solo.** Con una simulación desde el panel de Mercado Pago (pago real `181773804841`), la app cobró el pedido, así que el camino funciona y la firma es válida con la clave cargada. Pero con tres pagos reales aprobados (Ana, Beto y Caro) el aviso real nunca se aplicó, ni 200 segundos después. El webhook ahora deja una línea por aviso en los registros del servidor, con `route: "mercado-pago-webhook"` y un `code` (`PROCESSED`, `IGNORED_<tipo>` o `INVALID_WEBHOOK_SIGNATURE`). Hipótesis a confirmar con esos registros: los pagos vienen con `live_mode: true`, y Mercado Pago firma con una clave secreta distinta en modo Pruebas y en modo Productivo. Si es así, `MERCADOPAGO_WEBHOOK_SECRET` tiene que ser la del modo Productivo, y el webhook también hay que configurarlo ahí.
+
+**Estado de la mesa de prueba en producción** (limpiar antes de abrir):
+
+- "Pagar al final" está prendido y la mesa "Mesa prueba" está activa, con los pedidos #10 y #11 abiertos. Los dos tienen el pago aprobado en Mercado Pago y siguen sin cobrar en la app, a propósito, para depurar el aviso.
+- El pedido #6 (entregado) dejó $ 2.800 de efectivo de prueba en las ventas del 6 de octubre.
+- Desactivar el usuario `prueba@test.local` en Usuarios.
+- El modo de pedidos QR sigue en "forzado abierto" (`FORCE_QR_OPEN`): cargar los horarios y volver a "Según horario" antes de abrir.
+
+**Infraestructura:**
+
+- Backup diario en EasyPanel (Copias de seguridad), base `appqr-db1`, 7:00 UTC, guardado en el disco del propio servidor. Falta un segundo destino fuera del servidor (R2), fijar la retención en 30 y **probar una restauración**. `scripts/backup-db.sh` necesita un `pg_dump` de la misma versión mayor que el servidor (PostgreSQL 18).
+- Mercado Pago de prueba cargado en producción. Para cobrar de verdad hace falta el token de producción y la clave secreta del webhook de modo Productivo.
+- Horario provisorio del dueño, a confirmar: martes cerrado, apertura a las 19, y quizá pasar a "solo caja" únicamente los fines de semana. La configuración ya permite un horario distinto por día.
 
 ## Estado al 5 de octubre
 
@@ -17,7 +44,7 @@ Pendiente, en orden:
 
 1. Probar la cuenta por mesa en producción con dos celulares: cierre del QR a la 1:00, prender "Pagar al final", pasar las hamburguesas a "Retiro".
 2. Comprobante de la cuenta entera.
-3. Pago de la cuenta con Mercado Pago desde el celular.
+3. Pago de la cuenta con Mercado Pago: ver "Abierto" en el estado del 7 de octubre.
 4. Imágenes con R2 desde el contenedor.
 5. Mercado Pago real con la cuenta del cliente.
 6. Backup diario automático con restauración probada (`scripts/backup-db.sh` sigue sin probarse; hoy los backups son `pg_dump` manuales antes de cada migración).
