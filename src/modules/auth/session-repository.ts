@@ -8,6 +8,21 @@ export type RateLimitDecision = {
   resetsAt: Date;
 };
 
+export type LoginOutcome = "SUCCESS" | "FAILED";
+
+export type LoginEvent = {
+  email: string;
+  outcome: LoginOutcome;
+  userId?: string;
+  ipAddress: string;
+  userAgent: string | null;
+};
+
+export const LOGIN_AUDIT_ACTIONS: Record<LoginOutcome, string> = {
+  SUCCESS: "STAFF_LOGIN",
+  FAILED: "STAFF_LOGIN_FAILED",
+};
+
 export class PrismaSessionRepository implements AuthRepository {
   constructor(private readonly db: PrismaClient) {}
 
@@ -93,6 +108,18 @@ export class PrismaSessionRepository implements AuthRepository {
 
   async clearRateLimit(key: string): Promise<void> {
     await this.db.rateLimitBucket.deleteMany({ where: { key } });
+  }
+
+  async recordLoginEvent(event: LoginEvent): Promise<void> {
+    await this.db.auditEvent.create({
+      data: {
+        actorStaffId: event.userId ?? null,
+        action: LOGIN_AUDIT_ACTIONS[event.outcome],
+        entityType: "StaffLogin",
+        entityId: event.email,
+        metadata: { email: event.email, ipAddress: event.ipAddress, userAgent: event.userAgent?.slice(0, 200) ?? null },
+      },
+    });
   }
 }
 

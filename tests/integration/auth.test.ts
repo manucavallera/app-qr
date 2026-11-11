@@ -34,6 +34,7 @@ describe("staff authentication integration", () => {
   });
 
   afterAll(async () => {
+    await prisma.auditEvent.deleteMany({ where: { entityType: "StaffLogin", entityId: { in: [adminEmail, rateLimitedEmail] } } });
     await prisma.staffUser.deleteMany({ where: { email: { in: [adminEmail, operatorEmail] } } });
     await prisma.rateLimitBucket.deleteMany({ where: { key: { startsWith: `staff-login:${adminEmail}:` } } });
     await prisma.rateLimitBucket.deleteMany({ where: { key: { startsWith: `staff-login:${rateLimitedEmail}:` } } });
@@ -62,6 +63,37 @@ describe("staff authentication integration", () => {
     const stored = await prisma.staffSession.findUnique({ where: { tokenHash: hashToken(cookie!.value) } });
     expect(stored?.tokenHash).not.toBe(cookie?.value);
     expect(stored?.expiresAt.getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it("records successful and failed logins in the audit log", async () => {
+    const attempt = (password: string) => loginRoute(
+      new NextRequest("http://localhost/api/staff/auth/login", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-forwarded-for": "203.0.113.7",
+          "user-agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)",
+        },
+        body: JSON.stringify({ email: adminEmail, password }),
+      }),
+    );
+    expect((await attempt("wrong password")).status).toBe(401);
+    expect((await attempt("integration password")).status).toBe(200);
+
+    const admin = await prisma.staffUser.findUniqueOrThrow({ where: { email: adminEmail } });
+    const events = await prisma.auditEvent.findMany({
+      where: { entityType: "StaffLogin", entityId: adminEmail, metadata: { path: ["ipAddress"], equals: "203.0.113.7" } },
+      orderBy: { createdAt: "asc" },
+    });
+    expect(events.map((event) => [event.action, event.actorStaffId])).toEqual([
+      ["STAFF_LOGIN_FAILED", null],
+      ["STAFF_LOGIN", admin.id],
+    ]);
+    expect(events[1].metadata).toEqual({
+      email: adminEmail,
+      ipAddress: "203.0.113.7",
+      userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)",
+    });
   });
 
   it("returns 401 without a session and 403 when the role is not allowed", async () => {

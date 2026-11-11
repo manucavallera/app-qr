@@ -23,6 +23,8 @@ export const staffRoleLabel: Record<string, string> = {
 };
 
 export const auditActionLabel: Record<string, string> = {
+  STAFF_LOGIN: "Ingreso al panel",
+  STAFF_LOGIN_FAILED: "Ingreso fallido",
   STAFF_USER_CREATED: "Usuario creado",
   STAFF_USER_UPDATED: "Usuario actualizado",
   STAFF_USER_DEACTIVATED: "Usuario desactivado",
@@ -53,6 +55,7 @@ export const auditActionLabel: Record<string, string> = {
 
 export const auditEntityLabel: Record<string, string> = {
   StaffUser: "Usuario del equipo",
+  StaffLogin: "Ingreso del equipo",
   BusinessSettings: "Configuración del local",
   PaymentAttempt: "Intento de pago",
   Order: "Pedido",
