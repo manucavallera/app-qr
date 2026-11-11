@@ -940,6 +940,34 @@ body:has(.cm-shell, .cm-welcome-shell, .cm-page) {
   cursor: pointer;
 }
 
+/* Solo carta: las opciones se listan sin poder elegirlas. */
+.cm-group-title {
+  margin: 0;
+  padding: 0 0 8px;
+  font-family: var(--cm-font-display);
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.cm-option-list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Filas de texto, no casillas: que no parezcan algo para tocar. */
+.cm-option.is-static {
+  min-height: 44px;
+  padding: 8px 0;
+  border: 0;
+  border-bottom: 1px solid var(--cm-line);
+  border-radius: 0;
+  background: transparent;
+  cursor: default;
+}
+
 .cm-option:has(input:checked) {
   border-color: var(--cm-accent);
   background: var(--cm-surface);

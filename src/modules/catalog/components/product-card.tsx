@@ -6,7 +6,8 @@ import type { MenuProduct } from "./product-dialog";
 
 export { formatArs };
 
-export function ProductCard({ product, categoryName, onSelect }: { product: MenuProduct; categoryName?: string; onSelect: (product: MenuProduct) => void }) {
+/** viewOnly: carta sin pedidos; la tarjeta abre el detalle pero no muestra el botón de agregar. */
+export function ProductCard({ product, categoryName, onSelect, viewOnly = false }: { product: MenuProduct; categoryName?: string; onSelect: (product: MenuProduct) => void; viewOnly?: boolean }) {
   return (
     // The whole card opens the product; the button stays as the keyboard and screen-reader target.
     <article className={`cm-product${product.available ? "" : " is-unavailable"}`} onClick={() => { if (product.available) onSelect(product); }}>
@@ -24,7 +25,7 @@ export function ProductCard({ product, categoryName, onSelect }: { product: Menu
         {product.imageUrl ? (
           <Image className="cm-product-image" src={product.imageUrl} alt="" width={112} height={112} unoptimized />
         ) : <div className="cm-product-image-placeholder" aria-hidden="true"><PlaceholderIcon names={[product.name, categoryName]} size={36} /></div>}
-        <button
+        {!viewOnly && <button
           className="cm-add"
           type="button"
           disabled={!product.available}
@@ -32,7 +33,7 @@ export function ProductCard({ product, categoryName, onSelect }: { product: Menu
           aria-label={product.available ? `Agregar ${product.name}` : `${product.name}, agotado`}
         >
           {product.available ? <Plus size={20} weight="bold" aria-hidden="true" /> : <Minus size={20} weight="bold" aria-hidden="true" />}
-        </button>
+        </button>}
       </div>
     </article>
   );

@@ -41,7 +41,7 @@ const businessProfileSchema = z.object({
 const inputSchema = z.object({
   timezone: z.string().refine((value) => DateTime.now().setZone(value).isValid, "Zona horaria inválida"),
   windows: z.array(windowSchema).max(7),
-  manualMode: z.enum(["SCHEDULED", "FORCE_QR_OPEN", "FORCE_COUNTER_ONLY", "FORCE_PAUSED"]),
+  manualMode: z.enum(["SCHEDULED", "FORCE_QR_OPEN", "FORCE_COUNTER_ONLY", "FORCE_PAUSED", "FORCE_MENU_ONLY"]),
   paymentSettings: paymentSettingsSchema.optional(),
   businessProfile: businessProfileSchema.optional(),
 });

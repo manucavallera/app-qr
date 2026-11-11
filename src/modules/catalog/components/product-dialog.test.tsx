@@ -37,6 +37,14 @@ describe("ProductDialog", () => {
     expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ productId: "burger", optionIds: ["well"], notes: "sin sal", quantity: 1 }));
   });
 
+  it("shows options without any way to order when there is no onAdd (menu-only)", () => {
+    render(<ProductDialog product={product} onClose={() => undefined} />);
+    expect(screen.getByText("Bien cocida")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /agregar al carrito/i })).toBeNull();
+    expect(screen.queryByPlaceholderText("Ej. sin mayonesa")).toBeNull();
+    expect(screen.queryByRole("radio")).toBeNull();
+  });
+
   it("prefills an existing selection so the customer can edit it", () => {
     const onAdd = vi.fn();
     render(

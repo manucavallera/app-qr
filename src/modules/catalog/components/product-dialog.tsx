@@ -38,9 +38,11 @@ export function ProductDialog({
 }: {
   product: MenuProduct;
   initialItem?: CartItem;
-  onAdd: (item: CartItem) => void;
+  /** Sin onAdd el detalle es solo para ver (modo "Solo carta"): opciones con precio, sin elegir ni agregar. */
+  onAdd?: (item: CartItem) => void;
   onClose: () => void;
 }) {
+  const viewOnly = !onAdd;
   const [selected, setSelected] = useState<Record<string, string[]>>(() => Object.fromEntries(
     product.optionGroups.map((group) => [group.id, group.values.filter((value) => initialItem?.optionIds.includes(value.id)).map((value) => value.id)]),
   ));
@@ -69,7 +71,7 @@ export function ProductDialog({
       setError(`Elegí ${invalid.name.toLocaleLowerCase("es-AR")} para continuar.`);
       return;
     }
-    onAdd({ productId: product.id, optionIds: chosenIds, notes: notes.trim(), quantity, displayedTotalCents: unitTotal });
+    onAdd?.({ productId: product.id, optionIds: chosenIds, notes: notes.trim(), quantity, displayedTotalCents: unitTotal });
     onClose();
   }
 
@@ -82,6 +84,23 @@ export function ProductDialog({
           <h2 id="product-dialog-title">{product.name}</h2>
           {product.description && <p className="cm-sheet-desc">{product.description}</p>}
           <p className="cm-base-price">Desde {formatArs(product.priceCents)}</p>
+          {viewOnly ? (
+            <div className="cm-options">
+              {product.optionGroups.map((group) => (
+                <section key={group.id} className="cm-group">
+                  <h3 className="cm-group-title">{group.name}</h3>
+                  <ul className="cm-option-list">
+                    {group.values.filter((value) => value.available !== false).map((value) => (
+                      <li key={value.id} className="cm-option is-static">
+                        <span>{value.name}</span>
+                        {value.priceDeltaCents > 0 && <span>+{formatArs(value.priceDeltaCents)}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ))}
+            </div>
+          ) : <>
           <div className="cm-options">
             {product.optionGroups.map((group) => (
               <fieldset key={group.id} className="cm-group">
@@ -110,16 +129,17 @@ export function ProductDialog({
             Nota para la cocina
             <textarea className="cm-input" rows={2} maxLength={160} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Ej. sin mayonesa" />
           </label>
+          </>}
           {error && <p role="alert" className="cm-error">{error}</p>}
         </div>
-        <div className="cm-sheet-footer">
+        {!viewOnly && <div className="cm-sheet-footer">
           <div className="cm-stepper" aria-label="Cantidad">
             <button type="button" aria-label="Restar uno" disabled={quantity <= 1} onClick={() => setQuantity((value) => value - 1)}><Minus size={18} weight="bold" aria-hidden="true" /></button>
             <span>{quantity}</span>
             <button type="button" aria-label="Sumar uno" disabled={quantity >= (product.stockLeft ?? 99)} onClick={() => setQuantity((value) => Math.min(product.stockLeft ?? 99, 99, value + 1))}><Plus size={18} weight="bold" aria-hidden="true" /></button>
           </div>
           <button className="cm-btn" type="button" onClick={add}>{initialItem ? "Guardar cambios" : "Agregar al carrito"} · {formatArs(unitTotal * quantity)}</button>
-        </div>
+        </div>}
       </Sheet>
     </div>
   );

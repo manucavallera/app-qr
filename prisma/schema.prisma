@@ -17,6 +17,8 @@ enum ManualMode {
   FORCE_QR_OPEN
   FORCE_COUNTER_ONLY
   FORCE_PAUSED
+  /// Solo carta: el QR muestra la carta y los precios, sin pedir ni pagar.
+  FORCE_MENU_ONLY
 }
 
 enum OrderOrigin {
