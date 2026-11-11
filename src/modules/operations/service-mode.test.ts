@@ -64,4 +64,13 @@ describe("resolveServiceMode", () => {
       expect(at("2026-09-24T23:00:00.000Z")).toBe("QR_OPEN");
     });
   });
+
+  it("shows only the menu when the owner forces menu-only, even inside opening hours", () => {
+    const windows = [
+      { weekday: 5, opensAtMinute: 1080, closesAtMinute: 60, enabled: true },
+    ];
+    const now = new Date("2026-09-19T03:30:00.000Z");
+
+    expect(resolveServiceMode(now, timezone, windows, "FORCE_MENU_ONLY")).toBe("MENU_ONLY");
+  });
 });

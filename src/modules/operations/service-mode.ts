@@ -1,12 +1,15 @@
 import { DateTime } from "luxon";
 import { DomainError } from "../orders/errors";
 
-/** CLOSED: un día sin horario cargado (por ejemplo el martes). COUNTER_ONLY: el QR cerró pero se atiende en barra y caja. */
-export type ServiceMode = "QR_OPEN" | "COUNTER_ONLY" | "PAUSED" | "CLOSED";
+/**
+ * CLOSED: un día sin horario cargado (por ejemplo el martes). COUNTER_ONLY: el QR cerró pero se atiende en barra y caja.
+ * MENU_ONLY: el QR es solo una carta digital; el pedido lo toma el personal en la mesa.
+ */
+export type ServiceMode = "QR_OPEN" | "COUNTER_ONLY" | "PAUSED" | "CLOSED" | "MENU_ONLY";
 
 /** La noche que empezó en un día con horario sigue contando como "barra y caja" hasta esta hora. */
 const NIGHT_ENDS_AT_MINUTE = 6 * 60;
-export type ManualMode = "SCHEDULED" | "FORCE_QR_OPEN" | "FORCE_COUNTER_ONLY" | "FORCE_PAUSED";
+export type ManualMode = "SCHEDULED" | "FORCE_QR_OPEN" | "FORCE_COUNTER_ONLY" | "FORCE_PAUSED" | "FORCE_MENU_ONLY";
 
 export type ServiceWindowInput = Readonly<{
   weekday: number;
@@ -44,6 +47,7 @@ export function resolveServiceMode(
   if (manualMode === "FORCE_QR_OPEN") return "QR_OPEN";
   if (manualMode === "FORCE_COUNTER_ONLY") return "COUNTER_ONLY";
   if (manualMode === "FORCE_PAUSED") return "PAUSED";
+  if (manualMode === "FORCE_MENU_ONLY") return "MENU_ONLY";
 
   const localNow = DateTime.fromJSDate(now, { zone: timezone });
   if (!localNow.isValid) {

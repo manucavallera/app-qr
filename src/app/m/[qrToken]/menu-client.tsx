@@ -15,9 +15,9 @@ import { MenuHeader, type PublicBusiness } from "./menu-header";
 
 type PublicMenu = Readonly<{
   table: { label: string };
-  mode: "QR_OPEN" | "COUNTER_ONLY" | "PAUSED" | "CLOSED";
+  mode: "QR_OPEN" | "COUNTER_ONLY" | "PAUSED" | "CLOSED" | "MENU_ONLY";
   business: PublicBusiness;
-  service: { mode: "QR_OPEN" | "COUNTER_ONLY" | "PAUSED" | "CLOSED"; hoursLabel: string | null };
+  service: { mode: "QR_OPEN" | "COUNTER_ONLY" | "PAUSED" | "CLOSED" | "MENU_ONLY"; hoursLabel: string | null };
   categories: ReadonlyArray<{ id: string; name: string; products: ReadonlyArray<MenuProduct> }>;
   serverTime: string;
 }>;
@@ -60,6 +60,13 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
 
   const checkSession = useCallback(async () => {
     try {
+      const loadedMenu = await loadMenu();
+      // Solo carta: se ve directo, sin pedir nombre ni abrir sesión en la mesa.
+      if (loadedMenu.service.mode === "MENU_ONLY") {
+        setMenu(loadedMenu);
+        setSessionStatus("ready");
+        return;
+      }
       const response = await fetch(`/api/public/qr/${encodeURIComponent(qrToken)}/session`, { cache: "no-store" });
       if (!response.ok) throw new Error(await readError(response));
       const current = await response.json() as { nickname: string | null; people?: string[] };
@@ -68,7 +75,6 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
         setSessionStatus("needs-name");
         return;
       }
-      const loadedMenu = await loadMenu();
       setNickname(current.nickname);
       setMenu(loadedMenu);
       setSessionStatus("ready");
@@ -103,7 +109,7 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
   }, [addedNotice]);
 
   useEffect(() => {
-    if (!menu || cartLoadedForToken !== qrToken) return;
+    if (!menu || menu.service.mode === "MENU_ONLY" || cartLoadedForToken !== qrToken) return;
     const catalog = new Map(menu.categories.flatMap((category) => category.products.map((product) => [product.id, product] as const)));
     const valid = (item: CartItem) => {
       const product = catalog.get(item.productId);
@@ -121,7 +127,7 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
   }, [menu, cart, cartLoadedForToken, qrToken]);
 
   useEffect(() => {
-    if (sessionStatus !== "ready") return;
+    if (sessionStatus !== "ready" || !nickname) return;
     const refreshTab = async () => {
       try {
         const response = await fetch("/api/public/tab", { cache: "no-store" });
@@ -137,7 +143,7 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
     const onVisible = () => { if (document.visibilityState === "visible") void refreshTab(); };
     document.addEventListener("visibilitychange", onVisible);
     return () => { window.clearInterval(timer); document.removeEventListener("visibilitychange", onVisible); };
-  }, [sessionStatus]);
+  }, [sessionStatus, nickname]);
 
   // Highlight the category on screen and keep its chip visible in the sticky bar.
   useEffect(() => {
@@ -284,6 +290,7 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
   if (!menu) return null;
 
   const canOrder = menu.service.mode === "QR_OPEN";
+  const menuOnly = menu.service.mode === "MENU_ONLY";
   const modeMessage = menu.service.mode === "PAUSED"
     ? "Los pedidos están pausados por el local. Podés seguir viendo la carta."
     : menu.service.mode === "CLOSED"
@@ -308,7 +315,7 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
   }
 
   return (
-    <main className={`cm-shell${itemCount > 0 ? " has-cartbar" : ""}`}>
+    <main className={`cm-shell${itemCount > 0 && !menuOnly ? " has-cartbar" : ""}`}>
       {addedNotice && (
         <div key={addedNotice.id} className="cm-toast" role="status">
           <span><Check size={18} weight="bold" aria-hidden="true" />{addedNotice.name} agregado</span>
@@ -317,11 +324,11 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
       )}
       <MenuHeader business={menu.business} hoursLabel={menu.service.hoursLabel} />
       <header className="cm-hero">
-        <div className="cm-hero-meta"><span className="cm-table">{menu.table.label}</span><span className="cm-greeting">Hola, {nickname}</span></div>
+        <div className="cm-hero-meta"><span className="cm-table">{menu.table.label}</span>{nickname && <span className="cm-greeting">Hola, {nickname}</span>}</div>
         <h1>Elegí algo rico.</h1>
-        <p>Pedí desde tu lugar. Te avisamos cuando esté listo.</p>
+        <p>{menuOnly ? "Mirá la carta y pedile tu orden a la moza o al mozo." : "Pedí desde tu lugar. Te avisamos cuando esté listo."}</p>
       </header>
-      {!canOrder && <aside className="cm-notice" role="status">{modeMessage}</aside>}
+      {!canOrder && !menuOnly && <aside className="cm-notice" role="status">{modeMessage}</aside>}
       {featured.length > 0 && (
         <section className="cm-featured" aria-labelledby="featured-title">
           <h2 id="featured-title">Recomendados</h2>
@@ -345,7 +352,7 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
             <Receipt size={20} weight="bold" aria-hidden="true" />Cuenta<strong>{formatPrice(tabTotalCents)}</strong>
           </a>
         )}
-        {itemCount === 0 && (
+        {itemCount === 0 && !menuOnly && (
           <button className="cm-cart-icon" type="button" onClick={() => setCartOpen(true)}>
             <ShoppingBag size={20} weight="bold" aria-hidden="true" />Mi pedido
           </button>
@@ -355,20 +362,20 @@ export function MenuClient({ qrToken }: { qrToken: string }) {
         <section id={`category-${category.id}`} className="cm-category" key={category.id}>
           <div className="cm-category-head"><h2>{category.name}</h2><span>{category.products.length} opciones</span></div>
           <div className="cm-product-list">
-            {category.products.map((product) => <ProductCard key={product.id} product={product} categoryName={category.name} onSelect={setSelectedProduct} />)}
+            {category.products.map((product) => <ProductCard key={product.id} product={product} categoryName={category.name} onSelect={setSelectedProduct} viewOnly={menuOnly} />)}
           </div>
         </section>
       ))}
       {menu.categories.length === 0 && <p className="cm-empty">Todavía no hay productos publicados en la carta.</p>}
       {message && <p className="cm-error" role="alert">{message}</p>}
-      {itemCount > 0 && (
+      {itemCount > 0 && !menuOnly && (
         <button className="cm-cartbar" type="button" aria-label={`Ver pedido, ${itemCount} ${itemCount === 1 ? "producto" : "productos"}`} onClick={() => setCartOpen(true)}>
           <span className="cm-cartbar-label"><ShoppingBag size={22} weight="bold" aria-hidden="true" />Ver pedido<span key={itemCount} className="cm-count">{itemCount}</span></span>
           <span className="cm-cartbar-total">{formatPrice(total)}</span>
         </button>
       )}
-      {selectedProduct && <ProductDialog product={selectedProduct} initialItem={editingCartIndex === null ? undefined : cart[editingCartIndex]} onClose={closeProductDialog} onAdd={saveProduct} />}
-      {cartOpen && (
+      {selectedProduct && <ProductDialog product={selectedProduct} initialItem={editingCartIndex === null ? undefined : cart[editingCartIndex]} onClose={closeProductDialog} onAdd={menuOnly ? undefined : saveProduct} />}
+      {cartOpen && !menuOnly && (
         <div className="cm-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCartOpen(false); }}>
           <Sheet labelledBy="cart-title">
             <button className="cm-close" type="button" onClick={() => setCartOpen(false)} aria-label="Cerrar"><X size={20} weight="bold" aria-hidden="true" /></button>
