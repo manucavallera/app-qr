@@ -4,7 +4,7 @@ import { getClientIp } from "@/lib/http/client-ip";
 import { apiErrorResponse } from "@/lib/api-errors";
 import { AuthService, loginRateLimitKey, STAFF_SESSION_COOKIE, STAFF_SESSION_MAX_AGE_SECONDS } from "@/modules/auth/auth-service";
 import { DomainError } from "@/modules/orders/errors";
-import { sessionRepository } from "@/modules/auth/session-repository";
+import { sessionRepository, type LoginEvent } from "@/modules/auth/session-repository";
 
 const loginBodySchema = z.object({
   email: z.string().trim().email().max(254),
@@ -12,6 +12,15 @@ const loginBodySchema = z.object({
 });
 
 const authService = new AuthService(sessionRepository);
+
+// The login history must never block a login, so a failed write is only logged.
+async function recordLogin(event: LoginEvent): Promise<void> {
+  try {
+    await sessionRepository.recordLoginEvent(event);
+  } catch (error) {
+    console.error("staff login audit failed", error);
+  }
+}
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const body: unknown = await request.json().catch(() => null);
@@ -25,6 +34,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const rateLimitKey = loginRateLimitKey(normalizedEmail, ipAddress);
   // Second bucket per email alone, so rotating the forwarded IP cannot lift the limit.
   const emailRateLimitKey = `staff-login-email:${normalizedEmail}`;
+  const userAgent = request.headers.get("user-agent");
 
   try {
     const ipRateLimit = await sessionRepository.consumeRateLimit(rateLimitKey, 5, 15 * 60);
@@ -41,6 +51,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const session = await authService.login(normalizedEmail, parsed.data.password);
     await sessionRepository.clearRateLimit(rateLimitKey);
     await sessionRepository.clearRateLimit(emailRateLimitKey);
+    await recordLogin({ email: normalizedEmail, outcome: "SUCCESS", userId: session.user.id, ipAddress, userAgent });
 
     const response = NextResponse.json({
       id: session.user.id,
@@ -58,6 +69,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return response;
   } catch (error) {
     if (error instanceof DomainError && error.code === "INVALID_CREDENTIALS") {
+      await recordLogin({ email: normalizedEmail, outcome: "FAILED", ipAddress, userAgent });
       return NextResponse.json({ error: "INVALID_CREDENTIALS" }, { status: 401 });
     }
     return apiErrorResponse(error);
