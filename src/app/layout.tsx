@@ -1,12 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Raleway } from "next/font/google";
 import type { ReactNode } from "react";
 import "./globals.css";
 import { PwaRegister } from "./pwa-register";
 
-const inter = Inter({
+const raleway = Raleway({
   subsets: ["latin"],
-  variable: "--font-inter",
+  style: ["normal", "italic"],
+  variable: "--font-raleway",
   display: "swap",
   fallback: ["system-ui", "sans-serif"],
   preload: true,
@@ -14,11 +15,11 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "Pedidos QR",
-    template: "%s | Pedidos QR",
+    default: "WAKE",
+    template: "%s | WAKE",
   },
   description: "Carta y pedidos del bar",
-  applicationName: "Pedidos QR",
+  applicationName: "WAKE",
 };
 
 export const viewport: Viewport = {
@@ -30,7 +31,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="es-AR" className={inter.className}>
+    <html lang="es-AR" className={`${raleway.className} ${raleway.variable}`}>
       <body><PwaRegister />{children}</body>
     </html>
   );
