@@ -1,10 +1,11 @@
 import type { Viewport } from "next";
-import { Geist, Outfit } from "next/font/google";
+import { Raleway } from "next/font/google";
 import type { ReactNode } from "react";
 import "./customer-menu.css";
 
-const display = Outfit({ subsets: ["latin"], variable: "--cm-font-display", display: "swap" });
-const body = Geist({ subsets: ["latin"], variable: "--cm-font-body", display: "swap" });
+// Brand titles use Noka once the owner has a commercial license; Raleway covers everything until then.
+const display = Raleway({ subsets: ["latin"], style: ["normal", "italic"], variable: "--cm-font-display", display: "swap" });
+const body = Raleway({ subsets: ["latin"], style: ["normal", "italic"], variable: "--cm-font-body", display: "swap" });
 
 export const viewport: Viewport = {
   themeColor: "#311c47",

@@ -5,7 +5,7 @@ export default function HomePage() {
     <main className="home-shell">
       <section className="home-card" aria-labelledby="home-title">
         <p className="eyebrow">Sistema de pedidos</p>
-        <h1 id="home-title">Pedidos QR</h1>
+        <h1 id="home-title">WAKE</h1>
         <p className="home-description">
           Carta digital y autogestión para las mesas del bar.
         </p>
